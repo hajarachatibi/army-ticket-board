@@ -1,0 +1,96 @@
+@import "../styles/army.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --army-purple: #800080;
+  --army-purple-light: #e879f9;
+  --army-purple-dark: #4c1d95;
+}
+
+body {
+  background: #ffffff;
+  color: #171717;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+.dark body {
+  background: #0f0f0f;
+  color: #ededed;
+}
+
+/* Hero gradient overlay */
+.hero-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(128, 0, 128, 0.75) 0%,
+    rgba(128, 0, 128, 0.5) 40%,
+    rgba(76, 29, 149, 0.85) 100%
+  );
+}
+
+/* Purple gradient backgrounds */
+.bg-gradient-army {
+  background: linear-gradient(135deg, #800080 0%, #a21caf 50%, #4c1d95 100%);
+}
+
+.bg-gradient-army-subtle {
+  background: linear-gradient(180deg, rgba(128, 0, 128, 0.06) 0%, transparent 100%);
+}
+
+/* Buttons */
+@layer components {
+  .btn-army {
+    @apply inline-flex items-center justify-center rounded-lg px-5 py-2.5 font-bold transition-all duration-200;
+    @apply bg-army-purple text-white hover:bg-army-800 hover:shadow-lg hover:shadow-[0_8px_24px_rgba(128,0,128,0.25)];
+    @apply focus:outline-none focus:ring-2 focus:ring-army-purple focus:ring-offset-2;
+  }
+
+  .btn-army-outline {
+    @apply inline-flex items-center justify-center rounded-lg border-2 border-army-purple px-5 py-2.5 font-bold transition-all duration-200;
+    @apply bg-transparent text-army-purple hover:bg-army-purple hover:text-white;
+    @apply focus:outline-none focus:ring-2 focus:ring-army-purple focus:ring-offset-2;
+  }
+
+  .btn-army-ghost {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold transition-all duration-200;
+    @apply text-army-purple hover:bg-army-purple/10;
+  }
+
+  .input-army {
+    @apply w-full rounded-lg border-2 border-army-purple/25 bg-white px-3 py-2 text-neutral-800 transition-colors;
+    @apply placeholder:text-neutral-400 focus:border-army-purple focus:outline-none focus:ring-2 focus:ring-army-purple/30;
+    @apply dark:bg-neutral-800 dark:text-neutral-200 dark:placeholder:text-neutral-500;
+  }
+
+  .input-army-gradient {
+    border-image: linear-gradient(135deg, #800080 0%, #a21caf 50%, #4c1d95 100%) 1;
+  }
+}
+
+/* Modal transitions */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-backdrop {
+  animation: modal-backdrop-in 0.2s ease-out;
+}
+
+.modal-panel {
+  animation: modal-panel-in 0.2s ease-out;
+}

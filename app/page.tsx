@@ -1,0 +1,90 @@
+import Link from "next/link";
+
+import StatsCard from "@/components/StatsCard";
+
+const STATS = [
+  { title: "Tickets Sold", value: "1,250", sub: "Placeholder" },
+  { title: "Active Events", value: "3", sub: "Placeholder" },
+  { title: "Requests Pending", value: "8", sub: "Placeholder" },
+];
+
+const NEWS = [
+  { title: "Arirang World Tour — Seoul dates announced", date: "2025-01-15" },
+  { title: "Ticket request window opens next week", date: "2025-01-10" },
+  { title: "New safety guidelines for venue entry", date: "2025-01-05" },
+];
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen">
+      <section
+        className="relative flex min-h-[320px] flex-col items-center justify-center gap-6 px-4 py-16 text-white sm:min-h-[380px] sm:gap-8 sm:py-24"
+        aria-label="Hero"
+      >
+        <div
+          className="absolute inset-0 bg-cover bg-no-repeat"
+          style={{
+            backgroundImage: "url(/bts-hero.png)",
+            backgroundPosition: "center 25%",
+          }}
+        />
+        <div className="hero-overlay absolute inset-0" />
+        <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+          <h1 className="font-display text-4xl font-bold tracking-tight drop-shadow-lg sm:text-5xl md:text-6xl">
+            Army Ticket Board
+          </h1>
+          <p className="max-w-xl text-lg text-white/90 sm:text-xl">
+            Find, book, and manage BTS concert tickets with ARMY.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/tickets" className="btn-army rounded-xl px-8 py-4 text-lg">
+              Book Tickets
+            </Link>
+            <Link href="/tickets" className="btn-army-outline rounded-xl px-8 py-4 text-lg">
+              Sell Ticket
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-army-purple/20 bg-army-purple/5 py-6 dark:border-army-purple/30 dark:bg-army-purple/10">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+          <p className="font-display text-lg font-bold text-army-purple sm:text-xl">
+            Made by Army, for Army.
+          </p>
+          <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 sm:text-base">
+            Only <strong>face value</strong> is accepted. If you list or buy above face value, ARMY will report you and you will be <strong>banned from the platform</strong>.
+          </p>
+        </div>
+      </section>
+
+      <section className="hidden mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <h2 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">Quick stats</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {STATS.map((s) => (
+            <StatsCard key={s.title} title={s.title} value={s.value} sub={s.sub} />
+          ))}
+        </div>
+      </section>
+
+      <section className="hidden bg-gradient-army-subtle py-12 sm:py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">
+            Recent news &amp; announcements
+          </h2>
+          <ul className="mt-6 space-y-3">
+            {NEWS.map((item) => (
+              <li
+                key={item.title}
+                className="rounded-xl border border-army-purple/15 bg-white p-4 transition-shadow hover:shadow-card dark:border-army-purple/25 dark:bg-neutral-900"
+              >
+                <p className="font-semibold text-neutral-800 dark:text-neutral-200">{item.title}</p>
+                <p className="mt-1 text-sm text-army-purple/80">{item.date}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    </main>
+  );
+}
