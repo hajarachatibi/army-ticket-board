@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { formatError } from "@/lib/formatError";
 import { supabase } from "@/lib/supabaseClient";
 
 export type AuthUser = {
@@ -74,7 +75,7 @@ async function ensureUserProfile(
       .single();
 
     if (!error && data) return { username: String(data.username ?? "ARMY") };
-    const msg = (error as { message?: string })?.message ?? "";
+    const msg = getErrorFields(error).message;
     const isUnique = /unique|duplicate|username/i.test(msg);
     if (!isUnique && process.env.NODE_ENV === "development") {
       console.warn("[Auth] ensureUserProfile insert error:", error);
@@ -82,27 +83,6 @@ async function ensureUserProfile(
     if (!isUnique) return null;
   }
   return null;
-}
-
-type SupabaseLikeError = {
-  message?: string;
-  code?: string;
-  details?: string | unknown;
-  hint?: string;
-  status?: number;
-  name?: string;
-  [k: string]: unknown;
-};
-
-function formatError(err: SupabaseLikeError, context: string): string {
-  const parts: string[] = [`[${context}] ${err.message ?? "Unknown error"}`];
-  if (err.name) parts.push(`Type: ${err.name}`);
-  if (err.code) parts.push(`Code: ${err.code}`);
-  if (err.status != null) parts.push(`Status: ${err.status}`);
-  if (err.details != null)
-    parts.push(`Details: ${typeof err.details === "string" ? err.details : JSON.stringify(err.details)}`);
-  if (err.hint) parts.push(`Hint: ${err.hint}`);
-  return parts.join("\n");
 }
 
 const DB_SAVE_USER_HINT = `
@@ -115,21 +95,35 @@ Likely causes:
 • Auth hooks (if enabled) can also fail here.
 `.trim();
 
-function formatSignUpError(err: SupabaseLikeError): string {
-  const code = (err.code ?? "").toLowerCase();
-  const status = err.status;
-  if (code === "over_email_send_rate_limit" || status === 429) {
-    return [
-      "Too many sign-up attempts — email rate limit exceeded.",
-      "",
-      "The limit is on how many auth emails your project can send in a short time (across all users). Using a different email won't help.",
-      "",
-      "What to do:",
-      "• Wait 10–30 minutes, then try again.",
-      "• Or disable \"Confirm email\" in Supabase Dashboard → Authentication → Providers → Email. Sign-ups will then work without sending emails (handy for local/dev).",
-    ].join("\n");
+function formatSignUpError(err: unknown): string {
+  if (typeof err === "object" && err !== null) {
+    const e = err as { code?: string; status?: number };
+    const code = (e.code ?? "").toLowerCase();
+    const status = e.status;
+    if (code === "over_email_send_rate_limit" || status === 429) {
+      return [
+        "Too many sign-up attempts — email rate limit exceeded.",
+        "",
+        "The limit is on how many auth emails your project can send in a short time (across all users). Using a different email won't help.",
+        "",
+        "What to do:",
+        "• Wait 10–30 minutes, then try again.",
+        "• Or disable \"Confirm email\" in Supabase Dashboard → Authentication → Providers → Email. Sign-ups will then work without sending emails (handy for local/dev).",
+      ].join("\n");
+    }
   }
   return formatError(err, "Sign up");
+}
+
+function getErrorFields(err: unknown): { message: string; code: string; details: string; hint: string } {
+  if (typeof err !== "object" || err === null) return { message: "", code: "", details: "", hint: "" };
+  const e = err as { message?: string; code?: string; details?: unknown; hint?: string };
+  return {
+    message: String(e.message ?? ""),
+    code: String(e.code ?? ""),
+    details: typeof e.details === "string" ? e.details : (e.details != null ? JSON.stringify(e.details) : ""),
+    hint: String(e.hint ?? ""),
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -154,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     if (err) {
-      const msg = formatError(err as SupabaseLikeError, "Login");
+      const msg = formatError(err, "Login");
       setError(msg);
       if (process.env.NODE_ENV === "development") console.error("[Auth] Login error:", err);
       throw err;
@@ -178,13 +172,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       const { data, error: signUpErr } = await supabase.auth.signUp({ email, password });
       if (signUpErr) {
-        const isRateLimit =
-          (signUpErr as SupabaseLikeError).code === "over_email_send_rate_limit" ||
-          (signUpErr as SupabaseLikeError).status === 429;
-        const isDbSave = (signUpErr.message ?? "").toLowerCase().includes("database error saving new user");
-        const base = isRateLimit
-          ? formatSignUpError(signUpErr as SupabaseLikeError)
-          : formatError(signUpErr as SupabaseLikeError, "Sign up");
+        const isRateLimit = (() => {
+          if (typeof signUpErr !== "object" || signUpErr === null) return false;
+          const e = signUpErr as { code?: string; status?: number };
+          return e.code === "over_email_send_rate_limit" || e.status === 429;
+        })();
+        const { message: signUpMsg } = getErrorFields(signUpErr);
+        const isDbSave = signUpMsg.toLowerCase().includes("database error saving new user");
+        const base = isRateLimit ? formatSignUpError(signUpErr) : formatError(signUpErr, "Sign up");
         const msg = isDbSave ? `${base}\n\n${DB_SAVE_USER_HINT}` : base;
         setError(msg);
         if (process.env.NODE_ENV === "development") {
@@ -209,8 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const insertErr = insertRes.error;
 
       if (insertErr) {
-        const code = String((insertErr as { code?: string }).code ?? "");
-        const msg = (insertErr as { message?: string }).message ?? "Unknown error";
+        const { message: msg, code, details, hint } = getErrorFields(insertErr);
         const isDuplicatePkey = code === "23505" && /user_profiles_pkey/.test(msg);
 
         if (isDuplicatePkey) {
@@ -224,8 +218,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const details = (insertErr as { details?: string }).details ?? "";
-        const hint = (insertErr as { hint?: string }).hint ?? "";
         const full = [
           `[user_profiles insert] ${msg}`,
           code && `Code: ${code}`,
