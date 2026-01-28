@@ -1,5 +1,5 @@
 export type TicketType = "Seat" | "Standing";
-export type TicketStatus = "Available" | "Contacted" | "Reported" | "Sold";
+export type TicketStatus = "Available" | "Sold";
 
 export type Ticket = {
   id: string;

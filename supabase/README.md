@@ -11,7 +11,8 @@
 7. Run `migrations/005_add_currency_to_tickets.sql` through `migrations/008_tickets_rls_fix.sql` in order (RLS fixes, currency).
 8. Run `migrations/009_realtime_chat_messages.sql` to add `chat_messages` to the Realtime publication so new messages appear in the UI without refresh.
 9. Run `migrations/010_requested_to_contacted.sql` to replace ticket status "Requested" with "Contacted".
-10. Run `migrations/011_ticket_status_triggers.sql` so "Contacted" and "Reported" persist (triggers on chats/reports insert).
+10. Run `migrations/011_ticket_status_triggers.sql` so "Reported" persists (trigger on reports insert). "Contacted" is user-specific and not stored.
+11. Run `migrations/012_remove_contacted_reported_status.sql` to remove Contacted and Reported statuses; keep only Available and Sold.
 
 **Google OAuth:** Enable **Google** in Supabase Dashboard → **Authentication** → **Providers** → **Google**. Add your Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Set **Redirect URL** in Google OAuth config to `https://<your-project-ref>.supabase.co/auth/v1/callback`. In Supabase → **Authentication** → **URL Configuration**, add your app redirect URLs (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`). Profiles are created from the client when the user first signs in with Google (username = email, email from Google).
 

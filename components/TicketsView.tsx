@@ -16,10 +16,8 @@ import { fetchProfile } from "@/lib/data/user_profiles";
 import { pushPendingForUser } from "@/lib/notificationsStorage";
 import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
-import { fetchReportedTicketIds } from "@/lib/supabase/reports";
 import {
   deleteTicket as deleteTicketApi,
-  fetchTickets,
   fetchTicketsPage,
   insertTicket as insertTicketApi,
   TICKETS_PAGE_SIZE,
@@ -37,7 +35,6 @@ export default function TicketsView() {
     createChat,
     fetchChatsForUser,
     getChatById,
-    getChatsForUser,
     getOpenChatForTicket,
     getOpenChatsForTicket,
     openChatModal,
@@ -78,8 +75,6 @@ export default function TicketsView() {
   const [editTicket, setEditTicket] = useState<Ticket | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
   const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
-  const [activityFilter, setActivityFilter] = useState<"all" | "contacted" | "reported">("all");
-  const [reportedTicketIds, setReportedTicketIds] = useState<Set<string>>(new Set());
 
   const buildFilters = useCallback(
     () => ({
@@ -111,20 +106,6 @@ export default function TicketsView() {
 
   const loadTickets = useCallback(
     async (append: boolean) => {
-      const useActivityFilter = viewMode === "browse" && user && activityFilter !== "all";
-      if (useActivityFilter) {
-        setTicketsLoading(true);
-        setTicketsError(null);
-        const { data, error } = await fetchTickets();
-        setTicketsLoading(false);
-        if (error) setTicketsError(error);
-        else {
-          setTickets(data);
-          setTotalCount(data.length);
-          setHasMore(false);
-        }
-        return;
-      }
       const offset = append ? page * TICKETS_PAGE_SIZE : 0;
       if (append) setLoadingMore(true);
       else {
@@ -153,7 +134,7 @@ export default function TicketsView() {
       setTotalCount(total);
       setHasMore(offset + data.length < total);
     },
-    [viewMode, user, activityFilter, page, buildFilters]
+    [page, buildFilters]
   );
 
   const loadMore = useCallback(() => {
@@ -173,7 +154,6 @@ export default function TicketsView() {
     rowFilter,
     typeFilter,
     qtyFilter,
-    activityFilter,
   ]);
 
   useEffect(() => {
@@ -193,13 +173,6 @@ export default function TicketsView() {
     }
     if (ticket) setActiveTicketId(ticket);
   }, [searchParams, isLoggedIn, router]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    fetchReportedTicketIds(user.id).then(({ data }) => {
-      setReportedTicketIds(new Set(data));
-    });
-  }, [user?.id]);
 
   const myTickets = useMemo(
     () => (user ? tickets.filter((t) => t.ownerId === user.id) : []),
@@ -232,15 +205,9 @@ export default function TicketsView() {
     return Array.from(s).sort((a, b) => a - b);
   }, [filterBase]);
 
-  const contactedTicketIds = useMemo(() => {
-    if (!user?.id) return new Set<string>();
-    const chats = getChatsForUser(user.id);
-    return new Set(chats.filter((c) => c.buyerId === user.id).map((c) => c.ticketId));
-  }, [user?.id, getChatsForUser]);
-
   const filtered = useMemo(() => {
     const base = filterBase;
-    let list = base.filter((t) => {
+    return base.filter((t) => {
       if (eventFilter !== "all" && t.event !== eventFilter) return false;
       if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (cityFilter !== "all" && t.city !== cityFilter) return false;
@@ -255,21 +222,8 @@ export default function TicketsView() {
       if (qtyFilter !== "all" && t.quantity !== Number(qtyFilter)) return false;
       return true;
     });
-    if (viewMode === "browse" && user && activityFilter !== "all") {
-      if (activityFilter === "contacted") {
-        list = list.filter((t) => contactedTicketIds.has(t.id));
-      } else if (activityFilter === "reported") {
-        list = list.filter((t) => reportedTicketIds.has(t.id));
-      }
-    }
-    return list;
   }, [
     filterBase,
-    viewMode,
-    user,
-    activityFilter,
-    contactedTicketIds,
-    reportedTicketIds,
     eventFilter,
     statusFilter,
     cityFilter,
@@ -338,11 +292,6 @@ export default function TicketsView() {
         sellerUsername,
         ticketSummary,
       });
-      if (t.status === "Available") {
-        setTickets((prev) =>
-          prev.map((x) => (x.id === ticketId ? { ...x, status: "Contacted" as const } : x))
-        );
-      }
       pushPendingForUser(ownerId, {
         type: "request_received",
         ticketId,
@@ -467,17 +416,8 @@ export default function TicketsView() {
       </div>
 
       <div className="flex flex-wrap gap-3 rounded-xl border border-army-purple/15 bg-white p-4 dark:border-army-purple/25 dark:bg-neutral-900">
-        {viewMode === "browse" && isLoggedIn && (
-          <FilterSelect
-            label="Show"
-            value={activityFilter}
-            onChange={(v) => setActivityFilter(v as "all" | "contacted" | "reported")}
-            options={["all", "contacted", "reported"]}
-            labelMap={{ all: "All", contacted: "Contacted", reported: "Reported" }}
-          />
-        )}
         <FilterSelect label="Event" value={eventFilter} onChange={setEventFilter} options={["all", ...events]} />
-        <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={["all", "Available", "Contacted", "Reported", "Sold"]} />
+        <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={["all", "Available", "Sold"]} />
         <FilterSelect label="City" value={cityFilter} onChange={setCityFilter} options={["all", ...cities]} />
         <FilterSelect label="Day" value={dayFilter} onChange={setDayFilter} options={["all", ...days]} />
         <FilterSelect label="VIP" value={vipFilter} onChange={setVipFilter} options={["all", "yes", "no"]} />
@@ -550,11 +490,7 @@ export default function TicketsView() {
                     <tr
                       key={row.id}
                       className={`border-b border-army-purple/10 transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
-                        row.status === "Reported"
-                          ? "bg-gradient-to-r from-army-200/40 to-army-300/20 dark:from-army-900/30 dark:to-army-800/20"
-                          : row.status === "Sold"
-                            ? "bg-neutral-100 dark:bg-neutral-800/50"
-                            : ""
+                        row.status === "Sold" ? "bg-neutral-100 dark:bg-neutral-800/50" : ""
                       }`}
                     >
                       <Td>{row.event}</Td>
@@ -699,12 +635,7 @@ export default function TicketsView() {
         open={reportOpen}
         onClose={() => setReportOpen(false)}
         ticket={activeTicket}
-        onReported={(ticketId) => {
-          setTickets((prev) =>
-            prev.map((t) => (t.id === ticketId ? { ...t, status: "Reported" as const } : t))
-          );
-          setReportedTicketIds((prev) => new Set(prev).add(ticketId));
-        }}
+        onReported={() => {}}
       />
       <SellTicketDisclaimerModal
         open={sellDisclaimerOpen}
@@ -792,11 +723,9 @@ function TicketCard({
   return (
     <div
       className={`rounded-xl border p-4 ${
-        ticket.status === "Reported"
-          ? "border-army-400/40 bg-gradient-to-br from-army-200/30 to-army-300/20 dark:from-army-900/30 dark:to-army-800/20"
-          : ticket.status === "Sold"
-            ? "border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/50"
-            : "border-army-purple/15 bg-white dark:border-army-purple/25 dark:bg-neutral-900"
+        ticket.status === "Sold"
+          ? "border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/50"
+          : "border-army-purple/15 bg-white dark:border-army-purple/25 dark:bg-neutral-900"
       }`}
     >
       <div className="flex flex-col gap-2">
@@ -963,8 +892,6 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 function StatusBadge({ status }: { status: TicketStatus }) {
   const styles: Record<TicketStatus, string> = {
     Available: "bg-army-200/50 text-army-800 dark:bg-army-300/30 dark:text-army-200",
-    Contacted: "bg-army-400/30 text-army-900 dark:bg-army-500/30 dark:text-army-100",
-    Reported: "bg-army-600/40 text-white dark:bg-army-500/50",
     Sold: "bg-neutral-300 text-neutral-700 dark:bg-neutral-600 dark:text-neutral-200",
   };
   return (
