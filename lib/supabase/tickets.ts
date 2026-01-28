@@ -93,6 +93,55 @@ export async function fetchTicketsPage(params: {
   }
 }
 
+export type TicketFilterOptions = {
+  events: string[];
+  cities: string[];
+  days: string[];
+  sections: string[];
+  rows: string[];
+  quantities: number[];
+};
+
+/** Fetch distinct filter values for dropdowns (all tickets, or scoped to owner). One cheap RPC. */
+export async function fetchTicketFilterOptions(
+  ownerId?: string | null
+): Promise<{ data: TicketFilterOptions | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc("get_ticket_filter_options", {
+      p_owner_id: ownerId ?? null,
+    });
+    if (error) return { data: null, error: error.message };
+    const raw = data as {
+      events?: unknown;
+      cities?: unknown;
+      days?: unknown;
+      sections?: unknown;
+      rows?: unknown;
+      quantities?: unknown;
+    };
+    const arr = (x: unknown) => (Array.isArray(x) ? x : []) as string[] | number[];
+    return {
+      data: {
+        events: arr(raw?.events).map(String).sort(),
+        cities: arr(raw?.cities).map(String).sort(),
+        days: arr(raw?.days).map(String).sort(),
+        sections: arr(raw?.sections).map(String).sort(),
+        rows: arr(raw?.rows).map(String).sort(),
+        quantities: arr(raw?.quantities)
+          .map(Number)
+          .filter((n) => !Number.isNaN(n))
+          .sort((a, b) => a - b),
+      },
+      error: null,
+    };
+  } catch (e) {
+    return {
+      data: null,
+      error: e instanceof Error ? e.message : "Failed to fetch filter options",
+    };
+  }
+}
+
 /** Fetch all tickets (optionally for one owner). Used when activity filter is contacted/reported. */
 export async function fetchTickets(ownerId?: string | null): Promise<{ data: Ticket[]; error: string | null }> {
   try {

@@ -18,9 +18,11 @@ import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
 import {
   deleteTicket as deleteTicketApi,
+  fetchTicketFilterOptions,
   fetchTicketsPage,
   insertTicket as insertTicketApi,
   TICKETS_PAGE_SIZE,
+  type TicketFilterOptions,
   updateTicket as updateTicketApi,
 } from "@/lib/supabase/tickets";
 
@@ -75,6 +77,7 @@ export default function TicketsView() {
   const [editTicket, setEditTicket] = useState<Ticket | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
   const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
+  const [filterOptions, setFilterOptions] = useState<TicketFilterOptions | null>(null);
 
   const buildFilters = useCallback(
     () => ({
@@ -174,6 +177,13 @@ export default function TicketsView() {
     if (ticket) setActiveTicketId(ticket);
   }, [searchParams, isLoggedIn, router]);
 
+  useEffect(() => {
+    const ownerId = viewMode === "my" && user?.id ? user.id : null;
+    fetchTicketFilterOptions(ownerId).then(({ data }) => {
+      if (data) setFilterOptions(data);
+    });
+  }, [viewMode, user?.id]);
+
   const myTickets = useMemo(
     () => (user ? tickets.filter((t) => t.ownerId === user.id) : []),
     [tickets, user]
@@ -181,29 +191,35 @@ export default function TicketsView() {
 
   const filterBase = viewMode === "my" ? myTickets : tickets;
   const events = useMemo(() => {
+    if (filterOptions) return filterOptions.events;
     const s = new Set(filterBase.map((t) => t.event));
     return Array.from(s).sort();
-  }, [filterBase]);
+  }, [filterOptions, filterBase]);
   const cities = useMemo(() => {
+    if (filterOptions) return filterOptions.cities;
     const s = new Set(filterBase.map((t) => t.city));
     return Array.from(s).sort();
-  }, [filterBase]);
+  }, [filterOptions, filterBase]);
   const days = useMemo(() => {
+    if (filterOptions) return filterOptions.days;
     const s = new Set(filterBase.map((t) => t.day));
     return Array.from(s).sort();
-  }, [filterBase]);
+  }, [filterOptions, filterBase]);
   const sections = useMemo(() => {
+    if (filterOptions) return filterOptions.sections;
     const s = new Set(filterBase.map((t) => t.section));
     return Array.from(s).sort();
-  }, [filterBase]);
+  }, [filterOptions, filterBase]);
   const rows = useMemo(() => {
+    if (filterOptions) return filterOptions.rows;
     const s = new Set(filterBase.map((t) => t.row));
     return Array.from(s).sort();
-  }, [filterBase]);
+  }, [filterOptions, filterBase]);
   const quantities = useMemo(() => {
+    if (filterOptions) return filterOptions.quantities;
     const s = new Set(filterBase.map((t) => t.quantity));
     return Array.from(s).sort((a, b) => a - b);
-  }, [filterBase]);
+  }, [filterOptions, filterBase]);
 
   const filtered = useMemo(() => {
     const base = filterBase;

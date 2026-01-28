@@ -13,6 +13,7 @@
 9. Run `migrations/010_requested_to_contacted.sql` to replace ticket status "Requested" with "Contacted".
 10. Run `migrations/011_ticket_status_triggers.sql` so "Reported" persists (trigger on reports insert). "Contacted" is user-specific and not stored.
 11. Run `migrations/012_remove_contacted_reported_status.sql` to remove Contacted and Reported statuses; keep only Available and Sold.
+12. Run `migrations/016_ticket_filter_options_rpc.sql` to add `get_ticket_filter_options` RPC so filter dropdowns show all distinct values (not just the first page).
 
 **Google OAuth:** Enable **Google** in Supabase Dashboard → **Authentication** → **Providers** → **Google**. Add your Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Set **Redirect URL** in Google OAuth config to `https://<your-project-ref>.supabase.co/auth/v1/callback`. In Supabase → **Authentication** → **URL Configuration**, add your app redirect URLs (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`). Profiles are created from the client when the user first signs in with Google (username = email, email from Google).
 
@@ -49,4 +50,4 @@
 - **Requests**: Requester, accepter, or ticket owner can read; requester can insert; ticket owner can update.
 - **Chats**: Buyer/seller can read; seller can insert/update.
 - **chat_messages**: Participant can read; participant can insert (only when chat is open).
-- **Reports**: Reporter or ticket owner can read; authenticated can insert own.
+- **Reports**: Reporter, ticket owner, or admin can read; authenticated can insert own.
