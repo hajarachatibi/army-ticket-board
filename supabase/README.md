@@ -14,6 +14,11 @@
 10. Run `migrations/011_ticket_status_triggers.sql` so "Reported" persists (trigger on reports insert). "Contacted" is user-specific and not stored.
 11. Run `migrations/012_remove_contacted_reported_status.sql` to remove Contacted and Reported statuses; keep only Available and Sold.
 12. Run `migrations/016_ticket_filter_options_rpc.sql` to add `get_ticket_filter_options` RPC so filter dropdowns show all distinct values (not just the first page).
+13. Run `migrations/017_banned_users.sql` to create `banned_users` and add the initial banned emails. Admins can manage bans later from the admin panel.
+14. Run `migrations/018_admin_users_and_reports_rls.sql` to set admin users (tomkoods2020@gmail.com, achatibihajar@gmail.com) and allow admins to SELECT all reports. Ensure both have signed in at least once so they exist in `user_profiles`.
+15. Run `migrations/019_admin_messages_and_rpcs.sql` to add `admin_messages`, `admin_ban_and_delete_user`, `admin_delete_ticket`, `admin_list_sellers` / `admin_list_buyers` / `admin_list_all_users`, and `admin_send_message` for the admin panel.
+16. Run `migrations/020_user_profiles_last_login.sql` to add `last_login_at` to `user_profiles` (updated on each OAuth login).
+17. Run `migrations/021_admin_pagination_user_details.sql` to add paged admin list RPCs (sellers, buyers, all users) with `created_at` / `last_login_at`, and send-to-all messaging RPCs.
 
 **Google OAuth:** Enable **Google** in Supabase Dashboard → **Authentication** → **Providers** → **Google**. Add your Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Set **Redirect URL** in Google OAuth config to `https://<your-project-ref>.supabase.co/auth/v1/callback`. In Supabase → **Authentication** → **URL Configuration**, add your app redirect URLs (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`). Profiles are created from the client when the user first signs in with Google (username = email, email from Google).
 

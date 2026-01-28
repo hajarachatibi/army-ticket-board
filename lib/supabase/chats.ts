@@ -145,6 +145,19 @@ export async function updateChatClosed(chatId: string): Promise<{ error: string 
   }
 }
 
+/** Reopen a stopped chat (seller only). */
+export async function updateChatReopened(chatId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from("chats")
+      .update({ status: "open", closed_at: null })
+      .eq("id", chatId);
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to reopen chat" };
+  }
+}
+
 /** Close all open chats for a ticket (e.g. when seller marks it sold). */
 export async function closeAllChatsForTicket(
   ticketId: string

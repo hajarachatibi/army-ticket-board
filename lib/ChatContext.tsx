@@ -19,6 +19,7 @@ import {
   insertChat as insertChatApi,
   insertMessage as insertMessageApi,
   updateChatClosed as updateChatClosedApi,
+  updateChatReopened as updateChatReopenedApi,
 } from "@/lib/supabase/chats";
 
 export type ChatStatus = "open" | "closed";
@@ -63,6 +64,7 @@ type ChatContextValue = {
     ticketSummary: string;
   }) => Promise<Chat | null>;
   closeChat: (chatId: string) => Promise<void>;
+  reactivateChat: (chatId: string) => Promise<void>;
   addMessage: (
     chatId: string,
     senderId: string,
@@ -217,6 +219,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const reactivateChat = useCallback(async (chatId: string) => {
+    const { error } = await updateChatReopenedApi(chatId);
+    if (error) {
+      if (process.env.NODE_ENV === "development") console.error("[ChatContext] reactivateChat:", error);
+      return;
+    }
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId ? { ...c, status: "open" as const, closedAt: null } : c
+      )
+    );
+  }, []);
+
   const addMessage = useCallback(
     async (
       chatId: string,
@@ -331,6 +346,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       fetchMessagesForChat,
       createChat,
       closeChat,
+      reactivateChat,
       addMessage,
       getChatsForUser,
       getMessagesForChat,
@@ -352,6 +368,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       fetchMessagesForChat,
       createChat,
       closeChat,
+      reactivateChat,
       addMessage,
       getChatsForUser,
       getMessagesForChat,

@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabaseClient";
+import { isBannedEmail } from "@/lib/supabase/banned";
 import { ensureGoogleProfile, fetchProfileWithToken } from "@/lib/supabase/profile";
 import type { AuthSession } from "@supabase/supabase-js";
 
@@ -19,11 +20,13 @@ export type AuthUser = {
   id: string;
   email: string;
   username: string;
+  isAdmin: boolean;
 };
 
 type AuthContextValue = {
   user: AuthUser | null;
   isLoggedIn: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
@@ -35,9 +38,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const profileCreationInProgress = new Map<string, Promise<{ username: string; email: string }>>();
+const profileCreationInProgress = new Map<string, Promise<{ username: string; email: string; role: string }>>();
 
-function ensureGoogleProfileGuarded(session: AuthSession): Promise<{ username: string; email: string }> {
+function ensureGoogleProfileGuarded(session: AuthSession): Promise<{ username: string; email: string; role: string }> {
   const userId = session.user.id;
   const inProgress = profileCreationInProgress.get(userId);
   if (inProgress) return inProgress;
@@ -92,12 +95,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    const applyUser = (u: { id: string; email?: string | null }, username: string, email: string) => {
+    const applyUser = (
+      u: { id: string; email?: string | null },
+      username: string,
+      email: string,
+      role: string
+    ) => {
       if (!mounted) return;
       setUser({
         id: u.id,
         email: email || (u.email ?? ""),
         username,
+        isAdmin: role === "admin",
       });
     };
 
@@ -110,13 +119,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const u = session.user;
+      const email = u.email ?? "";
+      const banned = await isBannedEmail(email, session.access_token);
+      if (banned) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setError("Your account has been banned.");
+        setIsLoading(false);
+        return;
+      }
       const profile = await fetchProfileWithToken(u.id, session.access_token);
       if (profile) {
-        applyUser(u, profile.username, profile.email);
+        applyUser(u, profile.username, profile.email, profile.role);
       } else {
         try {
-          const { username, email } = await ensureGoogleProfileGuarded(session);
-          if (mounted) applyUser(u, username, email);
+          const { username, email, role } = await ensureGoogleProfileGuarded(session);
+          if (mounted) applyUser(u, username, email, role);
         } catch (e) {
           if (process.env.NODE_ENV === "development") console.error("[Auth] ensureGoogleProfile:", e);
           await supabase.auth.signOut();
@@ -135,13 +153,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const u = session.user;
+      const email = u.email ?? "";
+      const banned = await isBannedEmail(email, session.access_token);
+      if (banned) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setError("Your account has been banned.");
+        return;
+      }
       const profile = await fetchProfileWithToken(u.id, session.access_token);
       if (profile) {
-        applyUser(u, profile.username, profile.email);
+        applyUser(u, profile.username, profile.email, profile.role);
       } else {
         try {
-          const { username, email } = await ensureGoogleProfileGuarded(session);
-          if (mounted) applyUser(u, username, email);
+          const { username, email, role } = await ensureGoogleProfileGuarded(session);
+          if (mounted) applyUser(u, username, email, role);
         } catch (e) {
           if (process.env.NODE_ENV === "development") console.error("[Auth] ensureGoogleProfile:", e);
           await supabase.auth.signOut();
@@ -157,7 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted || !session) return;
         fetchProfileWithToken(session.user.id, session.access_token).then((profile) => {
           if (!mounted || !profile) return;
-          setUser((prev) => (prev ? { ...prev, username: profile.username, email: profile.email } : null));
+          setUser((prev) =>
+            prev
+              ? { ...prev, username: profile.username, email: profile.email, isAdmin: profile.role === "admin" }
+              : null
+          );
         });
       });
     };
@@ -179,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isLoggedIn: !!user,
+      isAdmin: !!user?.isAdmin,
       isLoading,
       error,
       clearError,

@@ -6,8 +6,8 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 export async function fetchProfileWithToken(
   userId: string,
   accessToken: string
-): Promise<{ username: string; email: string } | null> {
-  const url = `${SUPABASE_URL}/rest/v1/user_profiles?select=username,email&id=eq.${userId}`;
+): Promise<{ username: string; email: string; role: string } | null> {
+  const url = `${SUPABASE_URL}/rest/v1/user_profiles?select=username,email,role&id=eq.${userId}`;
   try {
     const res = await fetch(url, {
       method: "GET",
@@ -18,10 +18,14 @@ export async function fetchProfileWithToken(
       },
     });
     if (!res.ok) return null;
-    const arr = (await res.json()) as Array<{ username: string; email?: string | null }>;
+    const arr = (await res.json()) as Array<{ username: string; email?: string | null; role?: string | null }>;
     const row = Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
     if (!row) return null;
-    return { username: row.username, email: row.email ?? "" };
+    return {
+      username: row.username,
+      email: row.email ?? "",
+      role: typeof row.role === "string" ? row.role : "user",
+    };
   } catch {
     return null;
   }
@@ -70,14 +74,16 @@ function usernameFromGoogle(session: AuthSession): string {
 }
 
 /** Ensure user_profiles row exists for this session. Create from Google metadata if missing. */
-export async function ensureGoogleProfile(session: AuthSession): Promise<{ username: string; email: string }> {
+export async function ensureGoogleProfile(
+  session: AuthSession
+): Promise<{ username: string; email: string; role: string }> {
   const userId = session.user.id;
   const email = session.user.email ?? "";
   const username = usernameFromGoogle(session);
   const token = session.access_token;
 
   const existing = await fetchProfileWithToken(userId, token);
-  if (existing) return { username: existing.username, email: existing.email };
+  if (existing) return { username: existing.username, email: existing.email, role: existing.role };
 
   const { data, error } = await insertUserProfile(userId, username, token, email);
   if (error) {
@@ -85,11 +91,30 @@ export async function ensureGoogleProfile(session: AuthSession): Promise<{ usern
     if (isConflict) {
       const p = await fetchProfileWithToken(userId, token);
       if (p) return p;
-      return { username, email };
+      return { username, email, role: "user" };
     }
     throw new Error(error.message);
   }
   const row = Array.isArray(data) && data[0] ? data[0] : null;
-  if (row) return { username: row.username, email: row.email ?? email };
-  return { username, email };
+  if (row) return { username: row.username, email: row.email ?? email, role: "user" };
+  return { username, email, role: "user" };
+}
+
+/** Set last_login_at = now() for the user. Call after OAuth login (e.g. auth callback). */
+export async function touchLastLogin(userId: string, accessToken: string): Promise<void> {
+  const url = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+  try {
+    await fetch(url, {
+      method: "PATCH",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ last_login_at: new Date().toISOString() }),
+    });
+  } catch {
+    /* ignore */
+  }
 }

@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { ensureGoogleProfile } from "@/lib/supabase/profile";
+import { isBannedEmail } from "@/lib/supabase/banned";
+import { ensureGoogleProfile, touchLastLogin } from "@/lib/supabase/profile";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -37,12 +38,23 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     if (process.env.NODE_ENV === "development") console.error("[Auth callback]", error);
-    return NextResponse.redirect(loginUrl);
+    redirectResponse.headers.set("Location", loginUrl.toString());
+    return redirectResponse;
   }
 
   if (session) {
+    const email = session.user?.email ?? "";
+    const banned = await isBannedEmail(email, session.access_token);
+    if (banned) {
+      await supabase.auth.signOut();
+      const bannedUrl = new URL("/login", origin);
+      bannedUrl.searchParams.set("banned", "1");
+      redirectResponse.headers.set("Location", bannedUrl.toString());
+      return redirectResponse;
+    }
     try {
       await ensureGoogleProfile(session);
+      await touchLastLogin(session.user.id, session.access_token);
     } catch (e) {
       if (process.env.NODE_ENV === "development") console.error("[Auth callback] ensureGoogleProfile", e);
     }

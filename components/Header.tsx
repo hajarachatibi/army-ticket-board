@@ -12,6 +12,7 @@ const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Tickets" },
   { href: "/chats", label: "Chats" },
+  { href: "/announcements", label: "Announcements" },
   { href: "/disclaimers", label: "Disclaimers" },
   { href: "/user-manual", label: "User manual" },
 ];
@@ -20,9 +21,10 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { dark, toggle } = useTheme();
-  const { user, isLoggedIn, signOut } = useAuth();
+  const { user, isLoggedIn, isAdmin, signOut } = useAuth();
   const { getUnreadChatsCount } = useChat();
   const unreadChatsCount = isLoggedIn && user ? getUnreadChatsCount(user.id) : 0;
+  const showAdmin = isLoggedIn && isAdmin;
 
   const handleSignOut = async () => {
     await signOut();
@@ -66,6 +68,18 @@ export default function Header() {
                 </Link>
               );
             })}
+            {showAdmin && (
+              <Link
+                href="/admin"
+                className={`inline-flex rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                  pathname === "/admin" || pathname.startsWith("/admin/")
+                    ? "bg-army-purple/10 text-army-purple dark:bg-army-purple/20"
+                    : "text-neutral-600 hover:bg-army-purple/5 hover:text-army-purple dark:text-neutral-400 dark:hover:bg-army-purple/10 dark:hover:text-army-300"
+                }`}
+              >
+                Admin
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -151,6 +165,18 @@ export default function Header() {
             </Link>
           );
         })}
+        {showAdmin && (
+          <Link
+            href="/admin"
+            className={`flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-center text-sm font-semibold ${
+              pathname === "/admin" || pathname.startsWith("/admin/")
+                ? "bg-army-purple/10 text-army-purple"
+                : "text-neutral-600 hover:bg-army-purple/5"
+            }`}
+          >
+            Admin
+          </Link>
+        )}
       </nav>
     </header>
   );

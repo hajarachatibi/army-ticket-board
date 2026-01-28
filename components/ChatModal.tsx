@@ -18,10 +18,11 @@ export default function ChatModal() {
     fetchMessagesForChat,
     addMessage,
     closeChat,
+    reactivateChat,
     closeChatModal,
     setLastReadAt,
   } = useChat();
-  const { closeRequest } = useRequest();
+  const { closeRequest, reopenRequest } = useRequest();
   const [draft, setDraft] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -97,6 +98,12 @@ export default function ChatModal() {
     await closeChat(chat.id);
     await closeRequest(chat.requestId, chat.ticketId);
     closeChatModal();
+  };
+
+  const handleReactivateChat = async () => {
+    if (!isSeller || isOpen) return;
+    await reactivateChat(chat.id);
+    await reopenRequest(chat.requestId, chat.sellerId, chat.ticketId);
   };
 
   const handleDismiss = () => {
@@ -239,6 +246,15 @@ export default function ChatModal() {
                 className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
               >
                 Stop the chat
+              </button>
+            )}
+            {isSeller && !isOpen && (
+              <button
+                type="button"
+                onClick={handleReactivateChat}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-army-purple hover:bg-army-purple/10 dark:text-army-300 dark:hover:bg-army-purple/20"
+              >
+                Reactivate
               </button>
             )}
             <button

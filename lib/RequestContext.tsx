@@ -48,6 +48,7 @@ type RequestContextValue = {
     ticketIdHint?: string
   ) => Promise<void>;
   closeRequest: (requestId: string, ticketIdHint?: string) => Promise<void>;
+  reopenRequest: (requestId: string, acceptedBy: string, ticketIdHint?: string) => Promise<void>;
   getRequestsForTicket: (ticketId: string) => Request[];
   getAcceptedOpenRequestForTicket: (ticketId: string) => Request | null;
   canUserChat: (ticketId: string, userId: string, ownerId: string | null) => boolean;
@@ -146,6 +147,13 @@ export function RequestProvider({ children }: { children: ReactNode }) {
     [updateStatus]
   );
 
+  const reopenRequest = useCallback(
+    async (requestId: string, acceptedBy: string, ticketIdHint?: string) => {
+      await updateStatus(requestId, "accepted", acceptedBy, ticketIdHint);
+    },
+    [updateStatus]
+  );
+
   const getRequestsForTicket = useCallback(
     (ticketId: string): Request[] => {
       const list = requestsByTicket[ticketId] ?? [];
@@ -182,6 +190,7 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       addRequest,
       updateStatus,
       closeRequest,
+      reopenRequest,
       getRequestsForTicket,
       getAcceptedOpenRequestForTicket,
       canUserChat,
@@ -193,6 +202,7 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       addRequest,
       updateStatus,
       closeRequest,
+      reopenRequest,
       getRequestsForTicket,
       getAcceptedOpenRequestForTicket,
       canUserChat,
