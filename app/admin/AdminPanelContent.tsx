@@ -13,17 +13,19 @@ import {
   adminSendMessageToAllBuyers,
   adminSendMessageToAllSellers,
   adminSendMessageToAllUsers,
+  fetchAdminBannedUsers,
   fetchAdminBuyersPage,
   fetchAdminMessageAllTotals,
   fetchAdminReports,
   fetchAdminSellersPage,
   fetchAdminTickets,
   type AdminReport,
+  type AdminTicket,
   type AdminUser,
+  type BannedUser,
 } from "@/lib/supabase/admin";
-import type { Ticket } from "@/lib/data/tickets";
 
-type Tab = "reports" | "tickets" | "sellers" | "buyers" | "message";
+type Tab = "reports" | "tickets" | "sellers" | "buyers" | "message" | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -39,15 +41,22 @@ export default function AdminPanelContent() {
   const { user, isLoading: authLoading, isAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>("reports");
   const [reports, setReports] = useState<AdminReport[]>([]);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [ticketsTotal, setTicketsTotal] = useState(0);
   const [ticketsPage, setTicketsPage] = useState(0);
+  const [ticketsSearch, setTicketsSearch] = useState("");
+  const [ticketsSearchApplied, setTicketsSearchApplied] = useState("");
   const [sellers, setSellers] = useState<AdminUser[]>([]);
   const [sellersTotal, setSellersTotal] = useState(0);
   const [sellersPage, setSellersPage] = useState(0);
+  const [sellersSearch, setSellersSearch] = useState("");
+  const [sellersSearchApplied, setSellersSearchApplied] = useState("");
   const [buyers, setBuyers] = useState<AdminUser[]>([]);
   const [buyersTotal, setBuyersTotal] = useState(0);
   const [buyersPage, setBuyersPage] = useState(0);
+  const [buyersSearch, setBuyersSearch] = useState("");
+  const [buyersSearchApplied, setBuyersSearchApplied] = useState("");
+  const [banned, setBanned] = useState<BannedUser[]>([]);
   const [messageTotals, setMessageTotals] = useState({
     sellersTotal: 0,
     buyersTotal: 0,
@@ -84,38 +93,47 @@ export default function AdminPanelContent() {
   const loadTickets = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, total, error: e } = await fetchAdminTickets({ page: ticketsPage });
+    const { data, total, error: e } = await fetchAdminTickets({ page: ticketsPage, search: ticketsSearchApplied });
     setLoading(false);
     if (e) setError(e);
     else {
       if (data) setTickets(data);
       setTicketsTotal(total);
     }
-  }, [ticketsPage]);
+  }, [ticketsPage, ticketsSearchApplied]);
 
   const loadSellers = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, total, error: e } = await fetchAdminSellersPage({ page: sellersPage });
+    const { data, total, error: e } = await fetchAdminSellersPage({ page: sellersPage, search: sellersSearchApplied });
     setLoading(false);
     if (e) setError(e);
     else {
       if (data) setSellers(data);
       setSellersTotal(total);
     }
-  }, [sellersPage]);
+  }, [sellersPage, sellersSearchApplied]);
 
   const loadBuyers = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, total, error: e } = await fetchAdminBuyersPage({ page: buyersPage });
+    const { data, total, error: e } = await fetchAdminBuyersPage({ page: buyersPage, search: buyersSearchApplied });
     setLoading(false);
     if (e) setError(e);
     else {
       if (data) setBuyers(data);
       setBuyersTotal(total);
     }
-  }, [buyersPage]);
+  }, [buyersPage, buyersSearchApplied]);
+
+  const loadBanned = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminBannedUsers();
+    setLoading(false);
+    if (e) setError(e);
+    else if (data) setBanned(data);
+  }, []);
 
   const loadMessageTotals = useCallback(async () => {
     setLoading(true);
@@ -141,15 +159,16 @@ export default function AdminPanelContent() {
     else if (tab === "sellers") loadSellers();
     else if (tab === "buyers") loadBuyers();
     else if (tab === "message") loadMessageTotals();
-  }, [user?.id, isAdmin, tab, loadReports, loadTickets, loadSellers, loadBuyers, loadMessageTotals]);
+    else if (tab === "banned") loadBanned();
+  }, [user?.id, isAdmin, tab, loadReports, loadTickets, loadSellers, loadBuyers, loadMessageTotals, loadBanned]);
 
   useEffect(() => {
     if (tab === "tickets") loadTickets();
-  }, [ticketsPage, tab, loadTickets]);
+  }, [ticketsPage, ticketsSearchApplied, tab, loadTickets]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
-  }, [sellersPage, tab, loadSellers]);
+  }, [sellersPage, sellersSearchApplied, tab, loadSellers]);
 
   useEffect(() => {
     setSelectedSellers(new Set());
@@ -157,7 +176,7 @@ export default function AdminPanelContent() {
 
   useEffect(() => {
     if (tab === "buyers") loadBuyers();
-  }, [buyersPage, tab, loadBuyers]);
+  }, [buyersPage, buyersSearchApplied, tab, loadBuyers]);
 
   useEffect(() => {
     setSelectedBuyers(new Set());
@@ -188,25 +207,23 @@ export default function AdminPanelContent() {
       setSelectedBuyers(new Set());
       loadSellers();
       loadBuyers();
+      loadBanned();
       loadReports();
       loadTickets();
     },
-    [handleBanAndDelete, loadSellers, loadBuyers, loadReports, loadTickets]
+    [handleBanAndDelete, loadSellers, loadBuyers, loadBanned, loadReports, loadTickets]
   );
 
-  const handleDeleteTicket = useCallback(
-    async (ticketId: string) => {
-      const { error: e } = await adminDeleteTicket(ticketId);
-      if (e) {
-        setActionFeedback(`Error: ${e}`);
-        return;
-      }
-      setActionFeedback("Ticket deleted.");
-      setTickets((prev) => prev.filter((t) => t.id !== ticketId));
-      setTicketsTotal((n) => Math.max(0, n - 1));
-    },
-    []
-  );
+  const handleDeleteTicket = useCallback(async (ticketId: string) => {
+    const { error: e } = await adminDeleteTicket(ticketId);
+    if (e) {
+      setActionFeedback(`Error: ${e}`);
+      return;
+    }
+    setActionFeedback("Ticket deleted.");
+    setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+    setTicketsTotal((n) => Math.max(0, n - 1));
+  }, []);
 
   const openSendMessageModal = useCallback((users: AdminUser[]) => {
     setMessageModalRecipients(users);
@@ -215,19 +232,34 @@ export default function AdminPanelContent() {
   }, []);
 
   const sendMessageToModalRecipients = useCallback(async () => {
-    if (!messageModalText.trim() || messageModalRecipients.length === 0) return;
-    setSendingMessage(true);
-    const { error: e } = await adminSendMessage(
-      messageModalRecipients.map((u) => u.id),
-      messageModalText.trim()
-    );
-    setSendingMessage(false);
-    if (e) {
-      setActionFeedback(`Error: ${e}`);
+    const text = messageModalText.trim();
+    const recipients = messageModalRecipients;
+    if (!text) {
+      setActionFeedback("Enter a message.");
       return;
     }
-    setActionFeedback(`Message sent to ${messageModalRecipients.length} user(s).`);
-    setMessageModalOpen(false);
+    if (recipients.length === 0) {
+      setActionFeedback("No recipients selected.");
+      return;
+    }
+    const ids = recipients.map((u) => u.id).filter(Boolean);
+    if (ids.length === 0) {
+      setActionFeedback("No valid recipients.");
+      return;
+    }
+    setSendingMessage(true);
+    setActionFeedback(null);
+    try {
+      const { error: e } = await adminSendMessage(ids, text);
+      if (e) {
+        setActionFeedback(`Error: ${e}`);
+        return;
+      }
+      setActionFeedback(`Message sent to ${ids.length} user(s).`);
+      setMessageModalOpen(false);
+    } finally {
+      setSendingMessage(false);
+    }
   }, [messageModalText, messageModalRecipients]);
 
   const sendMessageToAll = useCallback(async () => {
@@ -293,6 +325,7 @@ export default function AdminPanelContent() {
     { id: "sellers", label: "Sellers" },
     { id: "buyers", label: "Buyers" },
     { id: "message", label: "Message all" },
+    { id: "banned", label: "Banned users" },
   ];
 
   const selectedSellerUsers = sellers.filter((u) => selectedSellers.has(u.id));
@@ -357,15 +390,21 @@ export default function AdminPanelContent() {
                 </p>
               ) : (
                 <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
-                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Date</th>
-                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Ticket</th>
-                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reporter</th>
-                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reason</th>
-                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Details</th>
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[900px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Event</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">City · Day</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Section · Row · Seat</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Type · Qty</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Price</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Status</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Owner email</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reporter</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reason</th>
+                          <th className="min-w-[200px] max-w-[320px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Details</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -374,19 +413,20 @@ export default function AdminPanelContent() {
                             key={r.id}
                             className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
                           >
-                            <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">
-                              {formatDate(r.createdAt)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="font-medium text-army-purple dark:text-army-300">{r.ticketEvent}</span>
-                              <span className="ml-1 text-neutral-500 dark:text-neutral-400">
-                                {r.ticketCity} · {r.ticketDay}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{r.reporterUsername ?? "—"}</td>
-                            <td className="px-4 py-3 text-neutral-800 dark:text-neutral-200">{r.reason}</td>
-                            <td className="max-w-[240px] truncate px-4 py-3 text-neutral-600 dark:text-neutral-400" title={r.details ?? undefined}>
-                              {r.details ?? "—"}
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(r.createdAt)}</td>
+                            <td className="whitespace-nowrap px-3 py-2 font-medium text-army-purple dark:text-army-300">{r.ticketEvent}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketCity} · {r.ticketDay}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketSection} · {r.ticketRow} · {r.ticketSeat}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketType} · {r.ticketQuantity}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketPrice > 0 ? formatPrice(r.ticketPrice, r.ticketCurrency) : "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketStatus}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ownerEmail ?? "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.reporterUsername ?? "—"}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{r.reason}</td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="max-h-24 min-w-[180px] max-w-[300px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded border border-army-purple/15 bg-neutral-50/80 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300">
+                                {r.details ?? "—"}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -401,16 +441,42 @@ export default function AdminPanelContent() {
           {tab === "tickets" && (
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Tickets</h2>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={ticketsSearch}
+                  onChange={(e) => setTicketsSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const v = (e.target as HTMLInputElement).value;
+                      setTicketsSearchApplied(v);
+                      setTicketsPage(0);
+                    }
+                  }}
+                  placeholder="Search by owner email…"
+                  className="input-army w-64"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTicketsSearchApplied(ticketsSearch);
+                    setTicketsPage(0);
+                  }}
+                  className="btn-army rounded-lg px-4 py-2 text-sm"
+                >
+                  Search
+                </button>
+              </div>
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
-              ) : tickets.length === 0 ? (
+              ) : tickets.length === 0 && ticketsTotal === 0 ? (
                 <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
                   No tickets.
                 </p>
               ) : (
                 <>
                   <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
-                    Showing page {ticketsPage + 1} · {ticketsTotal} total
+                    Page {ticketsPage + 1} · {ticketsTotal} total
                   </p>
                   <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
                     <div className="overflow-x-auto">
@@ -421,6 +487,7 @@ export default function AdminPanelContent() {
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">City · Day</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Price</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Status</th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Owner email</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
                           </tr>
                         </thead>
@@ -431,13 +498,10 @@ export default function AdminPanelContent() {
                               className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
                             >
                               <td className="px-4 py-3 font-medium text-army-purple dark:text-army-300">{t.event}</td>
-                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
-                                {t.city} · {t.day}
-                              </td>
-                              <td className="px-4 py-3">
-                                {t.price > 0 ? formatPrice(t.price, t.currency ?? "USD") : "—"}
-                              </td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.city} · {t.day}</td>
+                              <td className="px-4 py-3">{t.price > 0 ? formatPrice(t.price, t.currency ?? "USD") : "—"}</td>
                               <td className="px-4 py-3">{t.status}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.ownerEmail ?? "—"}</td>
                               <td className="px-4 py-3">
                                 <button
                                   type="button"
@@ -479,6 +543,31 @@ export default function AdminPanelContent() {
           {tab === "sellers" && (
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Sellers</h2>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={sellersSearch}
+                  onChange={(e) => setSellersSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setSellersSearchApplied((e.target as HTMLInputElement).value);
+                      setSellersPage(0);
+                    }
+                  }}
+                  placeholder="Search by name or email…"
+                  className="input-army w-64"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSellersSearchApplied(sellersSearch);
+                    setSellersPage(0);
+                  }}
+                  className="btn-army rounded-lg px-4 py-2 text-sm"
+                >
+                  Search
+                </button>
+              </div>
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
               ) : sellers.length === 0 && sellersTotal === 0 ? (
@@ -528,10 +617,7 @@ export default function AdminPanelContent() {
                                 className="rounded"
                               />
                             </th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Display name</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Email</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Registered</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Last login</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
                           </tr>
                         </thead>
@@ -549,10 +635,7 @@ export default function AdminPanelContent() {
                                   className="rounded"
                                 />
                               </td>
-                              <td className="px-4 py-3 font-medium text-army-purple dark:text-army-300">{u.username}</td>
                               <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{u.email}</td>
-                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.createdAt)}</td>
-                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.lastLoginAt)}</td>
                               <td className="px-4 py-3">
                                 <div className="flex gap-2">
                                   <button
@@ -564,6 +647,7 @@ export default function AdminPanelContent() {
                                           setActionFeedback(`Banned and deleted ${u.email}`);
                                           loadSellers();
                                           loadBuyers();
+                                          loadBanned();
                                           loadReports();
                                           loadTickets();
                                         }
@@ -614,6 +698,31 @@ export default function AdminPanelContent() {
           {tab === "buyers" && (
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Buyers</h2>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={buyersSearch}
+                  onChange={(e) => setBuyersSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setBuyersSearchApplied((e.target as HTMLInputElement).value);
+                      setBuyersPage(0);
+                    }
+                  }}
+                  placeholder="Search by name or email…"
+                  className="input-army w-64"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBuyersSearchApplied(buyersSearch);
+                    setBuyersPage(0);
+                  }}
+                  className="btn-army rounded-lg px-4 py-2 text-sm"
+                >
+                  Search
+                </button>
+              </div>
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
               ) : buyers.length === 0 && buyersTotal === 0 ? (
@@ -663,10 +772,7 @@ export default function AdminPanelContent() {
                                 className="rounded"
                               />
                             </th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Display name</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Email</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Registered</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Last login</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
                           </tr>
                         </thead>
@@ -684,10 +790,7 @@ export default function AdminPanelContent() {
                                   className="rounded"
                                 />
                               </td>
-                              <td className="px-4 py-3 font-medium text-army-purple dark:text-army-300">{u.username}</td>
                               <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{u.email}</td>
-                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.createdAt)}</td>
-                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.lastLoginAt)}</td>
                               <td className="px-4 py-3">
                                 <div className="flex gap-2">
                                   <button
@@ -699,6 +802,7 @@ export default function AdminPanelContent() {
                                           setActionFeedback(`Banned and deleted ${u.email}`);
                                           loadSellers();
                                           loadBuyers();
+                                          loadBanned();
                                           loadReports();
                                           loadTickets();
                                         }
@@ -793,6 +897,45 @@ export default function AdminPanelContent() {
                   >
                     {sendingMessage ? "Sending…" : "Send to all"}
                   </button>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "banned" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Banned users</h2>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : banned.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No banned users.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Email</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Banned at</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {banned.map((b) => (
+                          <tr
+                            key={b.email}
+                            className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
+                          >
+                            <td className="px-4 py-3 font-medium text-army-purple dark:text-army-300">{b.email}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(b.bannedAt)}</td>
+                            <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{b.reason ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </section>

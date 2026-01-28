@@ -19,6 +19,7 @@
 15. Run `migrations/019_admin_messages_and_rpcs.sql` to add `admin_messages`, `admin_ban_and_delete_user`, `admin_delete_ticket`, `admin_list_sellers` / `admin_list_buyers` / `admin_list_all_users`, and `admin_send_message` for the admin panel.
 16. Run `migrations/020_user_profiles_last_login.sql` to add `last_login_at` to `user_profiles` (updated on each OAuth login).
 17. Run `migrations/021_admin_pagination_user_details.sql` to add paged admin list RPCs (sellers, buyers, all users) with `created_at` / `last_login_at`, and send-to-all messaging RPCs.
+18. Run `migrations/022_admin_search_reports_tickets_banned.sql` to add `admin_reports_with_details`, `admin_tickets_paged` (owner email, search by gmail), `admin_list_banned`, and user-list search (name/email). Replaces report/ticket fetches and extends user list RPCs with `p_search`.
 
 **Google OAuth:** Enable **Google** in Supabase Dashboard → **Authentication** → **Providers** → **Google**. Add your Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Set **Redirect URL** in Google OAuth config to `https://<your-project-ref>.supabase.co/auth/v1/callback`. In Supabase → **Authentication** → **URL Configuration**, add your app redirect URLs (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`). Profiles are created from the client when the user first signs in with Google (username = email, email from Google).
 
