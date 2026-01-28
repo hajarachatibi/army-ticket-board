@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthContext";
+import { useChat } from "@/lib/ChatContext";
 import { useTheme } from "@/lib/ThemeContext";
 
 const NAV = [
@@ -20,6 +21,8 @@ export default function Header() {
   const router = useRouter();
   const { dark, toggle } = useTheme();
   const { user, isLoggedIn, signOut } = useAuth();
+  const { getUnreadChatsCount } = useChat();
+  const unreadChatsCount = isLoggedIn && user ? getUnreadChatsCount(user.id) : 0;
 
   const handleSignOut = async () => {
     await signOut();
@@ -40,17 +43,26 @@ export default function Header() {
           <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
             {NAV.map(({ href, label }) => {
               const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+              const showChatBadge = href === "/chats" && unreadChatsCount > 0;
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                  className={`relative inline-flex rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                     isActive
                       ? "bg-army-purple/10 text-army-purple dark:bg-army-purple/20"
                       : "text-neutral-600 hover:bg-army-purple/5 hover:text-army-purple dark:text-neutral-400 dark:hover:bg-army-purple/10 dark:hover:text-army-300"
                   }`}
                 >
                   {label}
+                  {showChatBadge && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+                      aria-label={`${unreadChatsCount} new discussion${unreadChatsCount !== 1 ? "s" : ""}`}
+                    >
+                      {unreadChatsCount > 99 ? "99+" : unreadChatsCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -118,15 +130,24 @@ export default function Header() {
       <nav className="flex gap-1 border-t border-army-purple/10 px-4 py-2 md:hidden" aria-label="Mobile">
         {NAV.map(({ href, label }) => {
           const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const showChatBadge = href === "/chats" && unreadChatsCount > 0;
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold ${
+              className={`relative flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-center text-sm font-semibold ${
                 isActive ? "bg-army-purple/10 text-army-purple" : "text-neutral-600 hover:bg-army-purple/5"
               }`}
             >
               {label}
+              {showChatBadge && (
+                <span
+                  className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+                  aria-label={`${unreadChatsCount} new discussion${unreadChatsCount !== 1 ? "s" : ""}`}
+                >
+                  {unreadChatsCount > 99 ? "99+" : unreadChatsCount}
+                </span>
+              )}
             </Link>
           );
         })}

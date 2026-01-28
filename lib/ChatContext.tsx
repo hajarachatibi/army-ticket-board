@@ -12,6 +12,7 @@ import {
 
 import { useAuth } from "@/lib/AuthContext";
 import { getLastReadAt, setLastReadAt as setLastReadAtStorage } from "@/lib/chatLastRead";
+import { supabase } from "@/lib/supabaseClient";
 import {
   fetchChatsForUser as fetchChatsForUserApi,
   fetchMessagesForChat as fetchMessagesForChatApi,
@@ -75,6 +76,7 @@ type ChatContextValue = {
   getOpenChatForTicket: (ticketId: string, userId: string) => Chat | null;
   getOpenChatsForTicket: (ticketId: string) => Chat[];
   getUnreadCount: (chatId: string) => number;
+  getUnreadChatsCount: (userId: string) => number;
   openChatModal: (chatId: string) => void;
   closeChatModal: () => void;
   setLastReadAt: (chatId: string) => void;
@@ -122,6 +124,60 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+  }, [user?.id]);
+
+  const chatIdsKey = useMemo(
+    () => chats.map((c) => c.id).sort().join(","),
+    [chats]
+  );
+  useEffect(() => {
+    if (!user?.id || !chatIdsKey) return;
+    chatIdsKey.split(",").forEach((id) => void fetchMessagesForChat(id));
+  }, [user?.id, chatIdsKey, fetchMessagesForChat]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !user?.id) return;
+    const channelName = "chat_messages_realtime";
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            chat_id: string;
+            sender_id: string;
+            sender_username: string;
+            text: string;
+            image_url: string | null;
+            created_at: string;
+          };
+          const chatId = row.chat_id;
+          const msg: ChatMessage = {
+            id: row.id,
+            chatId,
+            senderId: row.sender_id,
+            senderUsername: row.sender_username,
+            text: row.text,
+            imageUrl: row.image_url ?? undefined,
+            createdAt: new Date(row.created_at).getTime(),
+          };
+          setMessagesByChat((prev) => {
+            const list = prev[chatId] ?? [];
+            if (list.some((m) => m.id === msg.id)) return prev;
+            return { ...prev, [chatId]: [...list, msg] };
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const createChat = useCallback(
@@ -253,6 +309,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [user?.id, messagesByChat, lastReadAtByChat]
   );
 
+  const getUnreadChatsCount = useCallback(
+    (userId: string): number => {
+      const list = getChatsForUser(userId);
+      return list.filter((c) => getUnreadCount(c.id) > 0).length;
+    },
+    [getChatsForUser, getUnreadCount]
+  );
+
   const value = useMemo(
     () => ({
       chats,
@@ -269,6 +333,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       getOpenChatForTicket,
       getOpenChatsForTicket,
       getUnreadCount,
+      getUnreadChatsCount,
       openChatModal,
       closeChatModal,
       setLastReadAt,
@@ -289,6 +354,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       getOpenChatForTicket,
       getOpenChatsForTicket,
       getUnreadCount,
+      getUnreadChatsCount,
       openChatModal,
       closeChatModal,
       setLastReadAt,

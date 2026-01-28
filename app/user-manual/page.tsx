@@ -52,7 +52,7 @@ export default function UserManualPage() {
               Chats
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              <strong>Chats</strong> shows all your conversations, grouped by ticket. You can send text and images. Sellers can <strong>close</strong> a chat if you don’t agree on a deal; you can’t reopen it from that ticket. Always ask for proof (screenshots, confirmation emails) and consider a video call. Use <strong>PayPal Goods &amp; Services</strong> when paying. See <strong>Disclaimers</strong> for more.
+              <strong>Chats</strong> shows all your conversations, grouped by ticket. You can send text and images. Sellers can <strong>stop</strong> a chat if you don’t agree on a deal; you can’t reopen it from that ticket. Always ask for proof (screenshots, confirmation emails) and consider a video call. Use <strong>PayPal Goods &amp; Services</strong> when paying. See <strong>Disclaimers</strong> for more.
             </p>
           </div>
 
