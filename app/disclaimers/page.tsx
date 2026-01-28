@@ -38,10 +38,10 @@ export default function DisclaimersPage() {
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-900/20">
             <h2 className="font-display text-xl font-bold text-amber-900 dark:text-amber-200">
-              We are not responsible for scammers
+              Agreement
             </h2>
             <p className="mt-3 text-amber-900 dark:text-amber-200">
-              Army Ticket Board <strong>only connects ARMY</strong> with each other. We do not verify sellers, buyers, or tickets. We are <strong>not responsible</strong> for scams, fraud, or lost money. You use the platform at your own risk. Always verify the other party and use safe payment methods.
+              By using this site, you agree that we are <strong>not responsible</strong> for scams, fraud, or lost money. Army Ticket Board <strong>only connects ARMY</strong> with each other. We do not verify sellers, buyers, or tickets. You use the platform at your own risk. Always verify the other party and use safe payment methods.
             </p>
           </div>
 

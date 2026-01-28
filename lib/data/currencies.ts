@@ -1,6 +1,7 @@
 /** Currency options for tickets (code, label, symbol). */
 export const CURRENCY_OPTIONS = [
   { code: "USD", label: "US Dollar", symbol: "$" },
+  { code: "CAD", label: "Canadian Dollar", symbol: "C$" },
   { code: "EUR", label: "Euro", symbol: "€" },
   { code: "GBP", label: "British Pound", symbol: "£" },
   { code: "KRW", label: "Korean Won", symbol: "₩" },

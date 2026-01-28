@@ -249,11 +249,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const getChatsForUser = useCallback(
-    (userId: string) =>
-      chats
-        .filter((c) => c.buyerId === userId || c.sellerId === userId)
-        .sort((a, b) => (b.closedAt ?? b.createdAt) - (a.closedAt ?? a.createdAt)),
-    [chats]
+    (userId: string) => {
+      const list = chats.filter((c) => c.buyerId === userId || c.sellerId === userId);
+      const lastMsgAt = (c: Chat) => {
+        const msgs = messagesByChat[c.id] ?? [];
+        if (msgs.length) return Math.max(...msgs.map((m) => m.createdAt));
+        return c.closedAt ?? c.createdAt;
+      };
+      return list.sort((a, b) => lastMsgAt(b) - lastMsgAt(a));
+    },
+    [chats, messagesByChat]
   );
 
   const getMessagesForChat = useCallback(

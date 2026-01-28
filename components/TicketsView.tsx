@@ -16,6 +16,7 @@ import { fetchProfile } from "@/lib/data/user_profiles";
 import { pushPendingForUser } from "@/lib/notificationsStorage";
 import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
+import { fetchReportedTicketIds } from "@/lib/supabase/reports";
 import {
   deleteTicket as deleteTicketApi,
   fetchTickets,
@@ -34,6 +35,7 @@ export default function TicketsView() {
     createChat,
     fetchChatsForUser,
     getChatById,
+    getChatsForUser,
     getOpenChatForTicket,
     getOpenChatsForTicket,
     openChatModal,
@@ -80,6 +82,13 @@ export default function TicketsView() {
     if (ticket) setActiveTicketId(ticket);
   }, [searchParams, isLoggedIn, router]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchReportedTicketIds(user.id).then(({ data }) => {
+      setReportedTicketIds(new Set(data));
+    });
+  }, [user?.id]);
+
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [cityFilter, setCityFilter] = useState<string>("all");
@@ -97,6 +106,8 @@ export default function TicketsView() {
   const [editTicket, setEditTicket] = useState<Ticket | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
   const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
+  const [activityFilter, setActivityFilter] = useState<"all" | "contacted" | "reported">("all");
+  const [reportedTicketIds, setReportedTicketIds] = useState<Set<string>>(new Set());
 
   const myTickets = useMemo(
     () => (user ? tickets.filter((t) => t.ownerId === user.id) : []),
@@ -129,9 +140,15 @@ export default function TicketsView() {
     return Array.from(s).sort((a, b) => a - b);
   }, [filterBase]);
 
+  const contactedTicketIds = useMemo(() => {
+    if (!user?.id) return new Set<string>();
+    const chats = getChatsForUser(user.id);
+    return new Set(chats.filter((c) => c.buyerId === user.id).map((c) => c.ticketId));
+  }, [user?.id, getChatsForUser]);
+
   const filtered = useMemo(() => {
     const base = filterBase;
-    return base.filter((t) => {
+    let list = base.filter((t) => {
       if (eventFilter !== "all" && t.event !== eventFilter) return false;
       if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (cityFilter !== "all" && t.city !== cityFilter) return false;
@@ -146,8 +163,21 @@ export default function TicketsView() {
       if (qtyFilter !== "all" && t.quantity !== Number(qtyFilter)) return false;
       return true;
     });
+    if (viewMode === "browse" && user && activityFilter !== "all") {
+      if (activityFilter === "contacted") {
+        list = list.filter((t) => contactedTicketIds.has(t.id));
+      } else if (activityFilter === "reported") {
+        list = list.filter((t) => reportedTicketIds.has(t.id));
+      }
+    }
+    return list;
   }, [
     filterBase,
+    viewMode,
+    user,
+    activityFilter,
+    contactedTicketIds,
+    reportedTicketIds,
     eventFilter,
     statusFilter,
     cityFilter,
@@ -216,6 +246,14 @@ export default function TicketsView() {
         sellerUsername,
         ticketSummary,
       });
+      if (t.status === "Available") {
+        const { data: updated } = await updateTicketApi(ticketId, { status: "Contacted" });
+        if (updated) {
+          setTickets((prev) =>
+            prev.map((x) => (x.id === ticketId ? { ...x, status: "Contacted" as const } : x))
+          );
+        }
+      }
       pushPendingForUser(ownerId, {
         type: "request_received",
         ticketId,
@@ -340,8 +378,17 @@ export default function TicketsView() {
       </div>
 
       <div className="flex flex-wrap gap-3 rounded-xl border border-army-purple/15 bg-white p-4 dark:border-army-purple/25 dark:bg-neutral-900">
+        {viewMode === "browse" && isLoggedIn && (
+          <FilterSelect
+            label="Show"
+            value={activityFilter}
+            onChange={(v) => setActivityFilter(v as "all" | "contacted" | "reported")}
+            options={["all", "contacted", "reported"]}
+            labelMap={{ all: "All", contacted: "Contacted", reported: "Reported" }}
+          />
+        )}
         <FilterSelect label="Event" value={eventFilter} onChange={setEventFilter} options={["all", ...events]} />
-        <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={["all", "Available", "Requested", "Reported", "Sold"]} />
+        <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={["all", "Available", "Contacted", "Reported", "Sold"]} />
         <FilterSelect label="City" value={cityFilter} onChange={setCityFilter} options={["all", ...cities]} />
         <FilterSelect label="Day" value={dayFilter} onChange={setDayFilter} options={["all", ...days]} />
         <FilterSelect label="VIP" value={vipFilter} onChange={setVipFilter} options={["all", "yes", "no"]} />
@@ -546,6 +593,7 @@ export default function TicketsView() {
           setTickets((prev) =>
             prev.map((t) => (t.id === ticketId ? { ...t, status: "Reported" as const } : t))
           );
+          setReportedTicketIds((prev) => new Set(prev).add(ticketId));
         }}
       />
       <SellTicketDisclaimerModal
@@ -755,13 +803,16 @@ function FilterSelect({
   value,
   onChange,
   options,
+  labelMap,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
+  labelMap?: Record<string, string>;
 }) {
   const id = `filter-${label.toLowerCase().replace(/\s/g, "-")}`;
+  const display = (o: string) => (labelMap && labelMap[o]) ?? (o === "all" ? "All" : o);
   return (
     <div className="flex items-center gap-2">
       <label htmlFor={id} className="text-sm font-semibold text-army-purple">
@@ -775,7 +826,7 @@ function FilterSelect({
       >
         {options.map((o) => (
           <option key={o} value={o}>
-            {o === "all" ? "All" : o}
+            {display(o)}
           </option>
         ))}
       </select>
@@ -802,7 +853,7 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 function StatusBadge({ status }: { status: TicketStatus }) {
   const styles: Record<TicketStatus, string> = {
     Available: "bg-army-200/50 text-army-800 dark:bg-army-300/30 dark:text-army-200",
-    Requested: "bg-army-400/30 text-army-900 dark:bg-army-500/30 dark:text-army-100",
+    Contacted: "bg-army-400/30 text-army-900 dark:bg-army-500/30 dark:text-army-100",
     Reported: "bg-army-600/40 text-white dark:bg-army-500/50",
     Sold: "bg-neutral-300 text-neutral-700 dark:bg-neutral-600 dark:text-neutral-200",
   };
