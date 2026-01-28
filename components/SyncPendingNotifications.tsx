@@ -21,7 +21,13 @@ export default function SyncPendingNotifications() {
         p.type === "ticket_reported" ||
         p.type === "new_message"
       )
-        add({ type: p.type, ticketId: p.ticketId, requestId: p.requestId, message: p.message });
+        add({
+          type: p.type,
+          ticketId: p.ticketId,
+          requestId: p.requestId,
+          message: p.message,
+          ticketSummary: p.ticketSummary,
+        });
     });
   }, [user?.id, add]);
 

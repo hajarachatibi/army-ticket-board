@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useNotifications } from "@/lib/NotificationContext";
 import type { Notification, NotificationType } from "@/lib/NotificationContext";
@@ -25,10 +26,32 @@ function label(type: NotificationType): string {
   }
 }
 
+function notificationHref(n: Notification): string {
+  const ticket = n.ticketId;
+  if (!ticket) return "/tickets";
+  switch (n.type) {
+    case "request_received":
+      return `/tickets?view=my&ticket=${ticket}`;
+    case "chat_opened":
+    case "new_message":
+    case "request_accepted":
+      return `/chats?ticket=${ticket}`;
+    default:
+      return `/tickets?ticket=${ticket}`;
+  }
+}
+
 export default function NotificationBell() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [reportPopup, setReportPopup] = useState<Notification | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  const handleReportClick = (n: Notification) => {
+    markRead(n.id);
+    setOpen(false);
+    setReportPopup(n);
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -77,36 +100,103 @@ export default function NotificationBell() {
                 </p>
               ) : (
                 <ul>
-                  {notifications.map((n) => (
-                    <li key={n.id}>
-                      <Link
-                        href={n.ticketId ? `/tickets?ticket=${n.ticketId}` : "/tickets"}
-                        onClick={() => {
-                          markRead(n.id);
-                          setOpen(false);
-                        }}
-                        className={`block border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
-                          !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
-                        }`}
-                      >
-                        <p className="font-semibold text-army-purple">{label(n.type)}</p>
-                        {n.message && (
-                          <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
-                            {n.message}
-                          </p>
-                        )}
-                        {n.ticketId && (
-                          <p className="mt-1 text-xs text-neutral-500">Ticket {n.ticketId}</p>
-                        )}
-                      </Link>
-                    </li>
-                  ))}
+                  {notifications.map((n) =>
+                    n.type === "ticket_reported" ? (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleReportClick(n)}
+                          className={`block w-full border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
+                            !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
+                          }`}
+                        >
+                          <p className="font-semibold text-army-purple">{label(n.type)}</p>
+                          {n.message && (
+                            <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
+                              {n.message}
+                            </p>
+                          )}
+                          {(n.ticketSummary || n.ticketId) && (
+                            <p className="mt-1 text-xs text-neutral-500">
+                              {n.ticketSummary ?? `Ticket ${n.ticketId}`}
+                            </p>
+                          )}
+                        </button>
+                      </li>
+                    ) : (
+                      <li key={n.id}>
+                        <Link
+                          href={notificationHref(n)}
+                          onClick={() => {
+                            markRead(n.id);
+                            setOpen(false);
+                          }}
+                          className={`block border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
+                            !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
+                          }`}
+                        >
+                          <p className="font-semibold text-army-purple">{label(n.type)}</p>
+                          {n.message && (
+                            <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
+                              {n.message}
+                            </p>
+                          )}
+                          {(n.ticketSummary || n.ticketId) && (
+                            <p className="mt-1 text-xs text-neutral-500">
+                              {n.ticketSummary ?? `Ticket ${n.ticketId}`}
+                            </p>
+                          )}
+                        </Link>
+                      </li>
+                    )
+                  )}
                 </ul>
               )}
             </div>
           </div>
         </>
       )}
+
+      {reportPopup &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="modal-backdrop fixed inset-0 z-[100] flex cursor-pointer items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-notification-title"
+            onClick={() => setReportPopup(null)}
+          >
+            <div
+              className="modal-panel max-h-[90vh] w-full max-w-md cursor-default overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-5 shadow-xl dark:bg-neutral-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="report-notification-title" className="font-display text-lg font-bold text-army-purple">
+                {label(reportPopup.type)}
+              </h2>
+              {(reportPopup.ticketSummary || reportPopup.ticketId) && (
+                <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Ticket: {reportPopup.ticketSummary ?? reportPopup.ticketId}
+                </p>
+              )}
+              {reportPopup.message && (
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+                  {reportPopup.message}
+                </p>
+              )}
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setReportPopup(null)}
+                  className="btn-army-outline rounded-lg px-4 py-2 text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

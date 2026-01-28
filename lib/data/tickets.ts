@@ -14,6 +14,8 @@ export type Ticket = {
   type: TicketType;
   status: TicketStatus;
   ownerId: string | null;
-  /** Face value price per ticket (e.g. USD). */
+  /** Face value price per ticket. */
   price: number;
+  /** ISO 4217 currency code (e.g. USD, EUR, GBP, KRW). */
+  currency: string;
 };

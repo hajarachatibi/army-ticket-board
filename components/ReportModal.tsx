@@ -65,12 +65,14 @@ export default function ReportModal({
           type: "ticket_reported",
           ticketId: ticket.id,
           message: sellerMessage,
+          ticketSummary: summary,
         });
       }
       addNotification({
         type: "ticket_reported",
         ticketId: ticket.id,
         message: "Your report has been submitted.",
+        ticketSummary: summary,
       });
       onReported?.(ticket.id);
       setReason("");

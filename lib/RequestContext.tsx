@@ -37,8 +37,9 @@ type RequestContextValue = {
     ticketId: string,
     requesterId: string,
     requesterUsername: string,
-    event: string,
-    seatPreference: string
+    event?: string | null,
+    seatPreference?: string | null,
+    options?: { status?: "accepted"; acceptedBy?: string }
   ) => Promise<Request | null>;
   updateStatus: (
     requestId: string,
@@ -83,15 +84,18 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       ticketId: string,
       requesterId: string,
       requesterUsername: string,
-      event: string,
-      seatPreference: string
+      event?: string | null,
+      seatPreference?: string | null,
+      options?: { status?: "accepted"; acceptedBy?: string }
     ): Promise<Request | null> => {
       const { data, error } = await insertRequest({
         ticketId,
         requesterId,
         requesterUsername,
-        event,
-        seatPreference,
+        event: event ?? "—",
+        seatPreference: seatPreference ?? "—",
+        status: options?.status,
+        acceptedBy: options?.acceptedBy,
       });
       if (error) {
         if (process.env.NODE_ENV === "development") console.error("[RequestContext] addRequest:", error);

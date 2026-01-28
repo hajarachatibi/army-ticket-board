@@ -19,6 +19,7 @@ export default function ChatModal() {
     addMessage,
     closeChat,
     closeChatModal,
+    setLastReadAt,
   } = useChat();
   const { closeRequest } = useRequest();
   const [draft, setDraft] = useState("");
@@ -43,6 +44,10 @@ export default function ChatModal() {
   }, [activeChatId, fetchMessagesForChat]);
 
   useEffect(() => {
+    if (activeChatId) setLastReadAt(activeChatId);
+  }, [activeChatId, setLastReadAt]);
+
+  useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages]);
 
@@ -58,6 +63,7 @@ export default function ChatModal() {
         type: "new_message",
         ticketId: chat.ticketId,
         message: `New message from ${user.username}: ${preview}`,
+        ticketSummary: chat.ticketSummary,
       });
     }
     return sent;
@@ -106,7 +112,7 @@ export default function ChatModal() {
       onClick={handleDismiss}
     >
       <div
-        className="modal-panel flex max-h-[85vh] w-full max-w-md cursor-default flex-col rounded-2xl border border-army-purple/20 bg-white shadow-xl dark:bg-neutral-900"
+        className="modal-panel flex max-h-[90vh] w-full max-w-2xl cursor-default flex-col rounded-2xl border border-army-purple/20 bg-white shadow-xl dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">

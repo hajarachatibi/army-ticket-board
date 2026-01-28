@@ -10,6 +10,8 @@ export type PendingNotification = {
   ticketId?: string;
   requestId?: string;
   message?: string;
+  /** Ticket basic info (e.g. "Event · City · Day") for display instead of ticket ID. */
+  ticketSummary?: string;
 };
 
 export function pushPendingForUser(userId: string, n: PendingNotification): void {

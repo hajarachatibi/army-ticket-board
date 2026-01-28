@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
 import { ARIRANG_CITIES, ARIRANG_EVENTS } from "@/lib/data/arirang";
+import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
 import type { Ticket } from "@/lib/data/tickets";
 import { insertTicket, updateTicket } from "@/lib/supabase/tickets";
 
@@ -22,7 +23,7 @@ export default function SellTicketModal({
   onTicketAdded,
   onTicketUpdated,
 }: SellTicketModalProps) {
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const [event, setEvent] = useState("");
   const [city, setCity] = useState("");
   const [day, setDay] = useState("");
@@ -33,6 +34,7 @@ export default function SellTicketModal({
   const [seatType, setSeatType] = useState<"Seat" | "Standing">("Seat");
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,6 +54,7 @@ export default function SellTicketModal({
       setSeatType(editTicket.type);
       setQuantity(editTicket.quantity);
       setPrice(editTicket.price != null ? String(editTicket.price) : "");
+      setCurrency(editTicket.currency ?? "USD");
     } else {
       setEvent("");
       setCity("");
@@ -63,6 +66,7 @@ export default function SellTicketModal({
       setSeatType("Seat");
       setQuantity(1);
       setPrice("");
+      setCurrency("USD");
     }
   }, [open, editTicket]);
 
@@ -79,6 +83,7 @@ export default function SellTicketModal({
     setSeatType("Seat");
     setQuantity(1);
     setPrice("");
+    setCurrency("USD");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,7 +93,7 @@ export default function SellTicketModal({
     const seatVal = seat.trim() || (quantity > 1 ? `1-${quantity}` : "1");
     const priceNum = Math.max(0, parseFloat(String(price).replace(/,/g, ".")) || 0);
     if (priceNum <= 0) {
-      setFormError("Please enter a valid price in USD (face value per ticket).");
+      setFormError("Please enter a valid price (face value per ticket).");
       return;
     }
     setSubmitting(true);
@@ -105,23 +110,33 @@ export default function SellTicketModal({
           seat: seatVal,
           type: seatType,
           price: priceNum,
+          currency,
         });
         if (error) throw new Error(error);
         if (data) onTicketUpdated?.(data);
       } else {
-        const { data, error } = await insertTicket({
-          event,
-          city,
-          day,
-          vip,
-          quantity,
-          section,
-          row,
-          seat: seatVal,
-          type: seatType,
-          ownerId: user.id,
-          price: priceNum,
-        });
+        const token = await getAccessToken();
+        if (!token) {
+          setFormError("Session expired. Please refresh the page and try again.");
+          return;
+        }
+        const { data, error } = await insertTicket(
+          {
+            event,
+            city,
+            day,
+            vip,
+            quantity,
+            section,
+            row,
+            seat: seatVal,
+            type: seatType,
+            ownerId: user.id,
+            price: priceNum,
+            currency,
+          },
+          token
+        );
         if (error) throw new Error(error);
         if (data) onTicketAdded?.(data);
       }
@@ -290,11 +305,30 @@ export default function SellTicketModal({
             />
           </div>
           <div>
+            <label htmlFor="sell-currency" className="block text-sm font-semibold text-army-purple">
+              Currency
+            </label>
+            <select
+              id="sell-currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="input-army mt-1"
+            >
+              {CURRENCY_OPTIONS.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} ({c.symbol}) — {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label htmlFor="sell-price" className="block text-sm font-semibold text-army-purple">
-              Price (face value per ticket, USD)
+              Price (face value per ticket)
             </label>
             <div className="relative mt-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 dark:text-neutral-400">$</span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 dark:text-neutral-400">
+                {CURRENCY_OPTIONS.find((c) => c.code === currency)?.symbol ?? ""}
+              </span>
               <input
                 id="sell-price"
                 type="text"

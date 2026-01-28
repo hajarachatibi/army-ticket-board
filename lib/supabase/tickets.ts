@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabaseClient";
 import type { Ticket, TicketStatus, TicketType } from "@/lib/data/tickets";
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
 type DbTicket = {
   id: string;
   event: string;
@@ -15,6 +18,7 @@ type DbTicket = {
   status: string;
   owner_id: string | null;
   price: number;
+  currency: string;
   created_at: string;
   updated_at: string;
 };
@@ -34,6 +38,7 @@ function mapRow(d: DbTicket): Ticket {
     status: d.status as TicketStatus,
     ownerId: d.owner_id,
     price: Number(d.price) || 0,
+    currency: d.currency ?? "USD",
   };
 }
 
@@ -56,10 +61,69 @@ export async function fetchTickets(): Promise<{ data: Ticket[]; error: string | 
 
 export type InsertTicket = Omit<Ticket, "id" | "status"> & { status?: TicketStatus };
 
+/** Insert ticket via REST API with explicit JWT. Avoids client not sending token (401/RLS). */
+async function insertTicketWithToken(
+  t: InsertTicket,
+  accessToken: string
+): Promise<{ data: Ticket | null; error: string | null }> {
+  const body = {
+    event: t.event,
+    city: t.city,
+    day: t.day,
+    vip: t.vip,
+    quantity: t.quantity,
+    section: t.section,
+    seat_row: t.row,
+    seat: t.seat,
+    type: t.type,
+    status: t.status ?? "Available",
+    owner_id: t.ownerId,
+    price: t.price ?? 0,
+    currency: t.currency ?? "USD",
+  };
+
+  const token = String(accessToken).trim();
+  if (!token) return { data: null, error: "Missing access token" };
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets?select=*`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = (await res.json()) as { message?: string };
+      if (typeof j?.message === "string") msg = j.message;
+    } catch {
+      /* ignore */
+    }
+    return { data: null, error: msg };
+  }
+
+  const arr = (await res.json()) as DbTicket[];
+  const raw = Array.isArray(arr) && arr.length ? arr[0] : null;
+  if (!raw) return { data: null, error: "No row returned" };
+  return { data: mapRow(raw), error: null };
+}
+
 export async function insertTicket(
-  t: InsertTicket
+  t: InsertTicket,
+  /** Pass when caller has token (e.g. from useAuth().getAccessToken) to avoid client not sending JWT. */
+  accessToken?: string | null
 ): Promise<{ data: Ticket | null; error: string | null }> {
   try {
+    const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token ?? null;
+    if (token) {
+      return insertTicketWithToken(t, token);
+    }
+
     const { data, error } = await supabase
       .from("tickets")
       .insert({
@@ -75,6 +139,7 @@ export async function insertTicket(
         status: t.status ?? "Available",
         owner_id: t.ownerId,
         price: t.price ?? 0,
+        currency: t.currency ?? "USD",
       })
       .select()
       .single();
@@ -91,7 +156,7 @@ export async function insertTicket(
 
 export async function updateTicket(
   id: string,
-  updates: Partial<Pick<Ticket, "status" | "event" | "city" | "day" | "vip" | "quantity" | "section" | "row" | "seat" | "type" | "price">>
+  updates: Partial<Pick<Ticket, "status" | "event" | "city" | "day" | "vip" | "quantity" | "section" | "row" | "seat" | "type" | "price" | "currency">>
 ): Promise<{ data: Ticket | null; error: string | null }> {
   try {
     const row: Record<string, unknown> = {};
@@ -106,6 +171,7 @@ export async function updateTicket(
     if (updates.seat != null) row.seat = updates.seat;
     if (updates.type != null) row.type = updates.type;
     if (updates.price != null) row.price = updates.price;
+    if (updates.currency != null) row.currency = updates.currency;
 
     const { data, error } = await supabase
       .from("tickets")

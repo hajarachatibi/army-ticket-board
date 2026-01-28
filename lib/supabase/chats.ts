@@ -145,6 +145,24 @@ export async function updateChatClosed(chatId: string): Promise<{ error: string 
   }
 }
 
+/** Close all open chats for a ticket (e.g. when seller marks it sold). */
+export async function closeAllChatsForTicket(
+  ticketId: string
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from("chats")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("ticket_id", ticketId)
+      .eq("status", "open");
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Failed to close chats for ticket",
+    };
+  }
+}
+
 export async function insertMessage(params: {
   chatId: string;
   senderId: string;

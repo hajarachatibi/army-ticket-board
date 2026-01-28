@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
+import { getLastReadAt, setLastReadAt as setLastReadAtStorage } from "@/lib/chatLastRead";
 import {
   fetchChatsForUser as fetchChatsForUserApi,
   fetchMessagesForChat as fetchMessagesForChatApi,
@@ -73,8 +74,10 @@ type ChatContextValue = {
   getChatById: (chatId: string) => Chat | null;
   getOpenChatForTicket: (ticketId: string, userId: string) => Chat | null;
   getOpenChatsForTicket: (ticketId: string) => Chat[];
+  getUnreadCount: (chatId: string) => number;
   openChatModal: (chatId: string) => void;
   closeChatModal: () => void;
+  setLastReadAt: (chatId: string) => void;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -84,6 +87,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [messagesByChat, setMessagesByChat] = useState<Record<string, ChatMessage[]>>({});
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [lastReadAtByChat, setLastReadAtByChat] = useState<Record<string, number>>({});
 
   const fetchChatsForUser = useCallback(async (userId: string) => {
     const { data, error } = await fetchChatsForUserApi(userId);
@@ -106,6 +110,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user) void fetchChatsForUser(user.id);
   }, [user?.id, fetchChatsForUser]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !user?.id) return;
+    try {
+      const k = "army_chat_last_read_" + user.id;
+      const raw = localStorage.getItem(k);
+      if (!raw) return;
+      const map = JSON.parse(raw) as Record<string, number>;
+      setLastReadAtByChat(map);
+    } catch {
+      /* ignore */
+    }
+  }, [user?.id]);
 
   const createChat = useCallback(
     async (params: {
@@ -216,6 +233,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const closeChatModal = useCallback(() => setActiveChatId(null), []);
 
+  const setLastReadAt = useCallback(
+    (chatId: string) => {
+      if (!user?.id) return;
+      const at = Date.now();
+      setLastReadAtByChat((prev) => ({ ...prev, [chatId]: at }));
+      setLastReadAtStorage(user.id, chatId, at);
+    },
+    [user?.id]
+  );
+
+  const getUnreadCount = useCallback(
+    (chatId: string): number => {
+      if (!user?.id) return 0;
+      const msgs = messagesByChat[chatId] ?? [];
+      const last = lastReadAtByChat[chatId] ?? getLastReadAt(user.id, chatId);
+      return msgs.filter((m) => m.senderId !== user.id && m.createdAt > last).length;
+    },
+    [user?.id, messagesByChat, lastReadAtByChat]
+  );
+
   const value = useMemo(
     () => ({
       chats,
@@ -231,13 +268,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       getChatById,
       getOpenChatForTicket,
       getOpenChatsForTicket,
+      getUnreadCount,
       openChatModal,
       closeChatModal,
+      setLastReadAt,
     }),
     [
       chats,
       messagesByChat,
       activeChatId,
+      lastReadAtByChat,
       fetchChatsForUser,
       fetchMessagesForChat,
       createChat,
@@ -248,8 +288,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       getChatById,
       getOpenChatForTicket,
       getOpenChatsForTicket,
+      getUnreadCount,
       openChatModal,
       closeChatModal,
+      setLastReadAt,
     ]
   );
 

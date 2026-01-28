@@ -23,6 +23,8 @@ export type Notification = {
   ticketId?: string;
   requestId?: string;
   message?: string;
+  /** Ticket basic info (e.g. "Event · City · Day") for display instead of ticket ID. */
+  ticketSummary?: string;
   read: boolean;
   createdAt: number;
 };
