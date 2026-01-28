@@ -20,7 +20,9 @@ import { fetchReportedTicketIds } from "@/lib/supabase/reports";
 import {
   deleteTicket as deleteTicketApi,
   fetchTickets,
+  fetchTicketsPage,
   insertTicket as insertTicketApi,
+  TICKETS_PAGE_SIZE,
   updateTicket as updateTicketApi,
 } from "@/lib/supabase/tickets";
 
@@ -55,19 +57,129 @@ export default function TicketsView() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [eventFilter, setEventFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
+  const [dayFilter, setDayFilter] = useState<string>("all");
+  const [vipFilter, setVipFilter] = useState<string>("all");
+  const [sectionFilter, setSectionFilter] = useState<string>("all");
+  const [rowFilter, setRowFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [qtyFilter, setQtyFilter] = useState<string>("all");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [sellOpen, setSellOpen] = useState(false);
+  const [sellDisclaimerOpen, setSellDisclaimerOpen] = useState(false);
+  const [activeTicketId, setActiveTicketId] = useState<string | undefined>();
+  const [viewMode, setViewMode] = useState<"browse" | "my">("browse");
+  const [editTicket, setEditTicket] = useState<Ticket | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
+  const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
+  const [activityFilter, setActivityFilter] = useState<"all" | "contacted" | "reported">("all");
+  const [reportedTicketIds, setReportedTicketIds] = useState<Set<string>>(new Set());
 
-  const loadTickets = useCallback(async () => {
-    setTicketsLoading(true);
-    setTicketsError(null);
-    const { data, error } = await fetchTickets();
-    setTicketsLoading(false);
-    if (error) setTicketsError(error);
-    else setTickets(data);
+  const buildFilters = useCallback(
+    () => ({
+      ownerId: viewMode === "my" && user?.id ? user.id : null,
+      event: eventFilter === "all" ? null : eventFilter,
+      status: statusFilter === "all" ? null : statusFilter,
+      city: cityFilter === "all" ? null : cityFilter,
+      day: dayFilter === "all" ? null : dayFilter,
+      vip: vipFilter === "all" ? null : vipFilter === "yes",
+      section: sectionFilter === "all" ? null : sectionFilter,
+      row: rowFilter === "all" ? null : rowFilter,
+      type: typeFilter === "all" ? null : typeFilter,
+      quantity: qtyFilter === "all" ? null : Number(qtyFilter),
+    }),
+    [
+      viewMode,
+      user?.id,
+      eventFilter,
+      statusFilter,
+      cityFilter,
+      dayFilter,
+      vipFilter,
+      sectionFilter,
+      rowFilter,
+      typeFilter,
+      qtyFilter,
+    ]
+  );
+
+  const loadTickets = useCallback(
+    async (append: boolean) => {
+      const useActivityFilter = viewMode === "browse" && user && activityFilter !== "all";
+      if (useActivityFilter) {
+        setTicketsLoading(true);
+        setTicketsError(null);
+        const { data, error } = await fetchTickets();
+        setTicketsLoading(false);
+        if (error) setTicketsError(error);
+        else {
+          setTickets(data);
+          setTotalCount(data.length);
+          setHasMore(false);
+        }
+        return;
+      }
+      const offset = append ? page * TICKETS_PAGE_SIZE : 0;
+      if (append) setLoadingMore(true);
+      else {
+        setTicketsLoading(true);
+        setTicketsError(null);
+      }
+      const filters = buildFilters();
+      const { data, error, total } = await fetchTicketsPage({
+        limit: TICKETS_PAGE_SIZE,
+        offset,
+        filters,
+      });
+      if (append) setLoadingMore(false);
+      else setTicketsLoading(false);
+      if (error) {
+        setTicketsError(error);
+        if (!append) setTickets([]);
+        return;
+      }
+      setTicketsError(null);
+      if (append) {
+        setTickets((prev) => [...prev, ...data]);
+      } else {
+        setTickets(data);
+      }
+      setTotalCount(total);
+      setHasMore(offset + data.length < total);
+    },
+    [viewMode, user, activityFilter, page, buildFilters]
+  );
+
+  const loadMore = useCallback(() => {
+    setPage((p) => p + 1);
   }, []);
 
   useEffect(() => {
-    loadTickets();
-  }, [loadTickets]);
+    setPage(0);
+  }, [
+    viewMode,
+    eventFilter,
+    statusFilter,
+    cityFilter,
+    dayFilter,
+    vipFilter,
+    sectionFilter,
+    rowFilter,
+    typeFilter,
+    qtyFilter,
+    activityFilter,
+  ]);
+
+  useEffect(() => {
+    if (page === 0) loadTickets(false);
+    else loadTickets(true);
+  }, [page, loadTickets]);
 
   useEffect(() => {
     const view = searchParams.get("view");
@@ -88,26 +200,6 @@ export default function TicketsView() {
       setReportedTicketIds(new Set(data));
     });
   }, [user?.id]);
-
-  const [eventFilter, setEventFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [cityFilter, setCityFilter] = useState<string>("all");
-  const [dayFilter, setDayFilter] = useState<string>("all");
-  const [vipFilter, setVipFilter] = useState<string>("all");
-  const [sectionFilter, setSectionFilter] = useState<string>("all");
-  const [rowFilter, setRowFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [qtyFilter, setQtyFilter] = useState<string>("all");
-  const [reportOpen, setReportOpen] = useState(false);
-  const [sellOpen, setSellOpen] = useState(false);
-  const [sellDisclaimerOpen, setSellDisclaimerOpen] = useState(false);
-  const [activeTicketId, setActiveTicketId] = useState<string | undefined>();
-  const [viewMode, setViewMode] = useState<"browse" | "my">("browse");
-  const [editTicket, setEditTicket] = useState<Ticket | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
-  const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
-  const [activityFilter, setActivityFilter] = useState<"all" | "contacted" | "reported">("all");
-  const [reportedTicketIds, setReportedTicketIds] = useState<Set<string>>(new Set());
 
   const myTickets = useMemo(
     () => (user ? tickets.filter((t) => t.ownerId === user.id) : []),
@@ -247,12 +339,9 @@ export default function TicketsView() {
         ticketSummary,
       });
       if (t.status === "Available") {
-        const { data: updated } = await updateTicketApi(ticketId, { status: "Contacted" });
-        if (updated) {
-          setTickets((prev) =>
-            prev.map((x) => (x.id === ticketId ? { ...x, status: "Contacted" as const } : x))
-          );
-        }
+        setTickets((prev) =>
+          prev.map((x) => (x.id === ticketId ? { ...x, status: "Contacted" as const } : x))
+        );
       }
       pushPendingForUser(ownerId, {
         type: "request_received",
@@ -405,6 +494,11 @@ export default function TicketsView() {
           </p>
         ) : (
           <>
+            {totalCount > 0 && (
+              <p className="border-b border-army-purple/10 px-4 py-2 text-sm text-neutral-600 dark:border-army-purple/15 dark:text-neutral-400">
+                Showing 1–{tickets.length} of {totalCount} ticket{totalCount !== 1 ? "s" : ""}
+              </p>
+            )}
             {/* Mobile: cards — no horizontal scroll, actions visible */}
             <div className="space-y-3 p-4 md:hidden">
               {sorted.length === 0 ? (
@@ -581,6 +675,22 @@ export default function TicketsView() {
                 </p>
               )}
             </div>
+            {hasMore && !loadingMore && (
+              <div className="border-t border-army-purple/10 px-4 py-4 dark:border-army-purple/15">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  className="btn-army-outline mx-auto block w-full max-w-xs"
+                >
+                  Load more
+                </button>
+              </div>
+            )}
+            {loadingMore && (
+              <p className="border-t border-army-purple/10 px-4 py-4 text-center text-sm text-neutral-500 dark:border-army-purple/15 dark:text-neutral-400">
+                Loading…
+              </p>
+            )}
           </>
         )}
       </div>

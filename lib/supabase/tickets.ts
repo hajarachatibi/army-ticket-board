@@ -42,15 +42,65 @@ function mapRow(d: DbTicket): Ticket {
   };
 }
 
-export async function fetchTickets(): Promise<{ data: Ticket[]; error: string | null }> {
+export type FetchTicketsFilters = {
+  ownerId?: string | null;
+  event?: string | null;
+  status?: string | null;
+  city?: string | null;
+  day?: string | null;
+  vip?: boolean | null;
+  section?: string | null;
+  row?: string | null;
+  type?: string | null;
+  quantity?: number | null;
+};
+
+export const TICKETS_PAGE_SIZE = 24;
+
+export async function fetchTicketsPage(params: {
+  limit: number;
+  offset: number;
+  filters?: FetchTicketsFilters;
+}): Promise<{ data: Ticket[]; total: number; error: string | null }> {
   try {
-    const { data, error } = await supabase
+    const { limit, offset, filters } = params;
+    let q = supabase
       .from("tickets")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("created_at", { ascending: false });
 
+    if (filters?.ownerId != null) q = q.eq("owner_id", filters.ownerId);
+    if (filters?.event != null && filters.event !== "all") q = q.eq("event", filters.event);
+    if (filters?.status != null && filters.status !== "all") q = q.eq("status", filters.status);
+    if (filters?.city != null && filters.city !== "all") q = q.eq("city", filters.city);
+    if (filters?.day != null && filters.day !== "all") q = q.eq("day", filters.day);
+    if (filters?.vip != null) q = q.eq("vip", filters.vip);
+    if (filters?.section != null && filters.section !== "all") q = q.eq("section", filters.section);
+    if (filters?.row != null && filters.row !== "all") q = q.eq("seat_row", filters.row);
+    if (filters?.type != null && filters.type !== "all") q = q.eq("type", filters.type);
+    if (filters?.quantity != null) q = q.eq("quantity", filters.quantity);
+
+    const { data, error, count } = await q.range(offset, offset + limit - 1);
+    if (error) return { data: [], total: 0, error: error.message };
+    const total = count ?? 0;
+    return { data: (data ?? []).map((d) => mapRow(d as DbTicket)), total, error: null };
+  } catch (e) {
+    return {
+      data: [],
+      total: 0,
+      error: e instanceof Error ? e.message : "Failed to fetch tickets",
+    };
+  }
+}
+
+/** Fetch all tickets (optionally for one owner). Used when activity filter is contacted/reported. */
+export async function fetchTickets(ownerId?: string | null): Promise<{ data: Ticket[]; error: string | null }> {
+  try {
+    let q = supabase.from("tickets").select("*").order("created_at", { ascending: false });
+    if (ownerId != null) q = q.eq("owner_id", ownerId);
+    const { data, error } = await q;
     if (error) return { data: [], error: error.message };
-    return { data: (data ?? []).map(mapRow), error: null };
+    return { data: (data ?? []).map((d) => mapRow(d as DbTicket)), error: null };
   } catch (e) {
     return {
       data: [],
