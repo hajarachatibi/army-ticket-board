@@ -30,6 +30,7 @@
 26. Run `migrations/030_ticket_review_workflow.sql` for the ticket review workflow: `listing_status`, `claimed_by`, `claimed_at` on tickets; filter options and public stats scope to approved only; admin claim/approve/reject and `admin_pending_tickets`.
 27. Run `migrations/031_admin_tickets_filtered.sql` to add `admin_tickets_paged_filtered` (used to split admin tickets into sections with pagination).
 28. Run `migrations/032_ticket_review_notifications.sql` to require a reject reason and notify sellers on ticket approve/reject (server-backed `user_notifications`).
+29. Run `migrations/033_reset_available_to_pending.sql` to move all currently-available approved tickets back to pending review (one-time scam prevention sweep).
 
 **Google OAuth:** Enable **Google** in Supabase Dashboard → **Authentication** → **Providers** → **Google**. Add your Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Set **Redirect URL** in Google OAuth config to `https://<your-project-ref>.supabase.co/auth/v1/callback`. In Supabase → **Authentication** → **URL Configuration**, add your app redirect URLs (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`). Profiles are created from the client when the user first signs in with Google (username = email, email from Google).
 
