@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useChat } from "@/lib/ChatContext";
 import { supabase } from "@/lib/supabaseClient";
+import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import {
   fetchAdminChatMessages,
   sendAdminChatMessage,
@@ -32,9 +33,11 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"open" | "closed">(adminChat.status ?? "open");
   const listRef = useRef<HTMLUListElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = youAreAdmin ?? (!!user && !!adminChat.adminId && adminChat.adminId === user.id);
   const isOpen = status === "open";
@@ -74,6 +77,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
             sender_id: string;
             sender_username: string;
             text: string;
+            image_url: string | null;
             created_at: string;
           };
           if (row.admin_chat_id !== adminChat.id) return;
@@ -88,6 +92,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
                     senderId: row.sender_id,
                     senderUsername: row.sender_username,
                     text: row.text,
+                    imageUrl: row.image_url ?? undefined,
                     createdAt: row.created_at,
                   },
                 ]
@@ -120,6 +125,43 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
     if (data) setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
     void loadMessages(true);
   }, [adminChat.id, draft, user, sending, loadMessages, isOpen]);
+
+  const handlePickImage = useCallback(() => {
+    if (!isOpen) return;
+    fileInputRef.current?.click();
+  }, [isOpen]);
+
+  const handleSelectedImage = useCallback(async (file: File | null) => {
+    if (!file || !user || uploading || sending || !isOpen) return;
+    setUploading(true);
+    setError(null);
+
+    const uploaded = await uploadChatImage(adminChat.id, file);
+    if ("error" in uploaded) {
+      setUploading(false);
+      setError(uploaded.error);
+      return;
+    }
+
+    const caption = draft.trim();
+    setDraft("");
+    const { data, error: err } = await sendAdminChatMessage({
+      adminChatId: adminChat.id,
+      senderId: user.id,
+      senderUsername: user.username || user.email || "Admin",
+      text: caption || "Photo",
+      imageUrl: uploaded.url,
+    });
+
+    setUploading(false);
+
+    if (err) {
+      setError(err);
+      return;
+    }
+    if (data) setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+    void loadMessages(true);
+  }, [adminChat.id, draft, isOpen, loadMessages, sending, uploading, user]);
 
   const handleStop = useCallback(async () => {
     if (!isAdmin || !isOpen) return;
@@ -176,6 +218,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
           ) : (
             messages.map((m) => {
               const isMe = m.senderId === user.id;
+              const showCaption = !!m.text?.trim() && !(m.imageUrl && m.text.trim() === "Photo");
               return (
                 <li
                   key={m.id}
@@ -191,7 +234,25 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
                       <span className="ml-1.5 rounded bg-army-purple/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-army-purple">Admin</span>
                     )}
                   </p>
-                  <p className="mt-0.5 text-sm text-neutral-800 dark:text-neutral-200">{m.text}</p>
+                  {m.imageUrl && (
+                    <a
+                      href={m.imageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 block overflow-hidden rounded-xl border border-black/5 bg-black/5 dark:border-white/10 dark:bg-white/5"
+                      title="Open image"
+                    >
+                      <img
+                        src={m.imageUrl}
+                        alt="Chat attachment"
+                        className="max-h-80 w-full object-contain"
+                        loading="lazy"
+                      />
+                    </a>
+                  )}
+                  {showCaption && (
+                    <p className="mt-0.5 text-sm text-neutral-800 dark:text-neutral-200">{m.text}</p>
+                  )}
                   <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                     {new Date(m.createdAt).toLocaleTimeString(undefined, {
                       hour: "2-digit",
@@ -213,13 +274,34 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Type a message…"
+                placeholder="Type a message… (optional caption for photo)"
                 className="input-army flex-1"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0] ?? null;
+                  // Allow selecting the same file again later.
+                  e.currentTarget.value = "";
+                  void handleSelectedImage(file);
+                }}
               />
               <button
                 type="button"
+                onClick={handlePickImage}
+                disabled={sending || uploading}
+                className="btn-army-outline shrink-0 disabled:opacity-50"
+                title="Attach image"
+              >
+                {uploading ? "Uploading…" : "Photo"}
+              </button>
+              <button
+                type="button"
                 onClick={handleSend}
-                disabled={!draft.trim() || sending}
+                disabled={!draft.trim() || sending || uploading}
                 className="btn-army shrink-0 disabled:opacity-50"
               >
                 {sending ? "…" : "Send"}

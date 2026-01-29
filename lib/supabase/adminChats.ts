@@ -29,6 +29,7 @@ export type AdminChatMessage = {
   senderId: string;
   senderUsername: string;
   text: string;
+  imageUrl?: string;
   createdAt: string;
 };
 
@@ -130,6 +131,7 @@ export async function fetchAdminChatMessages(adminChatId: string): Promise<{
       sender_id: string;
       sender_username: string;
       text: string;
+      image_url: string | null;
       created_at: string;
     }>;
     return {
@@ -139,6 +141,7 @@ export async function fetchAdminChatMessages(adminChatId: string): Promise<{
         senderId: r.sender_id,
         senderUsername: r.sender_username,
         text: r.text,
+        imageUrl: r.image_url ?? undefined,
         createdAt: r.created_at,
       })),
       error: null,
@@ -156,16 +159,20 @@ export async function sendAdminChatMessage(params: {
   senderId: string;
   senderUsername: string;
   text: string;
+  imageUrl?: string;
 }): Promise<{ data: AdminChatMessage | null; error: string | null }> {
   try {
+    const row: Record<string, unknown> = {
+      admin_chat_id: params.adminChatId,
+      sender_id: params.senderId,
+      sender_username: params.senderUsername,
+      text: params.text,
+    };
+    if (params.imageUrl) row.image_url = params.imageUrl;
+
     const { data, error } = await supabase
       .from("admin_chat_messages")
-      .insert({
-        admin_chat_id: params.adminChatId,
-        sender_id: params.senderId,
-        sender_username: params.senderUsername,
-        text: params.text,
-      })
+      .insert(row)
       .select()
       .single();
     if (error) return { data: null, error: error.message };
@@ -175,6 +182,7 @@ export async function sendAdminChatMessage(params: {
       sender_id: string;
       sender_username: string;
       text: string;
+      image_url: string | null;
       created_at: string;
     };
     return {
@@ -184,6 +192,7 @@ export async function sendAdminChatMessage(params: {
         senderId: r.sender_id,
         senderUsername: r.sender_username,
         text: r.text,
+        imageUrl: r.image_url ?? undefined,
         createdAt: r.created_at,
       },
       error: null,
