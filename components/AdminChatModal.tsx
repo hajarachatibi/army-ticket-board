@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useChat } from "@/lib/ChatContext";
 import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
+import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
 import {
   fetchAdminChatMessages,
   sendAdminChatMessage,
@@ -41,6 +42,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
 
   const isAdmin = youAreAdmin ?? (!!user && !!adminChat.adminId && adminChat.adminId === user.id);
   const isOpen = status === "open";
+  const otherIsAdmin = !!otherShowAdminBadge;
 
   const loadMessages = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -200,6 +202,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">
           <h2 id="admin-chat-modal-title" className="font-display text-xl font-bold text-army-purple">
             Chat with {userEmail}
+            {otherIsAdmin && <VerifiedAdminBadge />}
           </h2>
         </div>
 
@@ -218,6 +221,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
           ) : (
             messages.map((m) => {
               const isMe = m.senderId === user.id;
+              const senderIsAdmin = isMe ? isAdmin : otherIsAdmin;
               const showCaption = !!m.text?.trim() && !(m.imageUrl && m.text.trim() === "Photo");
               return (
                 <li
@@ -230,9 +234,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
                 >
                   <p className="text-xs font-semibold text-army-purple">
                     {isMe ? "You" : m.senderUsername}
-                    {!isMe && otherShowAdminBadge && (
-                      <span className="ml-1.5 rounded bg-army-purple/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-army-purple">Admin</span>
-                    )}
+                    {senderIsAdmin && <VerifiedAdminBadge />}
                   </p>
                   {m.imageUrl && (
                     <a

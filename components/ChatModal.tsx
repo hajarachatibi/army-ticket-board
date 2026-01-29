@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useChat } from "@/lib/ChatContext";
 import { pushPendingForUser } from "@/lib/notificationsStorage";
+import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
+import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import { useRequest } from "@/lib/RequestContext";
 
@@ -26,6 +28,7 @@ export default function ChatModal() {
   const [draft, setDraft] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -38,7 +41,38 @@ export default function ChatModal() {
       ? chat.sellerUsername
       : chat.buyerUsername
     : "—";
+  const otherId = chat
+    ? user?.id === chat.buyerId
+      ? chat.sellerId
+      : chat.buyerId
+    : null;
   const isOpen = !!chat && chat.status === "open";
+
+  useEffect(() => {
+    if (!chat) return;
+    const ids = [chat.buyerId, chat.sellerId].filter(Boolean);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, role")
+        .in("id", ids);
+      if (cancelled) return;
+      if (error || !data) {
+        setAdminIds(new Set());
+        return;
+      }
+      const next = new Set<string>();
+      for (const row of data as Array<{ id: string; role: string }>) {
+        if (row.role === "admin") next.add(row.id);
+      }
+      setAdminIds(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chat?.buyerId, chat?.sellerId, chat?.id]);
 
   useEffect(() => {
     if (activeChatId) fetchMessagesForChat(activeChatId);
@@ -125,6 +159,7 @@ export default function ChatModal() {
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">
           <h2 id="chat-modal-title" className="font-display text-xl font-bold text-army-purple">
             Chat with {otherName}
+            {otherId && adminIds.has(otherId) && <VerifiedAdminBadge />}
           </h2>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
             {chat.ticketSummary}
@@ -159,6 +194,7 @@ export default function ChatModal() {
               const isMe = m.senderId === user?.id;
               const hasImage = !!m.imageUrl;
               const textOnly = m.text === "(Image)";
+              const senderIsAdmin = adminIds.has(m.senderId);
               return (
                 <li
                   key={m.id}
@@ -170,6 +206,7 @@ export default function ChatModal() {
                 >
                   <p className="text-xs font-semibold text-army-purple">
                     {isMe ? "You" : m.senderUsername}
+                    {senderIsAdmin && <VerifiedAdminBadge />}
                   </p>
                   {hasImage && (
                     <a
