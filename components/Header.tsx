@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthContext";
@@ -24,6 +25,22 @@ export default function Header() {
   const { getUnreadChatsCount } = useChat();
   const unreadChatsCount = isLoggedIn && user ? getUnreadChatsCount(user.id) : 0;
   const showAdmin = isLoggedIn && isAdmin;
+  const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Auto-open only on mobile, once per session.
+    if (window.innerWidth >= 640) return;
+    const KEY = "army_safety_mobile_popup_v1_dismissed";
+    if (window.sessionStorage.getItem(KEY) !== "1") setMobileAnnouncementOpen(true);
+  }, []);
+
+  const closeMobileAnnouncement = () => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("army_safety_mobile_popup_v1_dismissed", "1");
+    }
+    setMobileAnnouncementOpen(false);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -41,9 +58,21 @@ export default function Header() {
           <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide">
             Safety update
           </span>
-          <span className="text-white/95">
-            We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
-          </span>
+          <div className="flex items-center gap-2 text-white/95">
+            <span>
+              We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
+              <span className="hidden sm:inline">
+                {" "}If you’re a seller, please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setMobileAnnouncementOpen(true)}
+              className="ml-2 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-white/20 sm:hidden"
+            >
+              Details
+            </button>
+          </div>
         </div>
       </div>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -191,6 +220,48 @@ export default function Header() {
           </Link>
         )}
       </nav>
+
+      {mobileAnnouncementOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 sm:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-safety-title"
+          onClick={closeMobileAnnouncement}
+        >
+          <div
+            className="relative w-full max-w-sm translate-y-6 rounded-2xl border border-army-purple/20 bg-white p-5 text-center shadow-2xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeMobileAnnouncement}
+              className="absolute right-3 top-3 rounded-lg px-2 py-1 text-sm font-semibold text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <h2 id="mobile-safety-title" className="font-display text-lg font-bold text-army-purple">
+              Safety update
+            </h2>
+            <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+              We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
+            </p>
+            <p className="mt-3 text-sm text-neutral-700 dark:text-neutral-300">
+              <span className="font-semibold">Sellers:</span> please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
+            </p>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={closeMobileAnnouncement}
+                className="btn-army rounded-lg px-4 py-2 text-sm"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
