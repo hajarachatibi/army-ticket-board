@@ -510,6 +510,7 @@ export default function TicketsView() {
                     <Th>Seat</Th>
                     <Th>Type</Th>
                     <Th>Status</Th>
+                    {viewMode === "my" && <Th>Listing</Th>}
                     <Th>Actions</Th>
                   </tr>
                 </thead>
@@ -532,6 +533,15 @@ export default function TicketsView() {
                       <Td>{row.seat}</Td>
                       <Td>{row.type}</Td>
                       <Td><StatusBadge status={row.status} /></Td>
+                      {viewMode === "my" && (
+                        <Td>
+                          {row.listingStatus === "pending_review"
+                            ? "Pending review"
+                            : row.listingStatus === "rejected"
+                              ? "Rejected"
+                              : "Listed"}
+                        </Td>
+                      )}
                       <td className="flex flex-wrap items-center gap-2 px-4 py-3">
                         {viewMode === "browse" ? (
                           row.ownerId === user?.id ? (
@@ -762,7 +772,26 @@ function TicketCard({
             <h3 className="font-semibold text-army-purple dark:text-army-200">{ticket.event}</h3>
             <p className="text-sm text-neutral-600 dark:text-neutral-400">{meta}</p>
           </div>
-          <StatusBadge status={ticket.status} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={ticket.status} />
+            {viewMode === "my" && ticket.listingStatus && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  ticket.listingStatus === "pending_review"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+                    : ticket.listingStatus === "rejected"
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                      : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                }`}
+              >
+                {ticket.listingStatus === "pending_review"
+                  ? "Pending review"
+                  : ticket.listingStatus === "rejected"
+                    ? "Rejected"
+                    : "Listed"}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
           <span>VIP {ticket.vip ? "Yes" : "No"}</span>

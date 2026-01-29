@@ -15,7 +15,9 @@ export type NotificationType =
   | "request_received"
   | "chat_opened"
   | "new_message"
-  | "ticket_reported";
+  | "ticket_reported"
+  | "ticket_approved"
+  | "ticket_rejected";
 
 export type Notification = {
   id: string;

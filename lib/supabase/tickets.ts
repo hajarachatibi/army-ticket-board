@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import type { Ticket, TicketStatus, TicketType } from "@/lib/data/tickets";
+import type { ListingStatus, Ticket, TicketStatus, TicketType } from "@/lib/data/tickets";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -21,9 +21,13 @@ type DbTicket = {
   currency: string;
   created_at: string;
   updated_at: string;
+  listing_status?: string | null;
 };
 
 function mapRow(d: DbTicket): Ticket {
+  const ls = d.listing_status;
+  const listingStatus: ListingStatus | undefined =
+    ls && ["pending_review", "approved", "rejected"].includes(ls) ? (ls as ListingStatus) : undefined;
   return {
     id: d.id,
     event: d.event,
@@ -39,6 +43,7 @@ function mapRow(d: DbTicket): Ticket {
     ownerId: d.owner_id,
     price: Number(d.price) || 0,
     currency: d.currency ?? "USD",
+    ...(listingStatus && { listingStatus }),
   };
 }
 
@@ -70,6 +75,7 @@ export async function fetchTicketsPage(params: {
       .order("created_at", { ascending: false });
 
     if (filters?.ownerId != null) q = q.eq("owner_id", filters.ownerId);
+    else q = q.eq("listing_status", "approved");
     if (filters?.event != null && filters.event !== "all") q = q.eq("event", filters.event);
     if (filters?.status != null && filters.status !== "all") q = q.eq("status", filters.status);
     if (filters?.city != null && filters.city !== "all") q = q.eq("city", filters.city);
@@ -147,6 +153,7 @@ export async function fetchTickets(ownerId?: string | null): Promise<{ data: Tic
   try {
     let q = supabase.from("tickets").select("*").order("created_at", { ascending: false });
     if (ownerId != null) q = q.eq("owner_id", ownerId);
+    else q = q.eq("listing_status", "approved");
     const { data, error } = await q;
     if (error) return { data: [], error: error.message };
     return { data: (data ?? []).map((d) => mapRow(d as DbTicket)), error: null };

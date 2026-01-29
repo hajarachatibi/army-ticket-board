@@ -9,6 +9,7 @@ import { RequestProvider } from "@/lib/RequestContext";
 import { ThemeProvider } from "@/lib/ThemeContext";
 
 import ChatModal from "@/components/ChatModal";
+import SyncDbNotifications from "@/components/SyncDbNotifications";
 import SyncPendingNotifications from "@/components/SyncPendingNotifications";
 
 export default function Providers({ children }: { children: ReactNode }) {
@@ -19,6 +20,7 @@ export default function Providers({ children }: { children: ReactNode }) {
           <RequestProvider>
             <ChatProvider>
               <SyncPendingNotifications />
+              <SyncDbNotifications />
               {children}
               <ChatModal />
             </ChatProvider>

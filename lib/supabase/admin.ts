@@ -29,6 +29,8 @@ export type AdminTicket = {
   event: string;
   city: string;
   day: string;
+  vip?: boolean;
+  quantity?: number;
   section: string;
   row: string;
   seat: string;
@@ -36,7 +38,12 @@ export type AdminTicket = {
   status: string;
   price: number;
   currency: string;
+  ownerId: string | null;
   ownerEmail: string | null;
+  listingStatus?: "pending_review" | "approved" | "rejected";
+  claimedBy: string | null;
+  claimedByEmail: string | null;
+  claimedAt: string | null;
 };
 
 export type AdminUser = {
@@ -135,6 +142,8 @@ export async function fetchAdminTickets(params: {
       event: String(d.event ?? ""),
       city: String(d.city ?? ""),
       day: String(d.day ?? ""),
+      vip: d.vip === true,
+      quantity: typeof d.quantity === "number" ? d.quantity : undefined,
       section: String(d.section ?? ""),
       row: String(d.seat_row ?? ""),
       seat: String(d.seat ?? ""),
@@ -142,7 +151,15 @@ export async function fetchAdminTickets(params: {
       status: String(d.status ?? ""),
       price: Number(d.price) || 0,
       currency: String(d.currency ?? "USD"),
+      ownerId: d.owner_id != null ? String(d.owner_id) : null,
       ownerEmail: d.owner_email != null ? String(d.owner_email) : null,
+      listingStatus:
+        d.listing_status === "pending_review" || d.listing_status === "approved" || d.listing_status === "rejected"
+          ? d.listing_status
+          : undefined,
+      claimedBy: d.claimed_by != null ? String(d.claimed_by) : null,
+      claimedByEmail: d.claimed_by_email != null ? String(d.claimed_by_email) : null,
+      claimedAt: d.claimed_at != null ? String(d.claimed_at) : null,
     }));
     return { data: out, total, error: null };
   } catch (e) {
@@ -151,6 +168,129 @@ export async function fetchAdminTickets(params: {
       total: 0,
       error: e instanceof Error ? e.message : "Failed to fetch tickets",
     };
+  }
+}
+
+export type AdminTicketsClaimedState = "claimed" | "unclaimed";
+
+export async function fetchAdminTicketsFiltered(params: {
+  page: number;
+  search?: string;
+  ticketStatus?: string | null; // e.g. 'Available' | 'Sold'
+  listingStatus?: "pending_review" | "approved" | "rejected" | null;
+  claimedState?: AdminTicketsClaimedState | null;
+}): Promise<{ data: AdminTicket[]; total: number; error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc("admin_tickets_paged_filtered", {
+      p_limit: TICKETS_PAGE_SIZE,
+      p_offset: params.page * TICKETS_PAGE_SIZE,
+      p_search: params.search ?? "",
+      p_ticket_status: params.ticketStatus ?? null,
+      p_listing_status: params.listingStatus ?? null,
+      p_claimed_state: params.claimedState ?? null,
+    });
+    if (error) return { data: [], total: 0, error: error.message };
+    const obj = data as { data: Array<Record<string, unknown>>; total?: number | string } | null;
+    const list = Array.isArray(obj?.data) ? obj.data : [];
+    const total = Math.max(0, Number(obj?.total ?? 0));
+    const out: AdminTicket[] = list.map((d) => ({
+      id: String(d.id),
+      event: String(d.event ?? ""),
+      city: String(d.city ?? ""),
+      day: String(d.day ?? ""),
+      vip: d.vip === true,
+      quantity: typeof d.quantity === "number" ? d.quantity : undefined,
+      section: String(d.section ?? ""),
+      row: String(d.seat_row ?? ""),
+      seat: String(d.seat ?? ""),
+      type: String(d.type ?? ""),
+      status: String(d.status ?? ""),
+      price: Number(d.price) || 0,
+      currency: String(d.currency ?? "USD"),
+      ownerId: d.owner_id != null ? String(d.owner_id) : null,
+      ownerEmail: d.owner_email != null ? String(d.owner_email) : null,
+      listingStatus:
+        d.listing_status === "pending_review" || d.listing_status === "approved" || d.listing_status === "rejected"
+          ? d.listing_status
+          : undefined,
+      claimedBy: d.claimed_by != null ? String(d.claimed_by) : null,
+      claimedByEmail: d.claimed_by_email != null ? String(d.claimed_by_email) : null,
+      claimedAt: d.claimed_at != null ? String(d.claimed_at) : null,
+    }));
+    return { data: out, total, error: null };
+  } catch (e) {
+    return {
+      data: [],
+      total: 0,
+      error: e instanceof Error ? e.message : "Failed to fetch tickets",
+    };
+  }
+}
+
+export type AdminPendingTicket = AdminTicket;
+
+export async function fetchAdminPendingTickets(): Promise<{
+  data: AdminPendingTicket[];
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_pending_tickets");
+    if (error) return { data: [], error: error.message };
+    const list = Array.isArray(data) ? data : [];
+    const out: AdminPendingTicket[] = list.map((d: Record<string, unknown>) => ({
+      id: String(d.id),
+      event: String(d.event ?? ""),
+      city: String(d.city ?? ""),
+      day: String(d.day ?? ""),
+      vip: d.vip === true,
+      quantity: typeof d.quantity === "number" ? d.quantity : undefined,
+      section: String(d.section ?? ""),
+      row: String(d.seat_row ?? ""),
+      seat: String(d.seat ?? ""),
+      type: String(d.type ?? ""),
+      status: String(d.status ?? ""),
+      price: Number(d.price) || 0,
+      currency: String(d.currency ?? "USD"),
+      ownerId: d.owner_id != null ? String(d.owner_id) : null,
+      ownerEmail: d.owner_email != null ? String(d.owner_email) : null,
+      listingStatus: "pending_review",
+      claimedBy: d.claimed_by != null ? String(d.claimed_by) : null,
+      claimedByEmail: d.claimed_by_email != null ? String(d.claimed_by_email) : null,
+      claimedAt: d.claimed_at != null ? String(d.claimed_at) : null,
+    }));
+    return { data: out, error: null };
+  } catch (e) {
+    return {
+      data: [],
+      error: e instanceof Error ? e.message : "Failed to fetch pending tickets",
+    };
+  }
+}
+
+export async function adminClaimTicket(ticketId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_claim_ticket", { p_ticket_id: ticketId });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to claim ticket" };
+  }
+}
+
+export async function adminApproveTicket(ticketId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_approve_ticket", { p_ticket_id: ticketId });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to approve ticket" };
+  }
+}
+
+export async function adminRejectTicket(ticketId: string, reason: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_reject_ticket", { p_ticket_id: ticketId, p_reason: reason });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to reject ticket" };
   }
 }
 

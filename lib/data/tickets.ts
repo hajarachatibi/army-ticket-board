@@ -1,5 +1,6 @@
 export type TicketType = "Seat" | "Standing";
 export type TicketStatus = "Available" | "Sold";
+export type ListingStatus = "pending_review" | "approved" | "rejected";
 
 export type Ticket = {
   id: string;
@@ -18,4 +19,6 @@ export type Ticket = {
   price: number;
   /** ISO 4217 currency code (e.g. USD, EUR, GBP, KRW). */
   currency: string;
+  /** pending_review | approved | rejected. Omitted when not selected. */
+  listingStatus?: ListingStatus;
 };

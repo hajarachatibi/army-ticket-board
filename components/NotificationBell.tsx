@@ -15,6 +15,10 @@ function label(type: NotificationType): string {
       return "Request rejected";
     case "request_received":
       return "New ticket request";
+    case "ticket_approved":
+      return "Ticket approved";
+    case "ticket_rejected":
+      return "Ticket rejected";
     case "chat_opened":
       return "Chatroom opened";
     case "new_message":
@@ -31,6 +35,9 @@ function notificationHref(n: Notification): string {
   if (!ticket) return "/tickets";
   switch (n.type) {
     case "request_received":
+      return `/tickets?view=my&ticket=${ticket}`;
+    case "ticket_approved":
+    case "ticket_rejected":
       return `/tickets?view=my&ticket=${ticket}`;
     case "chat_opened":
     case "new_message":

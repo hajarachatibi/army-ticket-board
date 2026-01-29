@@ -346,6 +346,11 @@ export default function SellTicketModal({
               {formError}
             </p>
           )}
+          {!isEdit && (
+            <div className="rounded-lg border border-army-purple/15 bg-army-purple/5 px-3 py-2 text-sm text-neutral-700 dark:border-army-purple/25 dark:bg-army-purple/10 dark:text-neutral-300">
+              Friendly note: your ticket will be reviewed by an admin within 24 hours. We may message you to confirm proof—please reply within 24 hours to avoid rejection.
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={handleClose} className="btn-army-outline">
               Cancel

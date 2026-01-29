@@ -8,17 +8,22 @@ import { formatPrice } from "@/lib/data/currencies";
 import { useAuth } from "@/lib/AuthContext";
 import AdminChatModal from "@/components/AdminChatModal";
 import {
+  adminApproveTicket,
   adminBanAndDeleteUser,
+  adminClaimTicket,
   adminDeleteReport,
   adminDeleteTicket,
+  adminRejectTicket,
   adminUnbanUser,
   fetchAdminBannedUsers,
   fetchAdminBuyersPage,
   fetchAdminDashboardStats,
+  fetchAdminPendingTickets,
   fetchAdminReports,
   fetchAdminSellersPage,
-  fetchAdminTickets,
+  fetchAdminTicketsFiltered,
   type AdminDashboardStats,
+  type AdminPendingTicket,
   type AdminReport,
   type AdminTicket,
   type AdminUser,
@@ -26,7 +31,7 @@ import {
 } from "@/lib/supabase/admin";
 import { adminGetOrCreateChat, type AdminChat } from "@/lib/supabase/adminChats";
 
-type Tab = "dashboard" | "reports" | "tickets" | "sellers" | "buyers" | "banned";
+type Tab = "dashboard" | "reports" | "pending" | "tickets" | "sellers" | "buyers" | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -42,11 +47,14 @@ export default function AdminPanelContent() {
   const { user, isLoading: authLoading, isAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [ticketsSearch, setTicketsSearch] = useState("");
+  const [ticketsSearchApplied, setTicketsSearchApplied] = useState("");
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [ticketsTotal, setTicketsTotal] = useState(0);
   const [ticketsPage, setTicketsPage] = useState(0);
-  const [ticketsSearch, setTicketsSearch] = useState("");
-  const [ticketsSearchApplied, setTicketsSearchApplied] = useState("");
+  const [ticketsFilter, setTicketsFilter] = useState<
+    "available_approved" | "available_unclaimed" | "available_rejected" | "sold"
+  >("available_approved");
   const [sellers, setSellers] = useState<AdminUser[]>([]);
   const [sellersTotal, setSellersTotal] = useState(0);
   const [sellersPage, setSellersPage] = useState(0);
@@ -59,6 +67,7 @@ export default function AdminPanelContent() {
   const [buyersSearchApplied, setBuyersSearchApplied] = useState("");
   const [banned, setBanned] = useState<BannedUser[]>([]);
   const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
+  const [pendingTickets, setPendingTickets] = useState<AdminPendingTicket[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -67,6 +76,11 @@ export default function AdminPanelContent() {
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
 
   const [adminChatOpen, setAdminChatOpen] = useState<{ chat: AdminChat; userEmail: string } | null>(null);
+  const [ticketDetailsOpen, setTicketDetailsOpen] = useState<AdminTicket | null>(null);
+  const [reportTicketOpen, setReportTicketOpen] = useState<AdminReport | null>(null);
+  const [reportUserOpen, setReportUserOpen] = useState<{ userId: string | null; email: string | null; title: string } | null>(null);
+  const [rejectReasonOpen, setRejectReasonOpen] = useState<{ ticketId: string; ownerEmail: string | null } | null>(null);
+  const [rejectReasonText, setRejectReasonText] = useState("");
 
   const clearFeedback = useCallback(() => {
     setActionFeedback(null);
@@ -81,17 +95,47 @@ export default function AdminPanelContent() {
     else if (data) setReports(data);
   }, []);
 
-  const loadTickets = useCallback(async () => {
+  const loadTicketsFiltered = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, total, error: e } = await fetchAdminTickets({ page: ticketsPage, search: ticketsSearchApplied });
+    const filter = ticketsFilter;
+    const params =
+      filter === "sold"
+        ? { ticketStatus: "Sold" as const, listingStatus: null, claimedState: null }
+        : filter === "available_unclaimed"
+          ? {
+              ticketStatus: "Available" as const,
+              listingStatus: "pending_review" as const,
+              claimedState: "unclaimed" as const,
+            }
+          : filter === "available_rejected"
+            ? { ticketStatus: "Available" as const, listingStatus: "rejected" as const, claimedState: null }
+            : { ticketStatus: "Available" as const, listingStatus: "approved" as const, claimedState: null };
+
+    const { data, total, error: e } = await fetchAdminTicketsFiltered({
+      page: ticketsPage,
+      search: ticketsSearchApplied,
+      ticketStatus: params.ticketStatus,
+      listingStatus: params.listingStatus,
+      claimedState: params.claimedState,
+    });
+    setLoading(false);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setTickets(data);
+    setTicketsTotal(total);
+  }, [ticketsPage, ticketsSearchApplied, ticketsFilter]);
+
+  const loadPending = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminPendingTickets();
     setLoading(false);
     if (e) setError(e);
-    else {
-      if (data) setTickets(data);
-      setTicketsTotal(total);
-    }
-  }, [ticketsPage, ticketsSearchApplied]);
+    else if (data) setPendingTickets(data);
+  }, []);
 
   const loadSellers = useCallback(async () => {
     setLoading(true);
@@ -144,15 +188,12 @@ export default function AdminPanelContent() {
     if (!user?.id || !isAdmin) return;
     if (tab === "dashboard") loadDashboardStats();
     else if (tab === "reports") loadReports();
-    else if (tab === "tickets") loadTickets();
+    else if (tab === "pending") loadPending();
+    else if (tab === "tickets") loadTicketsFiltered();
     else if (tab === "sellers") loadSellers();
     else if (tab === "buyers") loadBuyers();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadTickets, loadSellers, loadBuyers, loadBanned]);
-
-  useEffect(() => {
-    if (tab === "tickets") loadTickets();
-  }, [ticketsPage, ticketsSearchApplied, tab, loadTickets]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadBanned]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
@@ -217,9 +258,9 @@ export default function AdminPanelContent() {
       loadBuyers();
       loadBanned();
       loadReports();
-      loadTickets();
+      loadTicketsFiltered();
     },
-    [handleBanAndDelete, loadSellers, loadBuyers, loadBanned, loadReports, loadTickets]
+    [handleBanAndDelete, loadSellers, loadBuyers, loadBanned, loadReports, loadTicketsFiltered]
   );
 
   const handleDeleteTicket = useCallback(async (ticketId: string) => {
@@ -229,9 +270,12 @@ export default function AdminPanelContent() {
       return;
     }
     setActionFeedback("Ticket deleted.");
-    setTickets((prev) => prev.filter((t) => t.id !== ticketId));
-    setTicketsTotal((n) => Math.max(0, n - 1));
-  }, []);
+    setReports((prev) => prev.filter((r) => r.ticketId !== ticketId));
+    setPendingTickets((prev) => prev.filter((t) => t.id !== ticketId));
+    setTicketDetailsOpen((t) => (t?.id === ticketId ? null : t));
+    setReportTicketOpen((r) => (r?.ticketId === ticketId ? null : r));
+    await Promise.all([loadTicketsFiltered(), loadPending(), loadReports()]);
+  }, [loadTicketsFiltered, loadPending, loadReports]);
 
   const openAdminChat = useCallback(async (u: AdminUser) => {
     setActionFeedback(null);
@@ -292,6 +336,7 @@ export default function AdminPanelContent() {
   const TABS: { id: Tab; label: string }[] = [
     { id: "dashboard", label: "Dashboard" },
     { id: "reports", label: "Reports" },
+    { id: "pending", label: "Pending tickets" },
     { id: "tickets", label: "Tickets" },
     { id: "sellers", label: "Sellers" },
     { id: "buyers", label: "Buyers" },
@@ -401,13 +446,6 @@ export default function AdminPanelContent() {
                       <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
                         <tr>
                           <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Event</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">City · Day</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Section · Row · Seat</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Type · Qty</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Price</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Status</th>
-                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Owner email</th>
                           <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reporter</th>
                           <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reason</th>
                           <th className="min-w-[200px] max-w-[320px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Details</th>
@@ -421,14 +459,9 @@ export default function AdminPanelContent() {
                             className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
                           >
                             <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(r.createdAt)}</td>
-                            <td className="whitespace-nowrap px-3 py-2 font-medium text-army-purple dark:text-army-300">{r.ticketEvent}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketCity} · {r.ticketDay}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketSection} · {r.ticketRow} · {r.ticketSeat}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketType} · {r.ticketQuantity}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketPrice > 0 ? formatPrice(r.ticketPrice, r.ticketCurrency) : "—"}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ticketStatus}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.ownerEmail ?? "—"}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.reporterUsername ?? "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                              {r.reporterEmail ?? r.reporterUsername ?? "—"}
+                            </td>
                             <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{r.reason}</td>
                             <td className="px-3 py-2 align-top">
                               <div className="max-h-24 min-w-[180px] max-w-[300px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded border border-army-purple/15 bg-neutral-50/80 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300">
@@ -437,24 +470,27 @@ export default function AdminPanelContent() {
                             </td>
                             <td className="whitespace-nowrap px-3 py-2">
                               <div className="flex flex-wrap gap-1">
-                                {r.reporterId && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openAdminChatByIdAndEmail(r.reporterId!, r.reporterEmail ?? r.reporterUsername ?? "Reporter")}
-                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
-                                  >
-                                    Chat reporter
-                                  </button>
-                                )}
-                                {r.ownerId && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openAdminChatByIdAndEmail(r.ownerId!, r.ownerEmail ?? "Owner")}
-                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
-                                  >
-                                    Chat owner
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setReportTicketOpen(r)}
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                >
+                                  View ticket
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setReportUserOpen({ userId: r.ownerId, email: r.ownerEmail, title: "Ticket owner" })}
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                >
+                                  View owner
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setReportUserOpen({ userId: r.reporterId, email: r.reporterEmail, title: "Reporter" })}
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                >
+                                  View reporter
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -477,10 +513,134 @@ export default function AdminPanelContent() {
             </section>
           )}
 
+          {tab === "pending" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Pending tickets</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                New listings awaiting review. Pick one up to chat with the seller, then approve or reject.
+              </p>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : pendingTickets.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No pending tickets.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Event</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">City · Day</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Price</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Owner</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Claimed by</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingTickets.map((t) => {
+                          const isClaimedByMe = !!user && !!t.claimedBy && t.claimedBy === user.id;
+                          return (
+                            <tr
+                              key={t.id}
+                              className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
+                            >
+                              <td className="px-4 py-3 font-medium text-army-purple dark:text-army-300">{t.event}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.city} · {t.day}</td>
+                              <td className="px-4 py-3">{t.price > 0 ? formatPrice(t.price, t.currency ?? "USD") : "—"}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.ownerEmail ?? "—"}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.claimedByEmail ?? "—"}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-2">
+                                  {!t.claimedBy && user && (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const { error: e } = await adminClaimTicket(t.id);
+                                        if (e) setActionFeedback(`Error: ${e}`);
+                                        else {
+                                          setActionFeedback("Ticket claimed.");
+                                          loadPending();
+                                        }
+                                      }}
+                                      className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                    >
+                                      Pick up
+                                    </button>
+                                  )}
+                                  {t.ownerId && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openAdminChatByIdAndEmail(t.ownerId!, t.ownerEmail ?? "Owner")}
+                                      className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                    >
+                                      Chat
+                                    </button>
+                                  )}
+                                  {isClaimedByMe && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const { error: e } = await adminApproveTicket(t.id);
+                                          if (e) setActionFeedback(`Error: ${e}`);
+                                          else {
+                                            setActionFeedback("Ticket approved and listed.");
+                                            loadPending();
+                                            loadTicketsFiltered();
+                                          }
+                                        }}
+                                        className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          setRejectReasonOpen({ ticketId: t.id, ownerEmail: t.ownerEmail ?? null });
+                                          setRejectReasonText("");
+                                        }}
+                                        className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {tab === "tickets" && (
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Tickets</h2>
-              <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="mb-6 flex flex-wrap items-center gap-2">
+                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Show
+                </label>
+                <select
+                  value={ticketsFilter}
+                  onChange={(e) => {
+                    setTicketsFilter(e.target.value as typeof ticketsFilter);
+                    setTicketsPage(0);
+                  }}
+                  className="input-army w-[320px]"
+                >
+                  <option value="available_approved">Available tickets (approved)</option>
+                  <option value="available_unclaimed">Available tickets (not yet claimed)</option>
+                  <option value="available_rejected">Available tickets (rejected)</option>
+                  <option value="sold">Sold tickets</option>
+                </select>
                 <input
                   type="text"
                   value={ticketsSearch}
@@ -506,10 +666,11 @@ export default function AdminPanelContent() {
                   Search
                 </button>
               </div>
+
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
-              ) : tickets.length === 0 && ticketsTotal === 0 ? (
-                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+              ) : tickets.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-6 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
                   No tickets.
                 </p>
               ) : (
@@ -526,6 +687,8 @@ export default function AdminPanelContent() {
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">City · Day</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Price</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Status</th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Listing</th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Claimed by</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Owner email</th>
                             <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
                           </tr>
@@ -539,16 +702,30 @@ export default function AdminPanelContent() {
                               <td className="px-4 py-3 font-medium text-army-purple dark:text-army-300">{t.event}</td>
                               <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.city} · {t.day}</td>
                               <td className="px-4 py-3">{t.price > 0 ? formatPrice(t.price, t.currency ?? "USD") : "—"}</td>
-                              <td className="px-4 py-3">{t.status}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.status}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.listingStatus ?? "—"}</td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.claimedByEmail ?? "—"}</td>
                               <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.ownerEmail ?? "—"}</td>
                               <td className="px-4 py-3">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteTicket(t.id)}
-                                  className="rounded bg-red-100 px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
-                                >
-                                  Delete
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setTicketDetailsOpen(t)}
+                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  >
+                                    View
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!confirm("Delete this ticket?")) return;
+                                      handleDeleteTicket(t.id);
+                                    }}
+                                    className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -684,7 +861,7 @@ export default function AdminPanelContent() {
                                           loadBuyers();
                                           loadBanned();
                                           loadReports();
-                                          loadTickets();
+                                          loadTicketsFiltered();
                                         }
                                       });
                                     }}
@@ -835,7 +1012,7 @@ export default function AdminPanelContent() {
                                           loadBuyers();
                                           loadBanned();
                                           loadReports();
-                                          loadTickets();
+                                          loadTicketsFiltered();
                                         }
                                       });
                                     }}
@@ -939,6 +1116,231 @@ export default function AdminPanelContent() {
           onClose={() => setAdminChatOpen(null)}
           onStatusChange={() => {}}
         />
+      )}
+
+      {ticketDetailsOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setTicketDetailsOpen(null)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-xl font-bold text-army-purple">Ticket details</h2>
+            <div className="mt-4 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+              <p><span className="font-semibold">Event:</span> {ticketDetailsOpen.event}</p>
+              <p><span className="font-semibold">City · Day:</span> {ticketDetailsOpen.city} · {ticketDetailsOpen.day}</p>
+              <p><span className="font-semibold">Seat:</span> {ticketDetailsOpen.section} · {ticketDetailsOpen.row} · {ticketDetailsOpen.seat} · {ticketDetailsOpen.type}</p>
+              <p><span className="font-semibold">Status:</span> {ticketDetailsOpen.status}</p>
+              <p><span className="font-semibold">Listing:</span> {ticketDetailsOpen.listingStatus ?? "—"}</p>
+              <p><span className="font-semibold">Owner:</span> {ticketDetailsOpen.ownerEmail ?? "—"}</p>
+              <p><span className="font-semibold">Claimed by:</span> {ticketDetailsOpen.claimedByEmail ?? "—"}</p>
+              <p><span className="font-semibold">Price:</span> {ticketDetailsOpen.price > 0 ? formatPrice(ticketDetailsOpen.price, ticketDetailsOpen.currency ?? "USD") : "—"}</p>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              {ticketDetailsOpen.ownerId && (
+                <button
+                  type="button"
+                  onClick={() => setReportUserOpen({ userId: ticketDetailsOpen.ownerId, email: ticketDetailsOpen.ownerEmail, title: "Ticket owner" })}
+                  className="btn-army-outline rounded-lg px-3 py-2 text-sm"
+                >
+                  View user
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirm("Delete this ticket?")) return;
+                  handleDeleteTicket(ticketDetailsOpen.id);
+                  setTicketDetailsOpen(null);
+                }}
+                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Delete ticket
+              </button>
+              <button
+                type="button"
+                onClick={() => setTicketDetailsOpen(null)}
+                className="btn-army rounded-lg px-3 py-2 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportTicketOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setReportTicketOpen(null)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-xl font-bold text-army-purple">Ticket details (from report)</h2>
+            <div className="mt-4 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+              <p><span className="font-semibold">Event:</span> {reportTicketOpen.ticketEvent}</p>
+              <p><span className="font-semibold">City · Day:</span> {reportTicketOpen.ticketCity} · {reportTicketOpen.ticketDay}</p>
+              <p><span className="font-semibold">Seat:</span> {reportTicketOpen.ticketSection} · {reportTicketOpen.ticketRow} · {reportTicketOpen.ticketSeat} · {reportTicketOpen.ticketType}</p>
+              <p><span className="font-semibold">Qty:</span> {reportTicketOpen.ticketQuantity}</p>
+              <p><span className="font-semibold">Ticket status:</span> {reportTicketOpen.ticketStatus}</p>
+              <p><span className="font-semibold">Owner:</span> {reportTicketOpen.ownerEmail ?? "—"}</p>
+              <p><span className="font-semibold">Price:</span> {reportTicketOpen.ticketPrice > 0 ? formatPrice(reportTicketOpen.ticketPrice, reportTicketOpen.ticketCurrency) : "—"}</p>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setReportUserOpen({ userId: reportTicketOpen.ownerId, email: reportTicketOpen.ownerEmail, title: "Ticket owner" })}
+                className="btn-army-outline rounded-lg px-3 py-2 text-sm"
+              >
+                View user
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirm("Delete this ticket?")) return;
+                  handleDeleteTicket(reportTicketOpen.ticketId);
+                  setReportTicketOpen(null);
+                }}
+                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Delete ticket
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportTicketOpen(null)}
+                className="btn-army rounded-lg px-3 py-2 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportUserOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setReportUserOpen(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-xl font-bold text-army-purple">{reportUserOpen.title}</h2>
+            <div className="mt-4 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+              <p><span className="font-semibold">Email:</span> {reportUserOpen.email ?? "—"}</p>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              {reportUserOpen.userId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openAdminChatByIdAndEmail(reportUserOpen.userId!, reportUserOpen.email ?? "User");
+                    setReportUserOpen(null);
+                  }}
+                  className="btn-army-outline rounded-lg px-3 py-2 text-sm"
+                >
+                  Chat
+                </button>
+              )}
+              {reportUserOpen.email && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm(`Ban and delete ${reportUserOpen.email}?`)) return;
+                    handleBanAndDelete(reportUserOpen.email!).then((ok) => {
+                      if (ok) {
+                        setActionFeedback(`Banned and deleted ${reportUserOpen.email}`);
+                        loadSellers();
+                        loadBuyers();
+                        loadBanned();
+                        loadReports();
+                        loadTicketsFiltered();
+                        loadPending();
+                        setReportUserOpen(null);
+                      }
+                    });
+                  }}
+                  className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                >
+                  Ban & delete user
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setReportUserOpen(null)}
+                className="btn-army rounded-lg px-3 py-2 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectReasonOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setRejectReasonOpen(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-xl font-bold text-army-purple">Reject ticket</h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Add a reason. The seller will receive it as a notification.
+            </p>
+            <textarea
+              value={rejectReasonText}
+              onChange={(e) => setRejectReasonText(e.target.value)}
+              rows={4}
+              className="input-army mt-4 w-full"
+              placeholder="Reason for rejection…"
+            />
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRejectReasonOpen(null)}
+                className="btn-army-outline rounded-lg px-3 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const reason = rejectReasonText.trim();
+                  if (!reason) {
+                    setActionFeedback("Error: rejection reason is required.");
+                    return;
+                  }
+                  const { error: e } = await adminRejectTicket(rejectReasonOpen.ticketId, reason);
+                  if (e) setActionFeedback(`Error: ${e}`);
+                  else {
+                    setActionFeedback("Ticket rejected.");
+                    setRejectReasonOpen(null);
+                    await Promise.all([loadPending(), loadTicketsFiltered()]);
+                  }
+                }}
+                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Reject ticket
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
