@@ -20,6 +20,13 @@
 16. Run `migrations/020_user_profiles_last_login.sql` to add `last_login_at` to `user_profiles` (updated on each OAuth login).
 17. Run `migrations/021_admin_pagination_user_details.sql` to add paged admin list RPCs (sellers, buyers, all users) with `created_at` / `last_login_at`, and send-to-all messaging RPCs.
 18. Run `migrations/022_admin_search_reports_tickets_banned.sql` to add `admin_reports_with_details`, `admin_tickets_paged` (owner email, search by gmail), `admin_list_banned`, and user-list search (name/email). Replaces report/ticket fetches and extends user list RPCs with `p_search`.
+19. Run `migrations/023_admin_chats.sql` to add `admin_chats` and `admin_chat_messages` for admin–user chat rooms. "Message" in the admin panel (single user) opens a chat modal; Realtime enabled for new messages.
+20. Run `migrations/024_admin_get_or_create_chat_text_param.sql` to fix RPC 400: `admin_get_or_create_chat` now accepts `p_user_id` as `text` (UUID string) instead of `uuid`.
+21. Run `migrations/025_get_my_admin_chats.sql` to add `get_my_admin_chats` RPC so admin chats appear on the Chats page alongside ticket chats.
+22. Run `migrations/026_admin_delete_report_unban_stats_inactive.sql` to add `admin_delete_report`, `admin_unban_user`, `admin_dashboard_stats`, `admin_list_inactive_users_paged`, extend reports with `reporter_id` / `owner_id` / `reporter_email`, add `show_admin_badge` to `user_profiles` (for achatibihajar), and add `created_at` / `last_login_at` to user list RPCs.
+23. Run `migrations/027_admin_chats_status_stop_reactivate.sql` to add `status` / `closed_at` to `admin_chats`, admin UPDATE policy, extend `get_my_admin_chats` and `admin_get_or_create_chat` with status/is_admin/other_show_admin_badge, and reactivate closed admin chat on get-or-create.
+24. Run `migrations/028_public_stats.sql` to add `public_stats` RPC (tickets, events, sold) for the home page.
+25. Run `migrations/029_admin_chats_last_sender_id.sql` to add `last_sender_id` to `get_my_admin_chats` for unread badge on admin chats.
 
 **Google OAuth:** Enable **Google** in Supabase Dashboard → **Authentication** → **Providers** → **Google**. Add your Client ID and Secret from [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Set **Redirect URL** in Google OAuth config to `https://<your-project-ref>.supabase.co/auth/v1/callback`. In Supabase → **Authentication** → **URL Configuration**, add your app redirect URLs (e.g. `http://localhost:3000/**`, `https://your-domain.com/**`). Profiles are created from the client when the user first signs in with Google (username = email, email from Google).
 

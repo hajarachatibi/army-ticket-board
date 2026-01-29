@@ -1,12 +1,6 @@
 import Link from "next/link";
 
-import StatsCard from "@/components/StatsCard";
-
-const STATS = [
-  { title: "Tickets Sold", value: "1,250", sub: "Placeholder" },
-  { title: "Active Events", value: "3", sub: "Placeholder" },
-  { title: "Requests Pending", value: "8", sub: "Placeholder" },
-];
+import HomeStats from "@/components/HomeStats";
 
 const NEWS = [
   { title: "Arirang World Tour — Seoul dates announced", date: "2025-01-15" },
@@ -58,14 +52,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="hidden mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-        <h2 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">Quick stats</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {STATS.map((s) => (
-            <StatsCard key={s.title} title={s.title} value={s.value} sub={s.sub} />
-          ))}
-        </div>
-      </section>
+      <HomeStats />
 
       <section className="hidden bg-gradient-army-subtle py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

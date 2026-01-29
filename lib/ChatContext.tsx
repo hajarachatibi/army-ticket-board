@@ -21,6 +21,7 @@ import {
   updateChatClosed as updateChatClosedApi,
   updateChatReopened as updateChatReopenedApi,
 } from "@/lib/supabase/chats";
+import { fetchMyAdminChats, type AdminChatListItem } from "@/lib/supabase/adminChats";
 
 export type ChatStatus = "open" | "closed";
 
@@ -50,9 +51,11 @@ export type ChatMessage = {
 
 type ChatContextValue = {
   chats: Chat[];
+  adminChats: AdminChatListItem[];
   messagesByChat: Record<string, ChatMessage[]>;
   activeChatId: string | null;
   fetchChatsForUser: (userId: string) => Promise<void>;
+  fetchAdminChats: () => Promise<void>;
   fetchMessagesForChat: (chatId: string) => Promise<void>;
   createChat: (params: {
     requestId: string;
@@ -78,6 +81,7 @@ type ChatContextValue = {
   getOpenChatForTicket: (ticketId: string, userId: string) => Chat | null;
   getOpenChatsForTicket: (ticketId: string) => Chat[];
   getUnreadCount: (chatId: string) => number;
+  getUnreadCountAdmin: (adminChatId: string) => number;
   getUnreadChatsCount: (userId: string) => number;
   openChatModal: (chatId: string) => void;
   closeChatModal: () => void;
@@ -89,6 +93,7 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
+  const [adminChats, setAdminChats] = useState<AdminChatListItem[]>([]);
   const [messagesByChat, setMessagesByChat] = useState<Record<string, ChatMessage[]>>({});
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [lastReadAtByChat, setLastReadAtByChat] = useState<Record<string, number>>({});
@@ -100,6 +105,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return;
     }
     setChats(data);
+  }, []);
+
+  const fetchAdminChats = useCallback(async () => {
+    const { data, error } = await fetchMyAdminChats();
+    if (error) {
+      if (process.env.NODE_ENV === "development") console.error("[ChatContext] fetchAdminChats:", error);
+      return;
+    }
+    setAdminChats(data ?? []);
   }, []);
 
   const fetchMessagesForChat = useCallback(async (chatId: string) => {
@@ -114,6 +128,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user) void fetchChatsForUser(user.id);
   }, [user?.id, fetchChatsForUser]);
+
+  useEffect(() => {
+    if (user) void fetchAdminChats();
+  }, [user?.id, fetchAdminChats]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user?.id) return;
@@ -181,6 +199,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       void supabase.removeChannel(channel);
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !user?.id) return;
+    const channelName = "admin_chat_messages_realtime";
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "admin_chat_messages" },
+        () => {
+          void fetchAdminChats();
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchAdminChats]);
 
   const createChat = useCallback(
     async (params: {
@@ -329,20 +365,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [user?.id, messagesByChat, lastReadAtByChat]
   );
 
+  const getUnreadCountAdmin = useCallback(
+    (adminChatId: string): number => {
+      if (!user?.id) return 0;
+      const a = adminChats.find((x) => x.id === adminChatId);
+      if (!a?.lastMessageAt || !a.lastSenderId || a.lastSenderId === user.id) return 0;
+      const last = lastReadAtByChat[adminChatId] ?? getLastReadAt(user.id, adminChatId);
+      return new Date(a.lastMessageAt).getTime() > last ? 1 : 0;
+    },
+    [user?.id, adminChats, lastReadAtByChat]
+  );
+
   const getUnreadChatsCount = useCallback(
     (userId: string): number => {
-      const list = getChatsForUser(userId);
-      return list.filter((c) => getUnreadCount(c.id) > 0).length;
+      const ticketUnread = getChatsForUser(userId).filter((c) => getUnreadCount(c.id) > 0).length;
+      const adminUnread = adminChats.filter((a) => getUnreadCountAdmin(a.id) > 0).length;
+      return ticketUnread + adminUnread;
     },
-    [getChatsForUser, getUnreadCount]
+    [getChatsForUser, getUnreadCount, adminChats, getUnreadCountAdmin]
   );
 
   const value = useMemo(
     () => ({
       chats,
+      adminChats,
       messagesByChat,
       activeChatId,
       fetchChatsForUser,
+      fetchAdminChats,
       fetchMessagesForChat,
       createChat,
       closeChat,
@@ -354,6 +404,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       getOpenChatForTicket,
       getOpenChatsForTicket,
       getUnreadCount,
+      getUnreadCountAdmin,
       getUnreadChatsCount,
       openChatModal,
       closeChatModal,
@@ -361,10 +412,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }),
     [
       chats,
+      adminChats,
       messagesByChat,
       activeChatId,
       lastReadAtByChat,
       fetchChatsForUser,
+      fetchAdminChats,
       fetchMessagesForChat,
       createChat,
       closeChat,
@@ -376,6 +429,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       getOpenChatForTicket,
       getOpenChatsForTicket,
       getUnreadCount,
+      getUnreadCountAdmin,
       getUnreadChatsCount,
       openChatModal,
       closeChatModal,

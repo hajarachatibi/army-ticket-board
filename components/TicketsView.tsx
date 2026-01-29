@@ -37,6 +37,7 @@ export default function TicketsView() {
     createChat,
     fetchChatsForUser,
     getChatById,
+    getChatsForUser,
     getOpenChatForTicket,
     getOpenChatsForTicket,
     openChatModal,
@@ -273,20 +274,31 @@ export default function TicketsView() {
   const hasOpenChat = (t: Ticket) =>
     !!user && !!getOpenChatForTicket(t.id, user.id);
 
-  /** True only when we are the buyer who sent the request (not the seller). */
+  /** True when we are the buyer with any existing chat (open or closed) or we just requested. */
   const weSentRequest = (t: Ticket) => {
     if (!user) return false;
     if (requestedTicketIds.has(t.id)) return true;
-    const chat = getOpenChatForTicket(t.id, user.id);
-    return !!chat && chat.buyerId === user.id;
+    const existing = getChatsForUser(user.id).find(
+      (c) => c.ticketId === t.id && c.buyerId === user.id
+    );
+    return !!existing;
   };
 
   const handleBuy = useCallback(
     async (t: Ticket) => {
       if (!user || !t.ownerId || t.status === "Sold") return;
-      setRequestedTicketIds((prev) => new Set(prev).add(t.id));
       const ticketId = t.id;
       const ownerId = t.ownerId;
+
+      const existing = getChatsForUser(user.id).find(
+        (c) => c.ticketId === ticketId && c.buyerId === user.id
+      );
+      if (existing) {
+        openChatModal(existing.id);
+        return;
+      }
+
+      setRequestedTicketIds((prev) => new Set(prev).add(t.id));
       const ticketSummary = [t.event, t.city, t.day].filter(Boolean).join(" · ") || ticketId;
       const req = await addRequest(
         ticketId,
@@ -322,7 +334,7 @@ export default function TicketsView() {
       });
       if (chat) openChatModal(chat.id);
     },
-    [user, addRequest, createChat, openChatModal, addNotification]
+    [user, getChatsForUser, addRequest, createChat, openChatModal, addNotification]
   );
 
   const openReport = (t: Ticket) => requireUser(() => {

@@ -3,6 +3,9 @@ import { supabase } from "@/lib/supabaseClient";
 export type AdminReport = {
   id: string;
   ticketId: string;
+  reporterId: string | null;
+  reporterEmail: string | null;
+  ownerId: string | null;
   ticketEvent: string;
   ticketCity: string;
   ticketDay: string;
@@ -39,6 +42,8 @@ export type AdminTicket = {
 export type AdminUser = {
   id: string;
   email: string;
+  createdAt: string | null;
+  lastLoginAt: string | null;
 };
 
 export type BannedUser = {
@@ -57,6 +62,9 @@ export async function fetchAdminReports(): Promise<{
     const rows = (data ?? []) as Array<{
       id: string;
       ticket_id: string;
+      reporter_id: string | null;
+      reporter_email: string | null;
+      owner_id: string | null;
       reported_by_username: string | null;
       reason: string;
       details: string | null;
@@ -77,6 +85,9 @@ export async function fetchAdminReports(): Promise<{
     const out: AdminReport[] = rows.map((r) => ({
       id: r.id,
       ticketId: r.ticket_id,
+      reporterId: r.reporter_id ?? null,
+      reporterEmail: r.reporter_email ?? null,
+      ownerId: r.owner_id ?? null,
       ticketEvent: r.ticket_event ?? "—",
       ticketCity: r.ticket_city ?? "—",
       ticketDay: r.ticket_day ?? "—",
@@ -158,11 +169,19 @@ async function fetchAdminUserListPaged(
       p_search: search,
     });
     if (error) return { data: [], total: 0, error: error.message };
-    const obj = data as { data: Array<{ id: string; email: string }>; total?: number | string } | null;
+    const obj = data as {
+      data: Array<{ id: string; email: string; created_at?: string | null; last_login_at?: string | null }>;
+      total?: number | string;
+    } | null;
     const list = Array.isArray(obj?.data) ? obj.data : [];
     const total = Math.max(0, Number(obj?.total ?? 0));
     return {
-      data: list.map((r) => ({ id: r.id, email: r.email ?? "" })),
+      data: list.map((r) => ({
+        id: r.id,
+        email: r.email ?? "",
+        createdAt: r.created_at ?? null,
+        lastLoginAt: r.last_login_at ?? null,
+      })),
       total,
       error: null,
     };
@@ -330,13 +349,105 @@ export async function adminDeleteTicket(ticketId: string): Promise<{ error: stri
   }
 }
 
+export async function adminDeleteReport(reportId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_delete_report", { p_report_id: reportId });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to delete report" };
+  }
+}
+
+export async function adminUnbanUser(email: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_unban_user", { p_email: email });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to unban user" };
+  }
+}
+
+export type AdminDashboardStats = {
+  users: number;
+  tickets: number;
+  reports: number;
+  banned: number;
+  sellers: number;
+  buyers: number;
+};
+
+export async function fetchAdminDashboardStats(): Promise<{
+  data: AdminDashboardStats | null;
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_dashboard_stats");
+    if (error) return { data: null, error: error.message };
+    const o = data as Record<string, number> | null;
+    if (!o) return { data: null, error: "No stats" };
+    return {
+      data: {
+        users: Number(o.users) || 0,
+        tickets: Number(o.tickets) || 0,
+        reports: Number(o.reports) || 0,
+        banned: Number(o.banned) || 0,
+        sellers: Number(o.sellers) || 0,
+        buyers: Number(o.buyers) || 0,
+      },
+      error: null,
+    };
+  } catch (e) {
+    return {
+      data: null,
+      error: e instanceof Error ? e.message : "Failed to fetch stats",
+    };
+  }
+}
+
+export async function fetchAdminInactiveUsersPage(params: {
+  page: number;
+  pageSize?: number;
+  inactiveDays?: number;
+}): Promise<{ data: AdminUser[]; total: number; error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc("admin_list_inactive_users_paged", {
+      p_limit: params.pageSize ?? USER_PAGE_SIZE,
+      p_offset: params.page * (params.pageSize ?? USER_PAGE_SIZE),
+      p_days: params.inactiveDays ?? 30,
+    });
+    if (error) return { data: [], total: 0, error: error.message };
+    const obj = data as {
+      data: Array<{ id: string; email: string; created_at?: string | null; last_login_at?: string | null }>;
+      total?: number | string;
+    } | null;
+    const list = Array.isArray(obj?.data) ? obj.data : [];
+    const total = Math.max(0, Number(obj?.total ?? 0));
+    return {
+      data: list.map((r) => ({
+        id: r.id,
+        email: r.email ?? "",
+        createdAt: r.created_at ?? null,
+        lastLoginAt: r.last_login_at ?? null,
+      })),
+      total,
+      error: null,
+    };
+  } catch (e) {
+    return {
+      data: [],
+      total: 0,
+      error: e instanceof Error ? e.message : "Failed to fetch inactive users",
+    };
+  }
+}
+
 export async function adminSendMessage(
   recipientIds: string[],
   message: string
 ): Promise<{ error: string | null }> {
   const trimmed = message?.trim() ?? "";
-  if (!trimmed) return { error: "Message cannot be empty." };
   const ids = Array.isArray(recipientIds) ? recipientIds.filter((id) => typeof id === "string" && id.length > 0) : [];
+  if (!trimmed) return { error: "Message cannot be empty." };
   if (ids.length === 0) return { error: "No recipients." };
 
   try {
@@ -344,15 +455,9 @@ export async function adminSendMessage(
       p_recipient_ids: ids,
       p_message: trimmed,
     });
-    const errMsg = error?.message ?? (error ? JSON.stringify(error) : null);
-    if (errMsg && process.env.NODE_ENV === "development") {
-      console.error("[adminSendMessage]", { error, errMsg, recipientCount: ids.length });
-    }
-    return { error: errMsg };
+    return { error: error?.message ?? (error ? JSON.stringify(error) : null) };
   } catch (e) {
-    const errMsg = e instanceof Error ? e.message : "Failed to send message";
-    if (process.env.NODE_ENV === "development") console.error("[adminSendMessage] throw", e);
-    return { error: errMsg };
+    return { error: e instanceof Error ? e.message : "Failed to send message" };
   }
 }
 
