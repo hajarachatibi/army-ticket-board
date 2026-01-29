@@ -90,7 +90,7 @@ export default function SellTicketModal({
     e.preventDefault();
     if (!user) return;
     setFormError(null);
-    const qty = Math.max(1, parseInt(quantity, 10) || 1);
+    const qty = Math.min(4, Math.max(1, parseInt(quantity, 10) || 1));
     const seatVal = seat.trim() || (qty > 1 ? `1-${qty}` : "1");
     const priceNum = Math.max(0, parseFloat(String(price).replace(/,/g, ".")) || 0);
     if (priceNum <= 0) {
@@ -299,6 +299,7 @@ export default function SellTicketModal({
               id="sell-quantity"
               type="number"
               min={1}
+              max={4}
               step={1}
               inputMode="numeric"
               value={quantity}
