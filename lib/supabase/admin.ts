@@ -404,43 +404,6 @@ export async function fetchAdminDashboardStats(): Promise<{
   }
 }
 
-export async function fetchAdminInactiveUsersPage(params: {
-  page: number;
-  pageSize?: number;
-  inactiveDays?: number;
-}): Promise<{ data: AdminUser[]; total: number; error: string | null }> {
-  try {
-    const { data, error } = await supabase.rpc("admin_list_inactive_users_paged", {
-      p_limit: params.pageSize ?? USER_PAGE_SIZE,
-      p_offset: params.page * (params.pageSize ?? USER_PAGE_SIZE),
-      p_days: params.inactiveDays ?? 30,
-    });
-    if (error) return { data: [], total: 0, error: error.message };
-    const obj = data as {
-      data: Array<{ id: string; email: string; created_at?: string | null; last_login_at?: string | null }>;
-      total?: number | string;
-    } | null;
-    const list = Array.isArray(obj?.data) ? obj.data : [];
-    const total = Math.max(0, Number(obj?.total ?? 0));
-    return {
-      data: list.map((r) => ({
-        id: r.id,
-        email: r.email ?? "",
-        createdAt: r.created_at ?? null,
-        lastLoginAt: r.last_login_at ?? null,
-      })),
-      total,
-      error: null,
-    };
-  } catch (e) {
-    return {
-      data: [],
-      total: 0,
-      error: e instanceof Error ? e.message : "Failed to fetch inactive users",
-    };
-  }
-}
-
 export async function adminSendMessage(
   recipientIds: string[],
   message: string

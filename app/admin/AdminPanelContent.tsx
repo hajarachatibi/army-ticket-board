@@ -15,7 +15,6 @@ import {
   fetchAdminBannedUsers,
   fetchAdminBuyersPage,
   fetchAdminDashboardStats,
-  fetchAdminInactiveUsersPage,
   fetchAdminReports,
   fetchAdminSellersPage,
   fetchAdminTickets,
@@ -27,7 +26,7 @@ import {
 } from "@/lib/supabase/admin";
 import { adminGetOrCreateChat, type AdminChat } from "@/lib/supabase/adminChats";
 
-type Tab = "dashboard" | "reports" | "tickets" | "sellers" | "buyers" | "inactive" | "banned";
+type Tab = "dashboard" | "reports" | "tickets" | "sellers" | "buyers" | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -60,10 +59,6 @@ export default function AdminPanelContent() {
   const [buyersSearchApplied, setBuyersSearchApplied] = useState("");
   const [banned, setBanned] = useState<BannedUser[]>([]);
   const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
-  const [inactive, setInactive] = useState<AdminUser[]>([]);
-  const [inactiveTotal, setInactiveTotal] = useState(0);
-  const [inactivePage, setInactivePage] = useState(0);
-  const [inactiveDays, setInactiveDays] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -137,21 +132,6 @@ export default function AdminPanelContent() {
     else if (data) setDashboardStats(data);
   }, []);
 
-  const loadInactive = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, total, error: e } = await fetchAdminInactiveUsersPage({
-      page: inactivePage,
-      inactiveDays,
-    });
-    setLoading(false);
-    if (e) setError(e);
-    else {
-      if (data) setInactive(data);
-      setInactiveTotal(total);
-    }
-  }, [inactivePage, inactiveDays]);
-
   useEffect(() => {
     if (authLoading) return;
     if (!user || !isAdmin) {
@@ -167,9 +147,8 @@ export default function AdminPanelContent() {
     else if (tab === "tickets") loadTickets();
     else if (tab === "sellers") loadSellers();
     else if (tab === "buyers") loadBuyers();
-    else if (tab === "inactive") loadInactive();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadTickets, loadSellers, loadBuyers, loadInactive, loadBanned]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadTickets, loadSellers, loadBuyers, loadBanned]);
 
   useEffect(() => {
     if (tab === "tickets") loadTickets();
@@ -190,10 +169,6 @@ export default function AdminPanelContent() {
   useEffect(() => {
     setSelectedBuyers(new Set());
   }, [buyersPage]);
-
-  useEffect(() => {
-    if (tab === "inactive") loadInactive();
-  }, [tab, inactivePage, inactiveDays, loadInactive]);
 
   const handleDeleteReport = useCallback(async (reportId: string) => {
     const { error: e } = await adminDeleteReport(reportId);
@@ -320,7 +295,6 @@ export default function AdminPanelContent() {
     { id: "tickets", label: "Tickets" },
     { id: "sellers", label: "Sellers" },
     { id: "buyers", label: "Buyers" },
-    { id: "inactive", label: "Inactive users" },
     { id: "banned", label: "Banned users" },
   ];
 
@@ -897,119 +871,6 @@ export default function AdminPanelContent() {
                       type="button"
                       disabled={(buyersPage + 1) * 24 >= buyersTotal}
                       onClick={() => setBuyersPage((p) => p + 1)}
-                      className="btn-army-outline rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </>
-              )}
-            </section>
-          )}
-
-          {tab === "inactive" && (
-            <section>
-              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Inactive users</h2>
-              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-                Users who have not logged in for the selected number of days, or never.
-              </p>
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <label className="text-sm font-medium">Inactive for</label>
-                <select
-                  value={inactiveDays}
-                  onChange={(e) => {
-                    setInactiveDays(Number(e.target.value));
-                    setInactivePage(0);
-                  }}
-                  className="input-army w-32"
-                >
-                  <option value={7}>7 days</option>
-                  <option value={14}>14 days</option>
-                  <option value={30}>30 days</option>
-                  <option value={90}>90 days</option>
-                </select>
-              </div>
-              {loading ? (
-                <p className="text-neutral-500">Loading…</p>
-              ) : inactive.length === 0 && inactiveTotal === 0 ? (
-                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
-                  No inactive users.
-                </p>
-              ) : (
-                <>
-                  <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
-                    Page {inactivePage + 1} · {inactiveTotal} total
-                  </p>
-                  <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Email</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Joined</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Last login</th>
-                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {inactive.map((u) => (
-                            <tr
-                              key={u.id}
-                              className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
-                            >
-                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{u.email}</td>
-                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.createdAt)}</td>
-                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.lastLoginAt)}</td>
-                              <td className="px-4 py-3">
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (!confirm(`Ban and delete ${u.email}?`)) return;
-                                      handleBanAndDelete(u.email).then((ok) => {
-                                        if (ok) {
-                                          setActionFeedback(`Banned and deleted ${u.email}`);
-                                          loadInactive();
-                                          loadSellers();
-                                          loadBuyers();
-                                          loadBanned();
-                                          loadReports();
-                                          loadTickets();
-                                        }
-                                      });
-                                    }}
-                                    className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
-                                  >
-                                    Ban
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openAdminChat(u)}
-                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
-                                  >
-                                    Message
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={inactivePage === 0}
-                      onClick={() => setInactivePage((p) => Math.max(0, p - 1))}
-                      className="btn-army-outline rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      disabled={(inactivePage + 1) * 24 >= inactiveTotal}
-                      onClick={() => setInactivePage((p) => p + 1)}
                       className="btn-army-outline rounded-lg px-3 py-2 text-sm disabled:opacity-50"
                     >
                       Next

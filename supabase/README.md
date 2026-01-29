@@ -23,7 +23,7 @@
 19. Run `migrations/023_admin_chats.sql` to add `admin_chats` and `admin_chat_messages` for admin–user chat rooms. "Message" in the admin panel (single user) opens a chat modal; Realtime enabled for new messages.
 20. Run `migrations/024_admin_get_or_create_chat_text_param.sql` to fix RPC 400: `admin_get_or_create_chat` now accepts `p_user_id` as `text` (UUID string) instead of `uuid`.
 21. Run `migrations/025_get_my_admin_chats.sql` to add `get_my_admin_chats` RPC so admin chats appear on the Chats page alongside ticket chats.
-22. Run `migrations/026_admin_delete_report_unban_stats_inactive.sql` to add `admin_delete_report`, `admin_unban_user`, `admin_dashboard_stats`, `admin_list_inactive_users_paged`, extend reports with `reporter_id` / `owner_id` / `reporter_email`, add `show_admin_badge` to `user_profiles` (for achatibihajar), and add `created_at` / `last_login_at` to user list RPCs.
+22. Run `migrations/026_admin_delete_report_unban_stats_inactive.sql` to add `admin_delete_report`, `admin_unban_user`, `admin_dashboard_stats`, extend reports with `reporter_id` / `owner_id` / `reporter_email`, add `show_admin_badge` to `user_profiles` (for achatibihajar), and add `created_at` / `last_login_at` to user list RPCs.
 23. Run `migrations/027_admin_chats_status_stop_reactivate.sql` to add `status` / `closed_at` to `admin_chats`, admin UPDATE policy, extend `get_my_admin_chats` and `admin_get_or_create_chat` with status/is_admin/other_show_admin_badge, and reactivate closed admin chat on get-or-create.
 24. Run `migrations/028_public_stats.sql` to add `public_stats` RPC (tickets, events, sold) for the home page.
 25. Run `migrations/029_admin_chats_last_sender_id.sql` to add `last_sender_id` to `get_my_admin_chats` for unread badge on admin chats.
