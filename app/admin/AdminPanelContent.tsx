@@ -554,6 +554,13 @@ export default function AdminPanelContent() {
                               <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{t.claimedByEmail ?? "—"}</td>
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setTicketDetailsOpen(t)}
+                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  >
+                                    View
+                                  </button>
                                   {!t.claimedBy && user && (
                                     <button
                                       type="button"

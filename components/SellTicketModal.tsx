@@ -32,7 +32,7 @@ export default function SellTicketModal({
   const [row, setRow] = useState("");
   const [seat, setSeat] = useState("");
   const [seatType, setSeatType] = useState<"Seat" | "Standing">("Seat");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState("1");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [formError, setFormError] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function SellTicketModal({
       setRow(editTicket.row);
       setSeat(editTicket.seat);
       setSeatType(editTicket.type);
-      setQuantity(editTicket.quantity);
+      setQuantity(String(editTicket.quantity));
       setPrice(editTicket.price != null ? String(editTicket.price) : "");
       setCurrency(editTicket.currency ?? "USD");
     } else {
@@ -64,7 +64,7 @@ export default function SellTicketModal({
       setRow("");
       setSeat("");
       setSeatType("Seat");
-      setQuantity(1);
+      setQuantity("1");
       setPrice("");
       setCurrency("USD");
     }
@@ -81,7 +81,7 @@ export default function SellTicketModal({
     setRow("");
     setSeat("");
     setSeatType("Seat");
-    setQuantity(1);
+    setQuantity("1");
     setPrice("");
     setCurrency("USD");
   };
@@ -90,7 +90,8 @@ export default function SellTicketModal({
     e.preventDefault();
     if (!user) return;
     setFormError(null);
-    const seatVal = seat.trim() || (quantity > 1 ? `1-${quantity}` : "1");
+    const qty = Math.max(1, parseInt(quantity, 10) || 1);
+    const seatVal = seat.trim() || (qty > 1 ? `1-${qty}` : "1");
     const priceNum = Math.max(0, parseFloat(String(price).replace(/,/g, ".")) || 0);
     if (priceNum <= 0) {
       setFormError("Please enter a valid price (face value per ticket).");
@@ -104,7 +105,7 @@ export default function SellTicketModal({
           city,
           day,
           vip,
-          quantity,
+          quantity: qty,
           section,
           row,
           seat: seatVal,
@@ -126,7 +127,7 @@ export default function SellTicketModal({
             city,
             day,
             vip,
-            quantity,
+            quantity: qty,
             section,
             row,
             seat: seatVal,
@@ -298,8 +299,13 @@ export default function SellTicketModal({
               id="sell-quantity"
               type="number"
               min={1}
+              step={1}
+              inputMode="numeric"
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+              onChange={(e) => {
+                // Keep it typable (allow empty/partial edits), validate on submit.
+                setQuantity(e.target.value);
+              }}
               className="input-army mt-1"
               required
             />
