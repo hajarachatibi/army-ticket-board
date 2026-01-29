@@ -1,7 +1,7 @@
 export default function VerifiedAdminBadge({ title = "Verified admin" }: { title?: string }) {
   return (
     <span
-      className="ml-1 inline-flex items-center align-middle"
+      className="ml-1 inline-flex items-center gap-1 align-middle"
       title={title}
       aria-label={title}
     >
@@ -21,6 +21,9 @@ export default function VerifiedAdminBadge({ title = "Verified admin" }: { title
             strokeLinejoin="round"
           />
         </svg>
+      </span>
+      <span className="text-[11px] font-extrabold uppercase tracking-wide text-sky-600 dark:text-sky-400">
+        Admin
       </span>
     </span>
   );
