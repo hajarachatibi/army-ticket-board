@@ -12,8 +12,16 @@ import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import { useRequest } from "@/lib/RequestContext";
 import UserReportModal from "@/components/UserReportModal";
 
+function safeDisplayName(name: string, allowEmail: boolean): string {
+  const raw = (name ?? "").trim();
+  if (!raw) return "User";
+  if (allowEmail) return raw;
+  if (raw.includes("@")) return raw.split("@")[0] || "User";
+  return raw;
+}
+
 export default function ChatModal() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const {
     activeChatId,
     getChatById,
@@ -90,6 +98,13 @@ export default function ChatModal() {
 
   if (!activeChatId || !chat) return null;
 
+  const otherIsAdmin = !!(otherId && adminIds.has(otherId));
+  const otherDisplayName = isAdmin
+    ? otherName
+    : otherIsAdmin
+      ? "Admin"
+      : safeDisplayName(otherName, false);
+
   const sendMessage = async (text: string, imageUrl?: string) => {
     if (!user || !isOpen) return null;
     const sent = await addMessage(chat.id, user.id, user.username, text, imageUrl);
@@ -160,8 +175,8 @@ export default function ChatModal() {
       >
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">
           <h2 id="chat-modal-title" className="font-display text-xl font-bold text-army-purple">
-            Chat with {otherName}
-            {otherId && adminIds.has(otherId) && <VerifiedAdminBadge />}
+            Chat with {otherDisplayName}
+            {otherIsAdmin && <VerifiedAdminBadge />}
           </h2>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
             {chat.ticketSummary}
@@ -197,6 +212,13 @@ export default function ChatModal() {
               const hasImage = !!m.imageUrl;
               const textOnly = m.text === "(Image)";
               const senderIsAdmin = adminIds.has(m.senderId);
+              const senderLabel = isMe
+                ? "You"
+                : isAdmin
+                  ? m.senderUsername
+                  : senderIsAdmin
+                    ? "Admin"
+                    : safeDisplayName(m.senderUsername, false);
               return (
                 <li
                   key={m.id}
@@ -207,7 +229,7 @@ export default function ChatModal() {
                   }`}
                 >
                   <p className="text-xs font-semibold text-army-purple">
-                    {isMe ? "You" : m.senderUsername}
+                    {senderLabel}
                     {senderIsAdmin && <VerifiedAdminBadge />}
                   </p>
                   {hasImage && (
@@ -319,7 +341,7 @@ export default function ChatModal() {
         open={userReportOpen}
         onClose={() => setUserReportOpen(false)}
         reportedUserId={otherId}
-        reportedLabel={otherName}
+        reportedLabel={otherDisplayName}
         onReported={() => {}}
       />
     </div>

@@ -35,7 +35,7 @@ function PinIcon({ filled }: { filled: boolean }) {
 }
 
 export default function ChatsPageContent() {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, isAdmin } = useAuth();
   const searchParams = useSearchParams();
   const ticketId = searchParams.get("ticket");
   const {
@@ -75,6 +75,17 @@ export default function ChatsPageContent() {
   );
 
   const chats = user ? getChatsForUser(user.id) : [];
+
+  const safeName = useCallback(
+    (name: string) => {
+      if (isAdmin) return name;
+      const raw = (name ?? "").trim();
+      if (!raw) return "User";
+      if (raw.includes("@")) return raw.split("@")[0] || "User";
+      return raw;
+    },
+    [isAdmin]
+  );
   type ChatRow =
     | { type: "ticket"; chat: Chat }
     | { type: "admin"; item: AdminChatListItem };
@@ -181,6 +192,7 @@ export default function ChatsPageContent() {
                 const c = row.chat;
                 const other =
                   c.buyerId === user.id ? c.sellerUsername : c.buyerUsername;
+                const otherLabel = safeName(other);
                 const last = lastMessage(c.id);
                 const unread = getUnreadCount(c.id);
                 return (
@@ -193,7 +205,7 @@ export default function ChatsPageContent() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-semibold text-army-purple">
-                            {other}
+                            {otherLabel}
                           </span>
                           <div className="flex items-center gap-2">
                             {unread > 0 && (
@@ -245,6 +257,8 @@ export default function ChatsPageContent() {
                 a.lastText && a.lastSenderUsername
                   ? `${a.lastSenderUsername}: ${a.lastText}`
                   : a.lastText ?? null;
+              const adminLabel =
+                !isAdmin && a.otherShowAdminBadge ? "Admin" : safeName(a.otherEmail || "Chat");
               return (
                 <li key={a.id}>
                   <div className="relative flex gap-2 rounded-xl border border-army-purple/15 bg-white transition-colors dark:border-army-purple/25 dark:bg-neutral-900">
@@ -255,7 +269,7 @@ export default function ChatsPageContent() {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-semibold text-army-purple">
-                          {a.otherEmail || "Chat"}
+                          {adminLabel}
                         </span>
                         <div className="flex items-center gap-2">
                           {unreadAdmin > 0 && (

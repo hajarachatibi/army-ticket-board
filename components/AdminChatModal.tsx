@@ -31,7 +31,7 @@ type Props = {
 };
 
 export default function AdminChatModal({ adminChat, userEmail, onClose, onStatusChange, youAreAdmin, otherShowAdminBadge, otherUserId }: Props) {
-  const { user } = useAuth();
+  const { user, isAdmin: isAdminFromAuth } = useAuth();
   const { setLastReadAt } = useChat();
   const [messages, setMessages] = useState<AdminChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -47,6 +47,13 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
   const isAdmin = youAreAdmin ?? (!!user && !!adminChat.adminId && adminChat.adminId === user.id);
   const isOpen = status === "open";
   const otherIsAdmin = !!otherShowAdminBadge;
+  const titleName = isAdmin
+    ? userEmail
+    : otherIsAdmin
+      ? "Admin"
+      : userEmail.includes("@")
+        ? userEmail.split("@")[0]
+        : userEmail;
   const otherUserIdResolved =
     (otherUserId && otherUserId.length > 0 ? otherUserId : null) ??
     (isAdmin ? (adminChat.userId || null) : (adminChat.adminId || null));
@@ -208,7 +215,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
       >
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">
           <h2 id="admin-chat-modal-title" className="font-display text-xl font-bold text-army-purple">
-            Chat with {userEmail}
+            Chat with {titleName}
             {otherIsAdmin && <VerifiedAdminBadge />}
           </h2>
         </div>
@@ -229,6 +236,13 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
             messages.map((m) => {
               const isMe = m.senderId === user.id;
               const senderIsAdmin = isMe ? isAdmin : otherIsAdmin;
+              const senderLabel = isMe
+                ? "You"
+                : isAdminFromAuth
+                  ? m.senderUsername
+                  : senderIsAdmin
+                    ? "Admin"
+                    : (m.senderUsername.includes("@") ? m.senderUsername.split("@")[0] : m.senderUsername);
               const showCaption = !!m.text?.trim() && !(m.imageUrl && m.text.trim() === "Photo");
               return (
                 <li
@@ -240,7 +254,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
                   }`}
                 >
                   <p className="text-xs font-semibold text-army-purple">
-                    {isMe ? "You" : m.senderUsername}
+                    {senderLabel}
                     {senderIsAdmin && <VerifiedAdminBadge />}
                   </p>
                   {m.imageUrl && (
