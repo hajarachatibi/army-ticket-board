@@ -1,8 +1,32 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function isTruthyEnv(value: string | undefined) {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  const maintenanceModeEnabled =
+    isTruthyEnv(process.env.MAINTENANCE_MODE) || isTruthyEnv(process.env.NEXT_PUBLIC_MAINTENANCE_MODE);
+
+  if (maintenanceModeEnabled) {
+    // Avoid rewrite loops.
+    if (pathname !== "/maintenance") {
+      const maintenanceUrl = request.nextUrl.clone();
+      maintenanceUrl.pathname = "/maintenance";
+      maintenanceUrl.search = "";
+      return NextResponse.rewrite(maintenanceUrl);
+    }
+    return NextResponse.next({ request });
+  }
+
+  const requiresAuth = pathname.startsWith("/chats") || pathname.startsWith("/settings") || pathname.startsWith("/admin");
+  if (!requiresAuth) {
+    return NextResponse.next({ request });
+  }
 
   // Always start with a passthrough response; Supabase may set refreshed cookies on it.
   const passThrough = NextResponse.next({ request });
@@ -26,7 +50,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const requiresAuth = pathname.startsWith("/chats") || pathname.startsWith("/settings") || pathname.startsWith("/admin");
   if (requiresAuth && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -51,5 +74,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/chats/:path*", "/settings/:path*"],
+  // Run middleware for all non-asset routes so maintenance can apply site-wide.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|.*\\..*).*)"],
 };
