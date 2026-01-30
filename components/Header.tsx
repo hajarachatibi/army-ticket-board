@@ -49,6 +49,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-army-purple/10 bg-white/95 shadow-header backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-army-purple/20 dark:bg-[#0f0f0f]/95 dark:supports-[backdrop-filter]:bg-[#0f0f0f]/80">
+      {/* Ticket review notice */}
       <div className="border-b border-army-purple/20 bg-gradient-to-r from-army-purple to-army-700 px-4 py-2 text-white shadow-sm dark:border-army-purple/30">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-center text-xs font-semibold sm:text-sm">
           <span className="relative inline-flex h-2.5 w-2.5">
@@ -63,6 +64,34 @@ export default function Header() {
               We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
               <span className="hidden sm:inline">
                 {" "}If you’re a seller, please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setMobileAnnouncementOpen(true)}
+              className="ml-2 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-white/20 sm:hidden"
+            >
+              Details
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Scam warning */}
+      <div className="border-b border-red-500/30 bg-gradient-to-r from-red-600 to-amber-500 px-4 py-2 text-white shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-center text-xs font-semibold sm:text-sm">
+          <span className="relative inline-flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+          </span>
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide">
+            Scam alert
+          </span>
+          <div className="flex items-center gap-2 text-white/95">
+            <span>
+              Admins will never ask for ticket transfer, order numbers, or payment info — we only ask for proof.
+              <span className="hidden sm:inline">
+                {" "}If someone claims they’re an admin, check for the blue verified <strong>Admin</strong> badge. If there’s no badge (or the message feels suspicious), use the <strong>Report</strong> button inside the chat.
               </span>
             </span>
             <button
@@ -242,14 +271,28 @@ export default function Header() {
               ✕
             </button>
             <h2 id="mobile-safety-title" className="font-display text-lg font-bold text-army-purple">
-              Safety update
+              Safety updates
             </h2>
-            <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-              We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
-            </p>
-            <p className="mt-3 text-sm text-neutral-700 dark:text-neutral-300">
-              <span className="font-semibold">Sellers:</span> please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
-            </p>
+            <div className="mt-3 space-y-3 text-left">
+              <div className="rounded-xl border border-army-purple/15 bg-army-purple/5 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-army-purple">Safety update</p>
+                <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
+                  We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
+                </p>
+                <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                  <span className="font-semibold">Sellers:</span> please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
+                </p>
+              </div>
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Scam alert</p>
+                <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
+                  Admins will never ask for ticket transfer, order numbers, or payment info — we only ask for proof.
+                </p>
+                <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                  If someone claims they’re an admin, check for the blue verified <span className="font-semibold">Admin</span> badge. If there’s no badge (or the message feels suspicious), tap <span className="font-semibold">Report</span> inside the chat.
+                </p>
+              </div>
+            </div>
             <div className="mt-5 flex justify-end">
               <button
                 type="button"

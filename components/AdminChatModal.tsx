@@ -7,6 +7,7 @@ import { useChat } from "@/lib/ChatContext";
 import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
+import UserReportModal from "@/components/UserReportModal";
 import {
   fetchAdminChatMessages,
   sendAdminChatMessage,
@@ -25,9 +26,11 @@ type Props = {
   youAreAdmin?: boolean;
   /** When true, show "Admin" badge next to messages from the other user (e.g. achatibihajar). */
   otherShowAdminBadge?: boolean;
+  /** For reporting users from admin chats list (where adminChat ids might be empty). */
+  otherUserId?: string | null;
 };
 
-export default function AdminChatModal({ adminChat, userEmail, onClose, onStatusChange, youAreAdmin, otherShowAdminBadge }: Props) {
+export default function AdminChatModal({ adminChat, userEmail, onClose, onStatusChange, youAreAdmin, otherShowAdminBadge, otherUserId }: Props) {
   const { user } = useAuth();
   const { setLastReadAt } = useChat();
   const [messages, setMessages] = useState<AdminChatMessage[]>([]);
@@ -37,12 +40,16 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"open" | "closed">(adminChat.status ?? "open");
+  const [userReportOpen, setUserReportOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = youAreAdmin ?? (!!user && !!adminChat.adminId && adminChat.adminId === user.id);
   const isOpen = status === "open";
   const otherIsAdmin = !!otherShowAdminBadge;
+  const otherUserIdResolved =
+    (otherUserId && otherUserId.length > 0 ? otherUserId : null) ??
+    (isAdmin ? (adminChat.userId || null) : (adminChat.adminId || null));
 
   const loadMessages = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -314,6 +321,16 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
             <p className="text-sm text-neutral-500 dark:text-neutral-400">This chat has been stopped.</p>
           )}
           <div className="flex flex-wrap gap-2">
+            {!!otherUserIdResolved && (
+              <button
+                type="button"
+                onClick={() => setUserReportOpen(true)}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
+                title="Report suspicious behavior"
+              >
+                Report
+              </button>
+            )}
             {isAdmin && isOpen && (
               <button
                 type="button"
@@ -338,6 +355,14 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
           </div>
         </div>
       </div>
+
+      <UserReportModal
+        open={userReportOpen}
+        onClose={() => setUserReportOpen(false)}
+        reportedUserId={otherUserIdResolved}
+        reportedLabel={userEmail}
+        onReported={() => {}}
+      />
     </div>
   );
 }

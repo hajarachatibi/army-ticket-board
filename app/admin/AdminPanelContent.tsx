@@ -21,18 +21,20 @@ import {
   fetchAdminDashboardStats,
   fetchAdminPendingTickets,
   fetchAdminReports,
+  fetchAdminUserReports,
   fetchAdminSellersPage,
   fetchAdminTicketsFiltered,
   type AdminDashboardStats,
   type AdminPendingTicket,
   type AdminReport,
+  type AdminUserReport,
   type AdminTicket,
   type AdminUser,
   type BannedUser,
 } from "@/lib/supabase/admin";
 import { adminGetOrCreateChat, type AdminChat } from "@/lib/supabase/adminChats";
 
-type Tab = "dashboard" | "reports" | "pending" | "tickets" | "sellers" | "buyers" | "users" | "banned";
+type Tab = "dashboard" | "ticketReports" | "userReports" | "pending" | "tickets" | "sellers" | "buyers" | "users" | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -48,6 +50,7 @@ export default function AdminPanelContent() {
   const { user, isLoading: authLoading, isAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [userReports, setUserReports] = useState<AdminUserReport[]>([]);
   const [ticketsSearch, setTicketsSearch] = useState("");
   const [ticketsSearchApplied, setTicketsSearchApplied] = useState("");
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
@@ -100,6 +103,15 @@ export default function AdminPanelContent() {
     setLoading(false);
     if (e) setError(e);
     else if (data) setReports(data);
+  }, []);
+
+  const loadUserReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminUserReports();
+    setLoading(false);
+    if (e) setError(e);
+    else if (data) setUserReports(data);
   }, []);
 
   const loadTicketsFiltered = useCallback(async () => {
@@ -206,14 +218,15 @@ export default function AdminPanelContent() {
   useEffect(() => {
     if (!user?.id || !isAdmin) return;
     if (tab === "dashboard") loadDashboardStats();
-    else if (tab === "reports") loadReports();
+    else if (tab === "ticketReports") loadReports();
+    else if (tab === "userReports") loadUserReports();
     else if (tab === "pending") loadPending();
     else if (tab === "tickets") loadTicketsFiltered();
     else if (tab === "sellers") loadSellers();
     else if (tab === "buyers") loadBuyers();
     else if (tab === "users") loadAllUsers();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadBanned]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadBanned]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
@@ -374,7 +387,8 @@ export default function AdminPanelContent() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "dashboard", label: "Dashboard" },
-    { id: "reports", label: "Reports" },
+    { id: "ticketReports", label: "Ticket reports" },
+    { id: "userReports", label: "User reports" },
     { id: "pending", label: "Pending tickets" },
     { id: "tickets", label: "Tickets" },
     { id: "sellers", label: "Sellers" },
@@ -471,9 +485,9 @@ export default function AdminPanelContent() {
             </section>
           )}
 
-          {tab === "reports" && (
+          {tab === "ticketReports" && (
             <section>
-              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Reports</h2>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Ticket reports</h2>
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
               ) : reports.length === 0 ? (
@@ -541,6 +555,90 @@ export default function AdminPanelContent() {
                                   className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
                                 >
                                   Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "userReports" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">User reports</h2>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : userReports.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No user reports.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                          <th className="whitespace-nowrap px-4 py-3 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reporter</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reported user</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reason</th>
+                          <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Details</th>
+                          <th className="whitespace-nowrap px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userReports.map((r) => (
+                          <tr
+                            key={r.id}
+                            className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                              {formatDate(r.createdAt)}
+                            </td>
+                            <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                              {r.reporterEmail ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                              {r.reportedEmail ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{r.reason}</td>
+                            <td className="max-w-[420px] px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                              <div className="max-h-20 overflow-auto whitespace-pre-wrap">
+                                {r.details ?? "—"}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setReportUserOpen({
+                                      userId: r.reportedUserId,
+                                      email: r.reportedEmail,
+                                      title: "Reported user",
+                                    })
+                                  }
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                >
+                                  View user
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setReportUserOpen({
+                                      userId: r.reporterId,
+                                      email: r.reporterEmail,
+                                      title: "Reporter",
+                                    })
+                                  }
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                >
+                                  View reporter
                                 </button>
                               </div>
                             </td>

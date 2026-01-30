@@ -10,6 +10,7 @@ import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
 import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import { useRequest } from "@/lib/RequestContext";
+import UserReportModal from "@/components/UserReportModal";
 
 export default function ChatModal() {
   const { user } = useAuth();
@@ -29,6 +30,7 @@ export default function ChatModal() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
+  const [userReportOpen, setUserReportOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -276,6 +278,14 @@ export default function ChatModal() {
             </div>
           )}
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setUserReportOpen(true)}
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
+              title="Report suspicious messages or behavior"
+            >
+              Report
+            </button>
             {isSeller && isOpen && (
               <button
                 type="button"
@@ -304,6 +314,14 @@ export default function ChatModal() {
           </div>
         </div>
       </div>
+
+      <UserReportModal
+        open={userReportOpen}
+        onClose={() => setUserReportOpen(false)}
+        reportedUserId={otherId}
+        reportedLabel={otherName}
+        onReported={() => {}}
+      />
     </div>
   );
 }

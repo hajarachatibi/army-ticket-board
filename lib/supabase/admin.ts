@@ -24,6 +24,18 @@ export type AdminReport = {
   createdAt: string;
 };
 
+export type AdminUserReport = {
+  id: string;
+  reportedUserId: string | null;
+  reportedEmail: string | null;
+  reporterId: string | null;
+  reporterEmail: string | null;
+  reporterUsername: string | null;
+  reason: string;
+  details: string | null;
+  createdAt: string;
+};
+
 export type AdminTicket = {
   id: string;
   event: string;
@@ -118,6 +130,43 @@ export async function fetchAdminReports(): Promise<{
       data: [],
       error: e instanceof Error ? e.message : "Failed to fetch reports",
     };
+  }
+}
+
+export async function fetchAdminUserReports(): Promise<{
+  data: AdminUserReport[];
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_user_reports_with_details");
+    if (error) return { data: [], error: error.message };
+    const rows = (data ?? []) as Array<{
+      id: string;
+      reported_user_id: string | null;
+      reported_email: string | null;
+      reporter_id: string | null;
+      reporter_email: string | null;
+      reported_by_username: string | null;
+      reason: string;
+      details: string | null;
+      created_at: string;
+    }>;
+    return {
+      data: rows.map((r) => ({
+        id: r.id,
+        reportedUserId: r.reported_user_id ?? null,
+        reportedEmail: r.reported_email ?? null,
+        reporterId: r.reporter_id ?? null,
+        reporterEmail: r.reporter_email ?? null,
+        reporterUsername: r.reported_by_username ?? null,
+        reason: r.reason,
+        details: r.details ?? null,
+        createdAt: r.created_at,
+      })),
+      error: null,
+    };
+  } catch (e) {
+    return { data: [], error: e instanceof Error ? e.message : "Failed to fetch user reports" };
   }
 }
 

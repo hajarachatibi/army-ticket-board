@@ -155,7 +155,7 @@ export default function ChatsPageContent() {
           Chats
         </h1>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Your chat history. Open a conversation to view messages. Pin up to 3 chats to keep them at the top.
+          Your chat history. Open a conversation to view messages. Pin up to 4 chats to keep them at the top.
         </p>
 
         {!hasAnyChats ? (
@@ -228,7 +228,7 @@ export default function ChatsPageContent() {
                         type="button"
                         onClick={(e) => togglePin(e, c.id)}
                         disabled={pinDisabled}
-                        title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 3)" : "Pin"}
+                        title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 4)" : "Pin"}
                         className="flex shrink-0 items-center justify-center self-center rounded-lg p-2 text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
                         aria-label={isPinned ? "Unpin chat" : "Pin chat"}
                       >
@@ -287,7 +287,7 @@ export default function ChatsPageContent() {
                       type="button"
                       onClick={(e) => togglePin(e, a.id)}
                       disabled={pinDisabled}
-                      title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 3)" : "Pin"}
+                      title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 4)" : "Pin"}
                       className="flex shrink-0 items-center justify-center self-center rounded-lg p-2 text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
                       aria-label={isPinned ? "Unpin chat" : "Pin chat"}
                     >
@@ -313,6 +313,7 @@ export default function ChatsPageContent() {
             userEmail={activeAdminChat.otherEmail || "User"}
             youAreAdmin={activeAdminChat.isAdmin}
             otherShowAdminBadge={activeAdminChat.otherShowAdminBadge}
+            otherUserId={activeAdminChat.otherUserId}
             onClose={() => {
               setActiveAdminChat(null);
               fetchAdminChats();

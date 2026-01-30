@@ -11,6 +11,7 @@ export type AdminChat = {
 
 export type AdminChatListItem = {
   id: string;
+  otherUserId: string | null;
   otherEmail: string;
   createdAt: string;
   lastMessageAt: string | null;
@@ -42,6 +43,7 @@ export async function fetchMyAdminChats(): Promise<{
     if (error) return { data: [], error: error.message };
     const rows = (data ?? []) as Array<{
       id: string;
+      other_user_id: string | null;
       other_email: string | null;
       created_at: string;
       last_message_at: string | null;
@@ -56,6 +58,7 @@ export async function fetchMyAdminChats(): Promise<{
     return {
       data: rows.map((r) => ({
         id: r.id,
+        otherUserId: r.other_user_id ?? null,
         otherEmail: r.other_email ?? "",
         createdAt: r.created_at,
         lastMessageAt: r.last_message_at,
