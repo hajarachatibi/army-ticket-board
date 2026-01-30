@@ -283,7 +283,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Type a message… (optional caption for photo)"
+                placeholder="Type a message…"
                 className="input-army flex-1"
               />
               <input

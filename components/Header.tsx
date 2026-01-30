@@ -252,14 +252,14 @@ export default function Header() {
 
       {mobileAnnouncementOpen && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 sm:hidden"
+          className="modal-backdrop fixed inset-0 z-[200] flex cursor-pointer items-center justify-center bg-black/60 p-4 sm:hidden"
           role="dialog"
           aria-modal="true"
           aria-labelledby="mobile-safety-title"
           onClick={closeMobileAnnouncement}
         >
           <div
-            className="relative w-full max-w-sm translate-y-10 rounded-2xl border border-army-purple/20 bg-white p-5 text-center shadow-2xl dark:bg-neutral-900"
+            className="modal-panel relative flex max-h-[90vh] w-full max-w-sm cursor-default flex-col overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-5 shadow-2xl dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -273,7 +273,7 @@ export default function Header() {
             <h2 id="mobile-safety-title" className="font-display text-lg font-bold text-army-purple">
               Safety updates
             </h2>
-            <div className="mt-3 space-y-3 text-left">
+            <div className="mt-3 flex-1 space-y-3 overflow-y-auto text-left">
               <div className="rounded-xl border border-army-purple/15 bg-army-purple/5 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-army-purple">Safety update</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">

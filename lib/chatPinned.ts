@@ -1,5 +1,5 @@
 const KEY_PREFIX = "army_chat_pinned_";
-const MAX_PINNED = 4;
+const MAX_PINNED = 3;
 
 function storageKey(userId: string): string {
   return KEY_PREFIX + userId;
