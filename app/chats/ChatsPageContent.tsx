@@ -228,7 +228,7 @@ export default function ChatsPageContent() {
                         type="button"
                         onClick={(e) => togglePin(e, c.id)}
                         disabled={pinDisabled}
-                        title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 3)" : "Pin"}
+                        title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 4)" : "Pin"}
                         className="flex shrink-0 items-center justify-center self-center rounded-lg p-3 text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
                         aria-label={isPinned ? "Unpin chat" : "Pin chat"}
                       >
@@ -287,7 +287,7 @@ export default function ChatsPageContent() {
                       type="button"
                       onClick={(e) => togglePin(e, a.id)}
                       disabled={pinDisabled}
-                      title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 3)" : "Pin"}
+                      title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 4)" : "Pin"}
                       className="flex shrink-0 items-center justify-center self-center rounded-lg p-3 text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
                       aria-label={isPinned ? "Unpin chat" : "Pin chat"}
                     >

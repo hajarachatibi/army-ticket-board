@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthContext";
@@ -26,6 +27,11 @@ export default function Header() {
   const unreadChatsCount = isLoggedIn && user ? getUnreadChatsCount(user.id) : 0;
   const showAdmin = isLoggedIn && isAdmin;
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -250,9 +256,9 @@ export default function Header() {
         )}
       </nav>
 
-      {mobileAnnouncementOpen && (
+      {mounted && mobileAnnouncementOpen && createPortal(
         <div
-          className="modal-backdrop fixed inset-0 z-[200] flex cursor-pointer items-center justify-center bg-black/60 p-4 sm:hidden"
+          className="modal-backdrop fixed inset-0 z-[1000] flex cursor-pointer items-center justify-center bg-black/60 p-4 sm:hidden"
           role="dialog"
           aria-modal="true"
           aria-labelledby="mobile-safety-title"
@@ -303,7 +309,8 @@ export default function Header() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );
