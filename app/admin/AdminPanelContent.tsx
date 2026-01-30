@@ -17,6 +17,7 @@ import {
   adminUnbanUser,
   fetchAdminBannedUsers,
   fetchAdminBuyersPage,
+  fetchAdminAllUsersPage,
   fetchAdminDashboardStats,
   fetchAdminPendingTickets,
   fetchAdminReports,
@@ -31,7 +32,7 @@ import {
 } from "@/lib/supabase/admin";
 import { adminGetOrCreateChat, type AdminChat } from "@/lib/supabase/adminChats";
 
-type Tab = "dashboard" | "reports" | "pending" | "tickets" | "sellers" | "buyers" | "banned";
+type Tab = "dashboard" | "reports" | "pending" | "tickets" | "sellers" | "buyers" | "users" | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -65,6 +66,11 @@ export default function AdminPanelContent() {
   const [buyersPage, setBuyersPage] = useState(0);
   const [buyersSearch, setBuyersSearch] = useState("");
   const [buyersSearchApplied, setBuyersSearchApplied] = useState("");
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
+  const [allUsersTotal, setAllUsersTotal] = useState(0);
+  const [allUsersPage, setAllUsersPage] = useState(0);
+  const [allUsersSearch, setAllUsersSearch] = useState("");
+  const [allUsersSearchApplied, setAllUsersSearchApplied] = useState("");
   const [banned, setBanned] = useState<BannedUser[]>([]);
   const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
   const [pendingTickets, setPendingTickets] = useState<AdminPendingTicket[]>([]);
@@ -74,6 +80,7 @@ export default function AdminPanelContent() {
 
   const [selectedSellers, setSelectedSellers] = useState<Set<string>>(new Set());
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
+  const [selectedAllUsers, setSelectedAllUsers] = useState<Set<string>>(new Set());
 
   const [adminChatOpen, setAdminChatOpen] = useState<{ chat: AdminChat; userEmail: string } | null>(null);
   const [ticketDetailsOpen, setTicketDetailsOpen] = useState<AdminTicket | null>(null);
@@ -161,6 +168,18 @@ export default function AdminPanelContent() {
     }
   }, [buyersPage, buyersSearchApplied]);
 
+  const loadAllUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, total, error: e } = await fetchAdminAllUsersPage({ page: allUsersPage, search: allUsersSearchApplied });
+    setLoading(false);
+    if (e) setError(e);
+    else {
+      if (data) setAllUsers(data);
+      setAllUsersTotal(total);
+    }
+  }, [allUsersPage, allUsersSearchApplied]);
+
   const loadBanned = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -192,8 +211,9 @@ export default function AdminPanelContent() {
     else if (tab === "tickets") loadTicketsFiltered();
     else if (tab === "sellers") loadSellers();
     else if (tab === "buyers") loadBuyers();
+    else if (tab === "users") loadAllUsers();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadBanned]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadBanned]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
@@ -210,6 +230,14 @@ export default function AdminPanelContent() {
   useEffect(() => {
     setSelectedBuyers(new Set());
   }, [buyersPage]);
+
+  useEffect(() => {
+    if (tab === "users") loadAllUsers();
+  }, [allUsersPage, allUsersSearchApplied, tab, loadAllUsers]);
+
+  useEffect(() => {
+    setSelectedAllUsers(new Set());
+  }, [allUsersPage]);
 
   const handleDeleteReport = useCallback(async (reportId: string) => {
     const { error: e } = await adminDeleteReport(reportId);
@@ -254,13 +282,15 @@ export default function AdminPanelContent() {
       setActionFeedback(`Banned and deleted ${done} user(s).`);
       setSelectedSellers(new Set());
       setSelectedBuyers(new Set());
+      setSelectedAllUsers(new Set());
       loadSellers();
       loadBuyers();
+      loadAllUsers();
       loadBanned();
       loadReports();
       loadTicketsFiltered();
     },
-    [handleBanAndDelete, loadSellers, loadBuyers, loadBanned, loadReports, loadTicketsFiltered]
+    [handleBanAndDelete, loadSellers, loadBuyers, loadAllUsers, loadBanned, loadReports, loadTicketsFiltered]
   );
 
   const handleDeleteTicket = useCallback(async (ticketId: string) => {
@@ -323,6 +353,15 @@ export default function AdminPanelContent() {
     });
   }, []);
 
+  const toggleAllUser = useCallback((id: string) => {
+    setSelectedAllUsers((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   if (authLoading || !user || !isAdmin) {
     return (
       <main className="min-h-screen bg-gradient-army-subtle">
@@ -340,11 +379,13 @@ export default function AdminPanelContent() {
     { id: "tickets", label: "Tickets" },
     { id: "sellers", label: "Sellers" },
     { id: "buyers", label: "Buyers" },
+    { id: "users", label: "All users" },
     { id: "banned", label: "Banned users" },
   ];
 
   const selectedSellerUsers = sellers.filter((u) => selectedSellers.has(u.id));
   const selectedBuyerUsers = buyers.filter((u) => selectedBuyers.has(u.id));
+  const selectedAllUserUsers = allUsers.filter((u) => selectedAllUsers.has(u.id));
 
   return (
     <main className="min-h-screen bg-gradient-army-subtle">
@@ -1055,6 +1096,158 @@ export default function AdminPanelContent() {
                       type="button"
                       disabled={(buyersPage + 1) * 24 >= buyersTotal}
                       onClick={() => setBuyersPage((p) => p + 1)}
+                      className="btn-army-outline rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
+          {tab === "users" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">All users</h2>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={allUsersSearch}
+                  onChange={(e) => setAllUsersSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setAllUsersSearchApplied((e.target as HTMLInputElement).value);
+                      setAllUsersPage(0);
+                    }
+                  }}
+                  placeholder="Search by name or email…"
+                  className="input-army w-64"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllUsersSearchApplied(allUsersSearch);
+                    setAllUsersPage(0);
+                  }}
+                  className="btn-army rounded-lg px-4 py-2 text-sm"
+                >
+                  Search
+                </button>
+              </div>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : allUsers.length === 0 && allUsersTotal === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No users.
+                </p>
+              ) : (
+                <>
+                  <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
+                    Page {allUsersPage + 1} · {allUsersTotal} total
+                  </p>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={selectedAllUserUsers.length === 0}
+                      onClick={() => {
+                        if (confirm(`Ban and delete data for ${selectedAllUserUsers.length} selected user(s)?`)) {
+                          handleBanAndDeleteMultiple(selectedAllUserUsers);
+                        }
+                      }}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Ban & delete selected ({selectedAllUsers.size})
+                    </button>
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                            <th className="w-10 px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={allUsers.length > 0 && selectedAllUsers.size === allUsers.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedAllUsers(new Set(allUsers.map((u) => u.id)));
+                                  else setSelectedAllUsers(new Set());
+                                }}
+                                className="rounded"
+                              />
+                            </th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Email</th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Joined</th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Last login</th>
+                            <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allUsers.map((u) => (
+                            <tr
+                              key={u.id}
+                              className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
+                            >
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAllUsers.has(u.id)}
+                                  onChange={() => toggleAllUser(u.id)}
+                                  className="rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{u.email}</td>
+                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.createdAt)}</td>
+                              <td className="whitespace-nowrap px-4 py-3 text-neutral-600 dark:text-neutral-400">{formatDate(u.lastLoginAt)}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!confirm(`Ban and delete ${u.email}?`)) return;
+                                      handleBanAndDelete(u.email).then((ok) => {
+                                        if (ok) {
+                                          setActionFeedback(`Banned and deleted ${u.email}`);
+                                          loadSellers();
+                                          loadBuyers();
+                                          loadAllUsers();
+                                          loadBanned();
+                                          loadReports();
+                                          loadTicketsFiltered();
+                                        }
+                                      });
+                                    }}
+                                    className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  >
+                                    Ban
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openAdminChat(u)}
+                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  >
+                                    Message
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={allUsersPage === 0}
+                      onClick={() => setAllUsersPage((p) => Math.max(0, p - 1))}
+                      className="btn-army-outline rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      disabled={(allUsersPage + 1) * 24 >= allUsersTotal}
+                      onClick={() => setAllUsersPage((p) => p + 1)}
                       className="btn-army-outline rounded-lg px-3 py-2 text-sm disabled:opacity-50"
                     >
                       Next
