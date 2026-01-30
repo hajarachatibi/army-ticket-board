@@ -89,7 +89,7 @@ export default function Header() {
           </span>
           <div className="flex items-center gap-2 text-white/95">
             <span>
-              Admins will never ask for ticket transfer, order numbers, or payment info — we only ask for proof.
+              Admins will never ask for ticket transfer, order numbers, or payment info.
               <span className="hidden sm:inline">
                 {" "}If someone claims they’re an admin, check for the blue verified <strong>Admin</strong> badge. If there’s no badge (or the message feels suspicious), use the <strong>Report</strong> button inside the chat.
               </span>
@@ -259,7 +259,7 @@ export default function Header() {
           onClick={closeMobileAnnouncement}
         >
           <div
-            className="relative w-full max-w-sm translate-y-6 rounded-2xl border border-army-purple/20 bg-white p-5 text-center shadow-2xl dark:bg-neutral-900"
+            className="relative w-full max-w-sm translate-y-10 rounded-2xl border border-army-purple/20 bg-white p-5 text-center shadow-2xl dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -286,7 +286,7 @@ export default function Header() {
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Scam alert</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-                  Admins will never ask for ticket transfer, order numbers, or payment info — we only ask for proof.
+                  Admins will never ask for ticket transfer, order numbers, or payment info.
                 </p>
                 <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
                   If someone claims they’re an admin, check for the blue verified <span className="font-semibold">Admin</span> badge. If there’s no badge (or the message feels suspicious), tap <span className="font-semibold">Report</span> inside the chat.
