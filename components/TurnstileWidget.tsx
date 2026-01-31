@@ -18,6 +18,8 @@ function ensureScriptLoaded(): void {
   if (document.getElementById(id)) return;
   const s = document.createElement("script");
   s.id = id;
+  // Prevent Cloudflare Rocket Loader from interfering with Turnstile.
+  s.setAttribute("data-cfasync", "false");
   s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
   s.async = true;
   s.defer = true;
