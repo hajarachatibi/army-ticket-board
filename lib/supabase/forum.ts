@@ -108,3 +108,29 @@ export async function adminDeleteForumQuestion(params: { id: string }): Promise<
   return { error: error?.message ?? null };
 }
 
+export type AdminForumSubmission = {
+  id: string;
+  userId: string;
+  userEmail: string | null;
+  username: string | null;
+  answers: Record<string, string>;
+  submittedAt: string;
+};
+
+export async function adminFetchForumSubmissions(): Promise<{ data: AdminForumSubmission[]; error: string | null }> {
+  const { data, error } = await supabase.rpc("admin_forum_submissions_with_details");
+  if (error) return { data: [], error: error.message };
+  const rows = (data ?? []) as any[];
+  return {
+    data: rows.map((r) => ({
+      id: String(r.id),
+      userId: String(r.user_id),
+      userEmail: r.user_email != null ? String(r.user_email) : null,
+      username: r.username != null ? String(r.username) : null,
+      answers: (r.answers ?? {}) as Record<string, string>,
+      submittedAt: String(r.submitted_at),
+    })),
+    error: null,
+  };
+}
+

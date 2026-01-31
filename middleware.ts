@@ -45,11 +45,6 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/settings") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/channel");
-  const allowDuringForumEnforcement =
-    pathname === "/forum" ||
-    pathname === "/login" ||
-    pathname.startsWith("/auth/") ||
-    pathname === "/maintenance";
 
   // Always start with a passthrough response; Supabase may set refreshed cookies on it.
   const passThrough = NextResponse.next({ request });
@@ -80,20 +75,6 @@ export async function middleware(request: NextRequest) {
     const redirect = NextResponse.redirect(loginUrl);
     passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
     return redirect;
-  }
-
-  // Forum enforcement: any signed-in user must submit (or re-submit if questions changed).
-  if (user && !allowDuringForumEnforcement) {
-    const { data, error } = await supabase.rpc("my_forum_status");
-    const needsSubmit = !error && (data as any)?.needs_submit === true;
-    if (needsSubmit) {
-      const forumUrl = request.nextUrl.clone();
-      forumUrl.pathname = "/forum";
-      forumUrl.searchParams.set("next", pathname + request.nextUrl.search);
-      const redirect = NextResponse.redirect(forumUrl);
-      passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
-      return redirect;
-    }
   }
 
   if (pathname.startsWith("/admin") && user) {

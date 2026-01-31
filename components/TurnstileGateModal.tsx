@@ -17,6 +17,7 @@ export default function TurnstileGateModal({
   action: string;
 }) {
   const [token, setToken] = useState<string>("");
+  const siteKeyPresent = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
     if (!open) return;
@@ -55,9 +56,9 @@ export default function TurnstileGateModal({
           <button
             type="button"
             className="btn-army"
-            disabled={!token}
+            disabled={!token || !siteKeyPresent}
             onClick={() => onVerified(token)}
-            title={!token ? "Complete verification first" : "Continue"}
+            title={!siteKeyPresent ? "Turnstile is not configured" : !token ? "Complete verification first" : "Continue"}
           >
             Continue
           </button>
