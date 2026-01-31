@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { verifyTurnstile } from "@/lib/turnstileServer";
+import { verifyTurnstileResult } from "@/lib/turnstileServer";
 import { getRequestIp } from "@/lib/requestIp";
 
 export async function POST(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     | null;
 
   const ip = getRequestIp(request);
-  const v = await verifyTurnstile({ token: body?.turnstileToken, ip });
+  const v = await verifyTurnstileResult({ token: body?.turnstileToken, ip });
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 403 });
 
   const response = NextResponse.json({ ok: true });

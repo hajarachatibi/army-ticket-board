@@ -5,36 +5,47 @@ function isTruthyEnv(value: string | undefined) {
 
 export type TurnstileVerifyResult = { ok: true } | { ok: false; error: string };
 
-export async function verifyTurnstile(params: {
-  token: string | null | undefined;
-  ip?: string | null;
-}): Promise<TurnstileVerifyResult> {
+/**
+ * Server-side Turnstile verification helper.
+ * Returns true if verification succeeds, false otherwise.
+ */
+export async function verifyTurnstile(
+  token: string | null | undefined,
+  ip?: string | null
+): Promise<boolean> {
   const enabled = isTruthyEnv(process.env.ENABLE_TURNSTILE);
-  if (!enabled) return { ok: true };
+  if (!enabled) return true;
 
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return { ok: false, error: "Turnstile is enabled but TURNSTILE_SECRET_KEY is missing" };
+  if (!secret) return false;
 
-  const token = (params.token ?? "").trim();
-  if (!token) return { ok: false, error: "Missing Turnstile token" };
+  const t = (token ?? "").trim();
+  if (!t) return false;
 
   const form = new FormData();
   form.append("secret", secret);
-  form.append("response", token);
-  if (params.ip) form.append("remoteip", params.ip);
+  form.append("response", t);
+  if (ip) form.append("remoteip", ip);
 
   try {
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
       body: form,
     });
-    if (!res.ok) return { ok: false, error: `Turnstile verify failed (HTTP ${res.status})` };
+    if (!res.ok) return false;
     const data = (await res.json()) as { success?: boolean; "error-codes"?: string[] };
-    if (data?.success) return { ok: true };
-    const codes = Array.isArray(data?.["error-codes"]) ? data["error-codes"].join(", ") : "unknown";
-    return { ok: false, error: `Turnstile failed: ${codes}` };
+    return data?.success === true;
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Turnstile verify failed" };
+    return false;
   }
+}
+
+// Backwards-compatible wrapper used by older call sites in this repo.
+export async function verifyTurnstileResult(params: {
+  token: string | null | undefined;
+  ip?: string | null;
+}): Promise<TurnstileVerifyResult> {
+  const ok = await verifyTurnstile(params.token, params.ip);
+  return ok ? { ok: true } : { ok: false, error: "Turnstile verification failed" };
 }
 

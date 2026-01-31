@@ -1,17 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { verifyTurnstileResult } from "@/lib/turnstileServer";
+import { verifyTurnstile } from "@/lib/turnstileServer";
 import { getRequestIp } from "@/lib/requestIp";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
-    | { ticketId?: string; reason?: string; details?: string | null; turnstileToken?: string }
+    | { answers?: Record<string, string>; "cf-turnstile-response"?: string }
     | null;
 
-  const ip = getRequestIp(request);
-  const v = await verifyTurnstileResult({ token: body?.turnstileToken, ip });
-  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 403 });
+  const ok = await verifyTurnstile(body?.["cf-turnstile-response"], getRequestIp(request));
+  if (!ok) return NextResponse.json({ error: "Turnstile verification failed" }, { status: 403 });
 
   const response = NextResponse.json({ ok: true });
   const supabase = createServerClient(
@@ -34,20 +33,14 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const ticketId = String(body?.ticketId ?? "").trim();
-  const reason = String(body?.reason ?? "").trim();
-  if (!ticketId || !reason) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  const answers = body?.answers ?? null;
+  if (!answers || typeof answers !== "object") return NextResponse.json({ error: "Missing answers" }, { status: 400 });
 
-  const { data: profile } = await supabase.from("user_profiles").select("username").eq("id", user.id).single();
-  const reportedByUsername = String(profile?.username ?? user.email ?? `user-${user.id.slice(0, 8)}`);
-
-  const { error } = await supabase.from("reports").insert({
-    ticket_id: ticketId,
-    reporter_id: user.id,
-    reported_by_username: reportedByUsername,
-    reason,
-    details: body?.details ?? null,
+  const { error } = await supabase.from("forum_submissions").insert({
+    user_id: user.id,
+    answers,
   });
+
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

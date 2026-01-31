@@ -18,13 +18,16 @@ const nextConfig: NextConfig = {
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'none'",
-      // Turnstile
-      "frame-src https://challenges.cloudflare.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+      // Turnstile loads scripts + iframes from challenges.cloudflare.com
+      "frame-src 'self' https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
+      "script-src-elem 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
       // Tailwind inline styles are used in some components
       "style-src 'self' 'unsafe-inline'",
-      // Images: allow CDN + Supabase + pinimg + data/blob
+      // Images
       "img-src 'self' https: data: blob:",
+      "font-src 'self' https: data:",
+      "worker-src 'self' blob:",
       // Supabase + Upstash + Turnstile
       "connect-src 'self' https: wss:",
     ].join("; ");

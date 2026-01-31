@@ -173,7 +173,7 @@ export default function SellTicketModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          turnstileToken,
+          "cf-turnstile-response": turnstileToken,
           event,
           city,
           day,

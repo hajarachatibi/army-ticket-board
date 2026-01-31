@@ -3,12 +3,13 @@ import { verifyTurnstile } from "@/lib/turnstileServer";
 import { getRequestIp } from "@/lib/requestIp";
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => null)) as { token?: string; action?: string } | null;
+  const body = (await request.json().catch(() => null)) as
+    | { token?: string; action?: string; "cf-turnstile-response"?: string }
+    | null;
   const ip = getRequestIp(request);
-  const result = await verifyTurnstile({ token: body?.token, ip });
-  if (!result.ok) {
-    return NextResponse.json({ ok: false, error: result.error }, { status: 429 });
-  }
+  const token = body?.["cf-turnstile-response"] ?? body?.token;
+  const ok = await verifyTurnstile(token, ip);
+  if (!ok) return NextResponse.json({ ok: false }, { status: 403 });
   const res = NextResponse.json({ ok: true });
   const action = (body?.action ?? "").trim();
   if (action) {

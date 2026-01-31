@@ -7,7 +7,7 @@ import { getRequestIp } from "@/lib/requestIp";
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
     | {
-        turnstileToken?: string;
+        "cf-turnstile-response"?: string;
         event?: string;
         city?: string;
         day?: string;
@@ -23,8 +23,9 @@ export async function POST(request: NextRequest) {
     | null;
 
   const ip = getRequestIp(request);
-  const v = await verifyTurnstile({ token: body?.turnstileToken, ip });
-  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 403 });
+  const token = body?.["cf-turnstile-response"];
+  const ok = await verifyTurnstile(token, ip);
+  if (!ok) return NextResponse.json({ error: "Turnstile verification failed" }, { status: 403 });
 
   const response = NextResponse.json({ ok: true });
   const supabase = createServerClient(

@@ -126,7 +126,7 @@ export async function insertRequest(params: {
           ticketId: params.ticketId,
           event: params.event ?? "—",
           seatPreference: params.seatPreference ?? "—",
-          turnstileToken: params.turnstileToken,
+          "cf-turnstile-response": params.turnstileToken,
         }),
       });
       const j = (await res.json().catch(() => null)) as { data?: DbRequest; error?: string } | null;
