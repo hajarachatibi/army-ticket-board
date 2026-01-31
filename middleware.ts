@@ -87,7 +87,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Block non-admin API calls during maintenance.
-    if (!isAdmin && pathname.startsWith("/api")) {
+    if (!isAdmin && pathname.startsWith("/api") && pathname !== "/api/turnstile/verify") {
       return NextResponse.json({ error: "maintenance" }, { status: 503 });
     }
 
