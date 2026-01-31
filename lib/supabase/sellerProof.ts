@@ -42,7 +42,7 @@ export type SellerProofApplication = {
   country: string;
   platform: string;
   proofDetails: string;
-  screenshotUrl: string;
+  screenshotPath: string;
   status: "pending" | "approved" | "rejected";
   adminNote: string | null;
   createdAt: string;
@@ -63,7 +63,7 @@ export async function adminFetchSellerProofApplications(): Promise<{ data: Selle
       country: String(r.country ?? ""),
       platform: String(r.platform ?? ""),
       proofDetails: String(r.proof_details ?? ""),
-      screenshotUrl: String(r.screenshot_url ?? ""),
+      screenshotPath: String(r.screenshot_url ?? ""),
       status: String(r.status ?? "pending") as SellerProofApplication["status"],
       adminNote: typeof r.admin_note === "string" ? r.admin_note : null,
       createdAt: String(r.created_at),

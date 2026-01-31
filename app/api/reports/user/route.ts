@@ -38,6 +38,17 @@ export async function POST(request: NextRequest) {
   const reason = String(body?.reason ?? "").trim();
   if (!reportedUserId || !reason) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
+  const imagePath = (body?.imageUrl ?? null) ? String(body?.imageUrl).trim() : null;
+  if (imagePath) {
+    // Server-side validation: only accept our private bucket object paths.
+    const bad =
+      imagePath.includes("://") ||
+      imagePath.startsWith("/") ||
+      imagePath.includes("..") ||
+      !(imagePath.startsWith(`user-reports/${user.id}/`) || imagePath.startsWith(`seller-proof/${user.id}/`));
+    if (bad) return NextResponse.json({ error: "Invalid image path" }, { status: 400 });
+  }
+
   const { data: profile } = await supabase.from("user_profiles").select("username").eq("id", user.id).single();
   const reportedByUsername = String(profile?.username ?? user.email ?? `user-${user.id.slice(0, 8)}`);
 
@@ -47,7 +58,7 @@ export async function POST(request: NextRequest) {
     reported_by_username: reportedByUsername,
     reason,
     details: body?.details ?? null,
-    image_url: body?.imageUrl ?? null,
+    image_url: imagePath,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });

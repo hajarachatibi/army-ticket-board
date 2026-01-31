@@ -33,6 +33,7 @@ export type AdminUserReport = {
   reporterUsername: string | null;
   reason: string;
   details: string | null;
+  imagePath: string | null;
   createdAt: string;
 };
 
@@ -149,6 +150,7 @@ export async function fetchAdminUserReports(): Promise<{
       reported_by_username: string | null;
       reason: string;
       details: string | null;
+      image_url: string | null;
       created_at: string;
     }>;
     return {
@@ -161,6 +163,7 @@ export async function fetchAdminUserReports(): Promise<{
         reporterUsername: r.reported_by_username ?? null,
         reason: r.reason,
         details: r.details ?? null,
+        imagePath: r.image_url ? String(r.image_url) : null,
         createdAt: r.created_at,
       })),
       error: null,

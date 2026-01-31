@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.seller_proof_applications (
   country text NOT NULL,
   platform text NOT NULL,
   proof_details text NOT NULL,
+  -- stores object path in private bucket (proof-attachments), not a public URL
   screenshot_url text NOT NULL,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   admin_note text,

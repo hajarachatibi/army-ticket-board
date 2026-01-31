@@ -52,7 +52,7 @@ export default function SellerProofPageContent() {
     setSubmitting(true);
     setError(null);
     setOk(null);
-    const up = await uploadSellerProofImage(screenshot);
+    const up = await uploadSellerProofImage({ userId: user.id, file: screenshot });
     if ("error" in up) {
       setSubmitting(false);
       setError(up.error);
@@ -64,7 +64,7 @@ export default function SellerProofPageContent() {
       country: country.trim(),
       platform: platform.trim(),
       proofDetails: proofDetails.trim(),
-      screenshotUrl: up.url,
+      screenshotUrl: up.path,
     });
     setSubmitting(false);
     if (e) {

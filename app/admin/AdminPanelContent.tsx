@@ -17,6 +17,7 @@ import {
 import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
 import { createAdminRecommendation, deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
 import { adminFetchSellerProofApplications, adminSetSellerProofStatus, type SellerProofApplication } from "@/lib/supabase/sellerProof";
+import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
 import {
   adminApproveTicket,
   adminBanAndDeleteUser,
@@ -113,6 +114,9 @@ export default function AdminPanelContent() {
   const [recBody, setRecBody] = useState("");
 
   const [sellerProofApps, setSellerProofApps] = useState<SellerProofApplication[]>([]);
+  const [proofImageUrls, setProofImageUrls] = useState<Record<string, string>>({});
+  const [userReportProofUrls, setUserReportProofUrls] = useState<Record<string, string>>({});
+  const [userReportProofOpen, setUserReportProofOpen] = useState<{ url: string; title: string } | null>(null);
 
   const [selectedSellers, setSelectedSellers] = useState<Set<string>>(new Set());
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
@@ -144,7 +148,16 @@ export default function AdminPanelContent() {
     const { data, error: e } = await fetchAdminUserReports();
     setLoading(false);
     if (e) setError(e);
-    else if (data) setUserReports(data);
+    else if (data) {
+      setUserReports(data);
+      const entries: Array<[string, string]> = [];
+      for (const r of data) {
+        if (!r.imagePath) continue;
+        const s = await createSignedProofUrl(r.imagePath);
+        if ("url" in s) entries.push([r.id, s.url]);
+      }
+      setUserReportProofUrls(Object.fromEntries(entries));
+    }
   }, []);
 
   const loadTicketsFiltered = useCallback(async () => {
@@ -267,7 +280,16 @@ export default function AdminPanelContent() {
     const { data, error: e } = await adminFetchSellerProofApplications();
     setLoading(false);
     if (e) setError(e);
-    else setSellerProofApps(data);
+    else {
+      setSellerProofApps(data);
+      // Best-effort signed URLs for admin view (private bucket).
+      const entries: Array<[string, string]> = [];
+      for (const a of data) {
+        const r = await createSignedProofUrl(a.screenshotPath);
+        if ("url" in r) entries.push([a.id, r.url]);
+      }
+      setProofImageUrls(Object.fromEntries(entries));
+    }
   }, []);
 
   const loadDashboardStats = useCallback(async () => {
@@ -792,6 +814,7 @@ export default function AdminPanelContent() {
                           <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reported user</th>
                           <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Reason</th>
                           <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Details</th>
+                          <th className="whitespace-nowrap px-4 py-3 font-semibold text-army-purple dark:text-army-300">Proof</th>
                           <th className="whitespace-nowrap px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
                         </tr>
                       </thead>
@@ -815,6 +838,24 @@ export default function AdminPanelContent() {
                               <div className="max-h-20 overflow-auto whitespace-pre-wrap">
                                 {r.details ?? "—"}
                               </div>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              {userReportProofUrls[r.id] ? (
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  onClick={() =>
+                                    setUserReportProofOpen({
+                                      url: userReportProofUrls[r.id]!,
+                                      title: `Proof image (${r.reason})`,
+                                    })
+                                  }
+                                >
+                                  View proof
+                                </button>
+                              ) : (
+                                <span className="text-xs text-neutral-500 dark:text-neutral-400">—</span>
+                              )}
                             </td>
                             <td className="whitespace-nowrap px-4 py-3">
                               <div className="flex flex-wrap gap-2">
@@ -1885,7 +1926,13 @@ export default function AdminPanelContent() {
                       </p>
 
                       <div className="mt-3 overflow-hidden rounded-2xl border border-army-purple/15 dark:border-army-purple/25">
-                        <img src={a.screenshotUrl} alt="Seller proof screenshot" className="h-auto w-full" />
+                        {proofImageUrls[a.id] ? (
+                          <img src={proofImageUrls[a.id]} alt="Seller proof screenshot" className="h-auto w-full" />
+                        ) : (
+                          <div className="px-4 py-6 text-center text-sm text-neutral-600 dark:text-neutral-400">
+                            Unable to load proof image (signed URL).
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2070,6 +2117,31 @@ export default function AdminPanelContent() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {userReportProofOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="User report proof"
+          onClick={() => setUserReportProofOpen(null)}
+        >
+          <div
+            className="w-full max-w-3xl overflow-hidden rounded-2xl border border-army-purple/20 bg-white shadow-2xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-army-purple/10 px-4 py-3 dark:border-army-purple/20">
+              <p className="text-sm font-semibold text-army-purple">{userReportProofOpen.title}</p>
+              <button type="button" className="btn-army-outline rounded-lg px-3 py-2 text-sm" onClick={() => setUserReportProofOpen(null)}>
+                Close
+              </button>
+            </div>
+            <div className="bg-black/5 p-3 dark:bg-black/20">
+              <img src={userReportProofOpen.url} alt="Proof" className="h-auto w-full rounded-xl" />
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 
-const BUCKET = "chat-attachments";
+const BUCKET = "proof-attachments";
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
@@ -14,7 +14,11 @@ function extFromMime(mime: string): string {
   return map[mime] ?? "jpg";
 }
 
-export async function uploadUserReportImage(file: File): Promise<{ url: string } | { error: string }> {
+export async function uploadUserReportImage(params: {
+  userId: string;
+  file: File;
+}): Promise<{ path: string } | { error: string }> {
+  const file = params.file;
   if (!ALLOWED.includes(file.type)) {
     return { error: "Only JPEG, PNG, GIF, and WebP images are allowed." };
   }
@@ -23,7 +27,7 @@ export async function uploadUserReportImage(file: File): Promise<{ url: string }
   }
 
   const ext = extFromMime(file.type);
-  const path = `user-reports/${crypto.randomUUID()}.${ext}`;
+  const path = `user-reports/${params.userId}/${crypto.randomUUID()}.${ext}`;
 
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type,
@@ -31,7 +35,6 @@ export async function uploadUserReportImage(file: File): Promise<{ url: string }
   });
 
   if (error) return { error: error.message };
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return { url: data.publicUrl };
+  return { path };
 }
 

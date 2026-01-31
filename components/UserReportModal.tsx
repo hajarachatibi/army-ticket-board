@@ -58,13 +58,18 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
 
     let imageUrl: string | null = null;
     if (imageFile) {
-      const up = await uploadUserReportImage(imageFile);
+      if (!user?.id) {
+        setSubmitting(false);
+        setError("Missing session. Please refresh and try again.");
+        return;
+      }
+      const up = await uploadUserReportImage({ userId: user.id, file: imageFile });
       if ("error" in up) {
         setSubmitting(false);
         setError(up.error);
         return;
       }
-      imageUrl = up.url;
+      imageUrl = up.path;
     }
 
     const { error: dbError } = await insertUserReport({
@@ -99,13 +104,18 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
 
     let imageUrl: string | null = null;
     if (imageFile) {
-      const up = await uploadUserReportImage(imageFile);
+      if (!user?.id) {
+        setSubmitting(false);
+        setError("Missing session. Please refresh and try again.");
+        return;
+      }
+      const up = await uploadUserReportImage({ userId: user.id, file: imageFile });
       if ("error" in up) {
         setSubmitting(false);
         setError(up.error);
         return;
       }
-      imageUrl = up.url;
+      imageUrl = up.path;
     }
     const { error: dbError } = await insertUserReport({
       reportedUserId,

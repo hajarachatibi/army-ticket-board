@@ -1,4 +1,5 @@
 -- Optional picture proof for user reports.
+-- Stores object path in private bucket (proof-attachments), not a public URL.
 ALTER TABLE public.user_reports
   ADD COLUMN IF NOT EXISTS image_url text;
 
