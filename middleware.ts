@@ -9,22 +9,25 @@ function isTruthyEnv(value: string | undefined) {
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
+function parseAdminEmails(): string[] {
+  const raw = process.env.ADMIN_EMAILS ?? process.env.MAINTENANCE_ADMIN_EMAILS ?? "";
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isAdminEmail(email: string | null | undefined): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  if (!e) return false;
+  return parseAdminEmails().includes(e);
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const maintenanceModeEnabled =
     isTruthyEnv(process.env.MAINTENANCE_MODE) || isTruthyEnv(process.env.NEXT_PUBLIC_MAINTENANCE_MODE);
-
-  if (maintenanceModeEnabled) {
-    // Avoid rewrite loops.
-    if (pathname !== "/maintenance") {
-      const maintenanceUrl = request.nextUrl.clone();
-      maintenanceUrl.pathname = "/maintenance";
-      maintenanceUrl.search = "";
-      return NextResponse.rewrite(maintenanceUrl);
-    }
-    return NextResponse.next({ request });
-  }
 
   // Rate limit sign-in endpoints by IP (edge).
   if (pathname === "/login" || pathname.startsWith("/auth/callback")) {
@@ -68,6 +71,37 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Maintenance mode: allow admins through, show maintenance to everyone else.
+  if (maintenanceModeEnabled) {
+    const allowWithoutAdmin =
+      pathname === "/maintenance" ||
+      pathname === "/login" ||
+      pathname.startsWith("/auth/") ||
+      pathname === "/auth/callback" ||
+      pathname === "/api/turnstile/verify";
+
+    let isAdmin = false;
+    if (user) {
+      const { data } = await supabase.from("user_profiles").select("role").eq("id", user.id).single();
+      isAdmin = data?.role === "admin" || isAdminEmail(user.email);
+    }
+
+    // Block non-admin API calls during maintenance.
+    if (!isAdmin && pathname.startsWith("/api")) {
+      return NextResponse.json({ error: "maintenance" }, { status: 503 });
+    }
+
+    // Rewrite non-admin traffic to maintenance (avoid loops).
+    if (!isAdmin && !allowWithoutAdmin) {
+      const maintenanceUrl = request.nextUrl.clone();
+      maintenanceUrl.pathname = "/maintenance";
+      maintenanceUrl.search = "";
+      const rewrite = NextResponse.rewrite(maintenanceUrl);
+      passThrough.cookies.getAll().forEach(({ name, value }) => rewrite.cookies.set(name, value));
+      return rewrite;
+    }
+  }
+
   if (requiresAuth && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -79,7 +113,8 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/admin") && user) {
     const { data } = await supabase.from("user_profiles").select("role").eq("id", user.id).single();
-    if (data?.role !== "admin") {
+    const adminOk = data?.role === "admin" || isAdminEmail(user.email);
+    if (!adminOk) {
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = "/";
       const redirect = NextResponse.redirect(homeUrl);
