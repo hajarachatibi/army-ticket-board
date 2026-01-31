@@ -69,8 +69,8 @@ async function insertUserProfile(
 }
 
 function usernameFromGoogle(session: AuthSession): string {
-  const email = session.user.email?.trim();
-  return email || `user-${session.user.id.slice(0, 8)}`;
+  // Privacy: do not use email as username.
+  return `ARMY-${session.user.id.slice(0, 8)}`;
 }
 
 /** Ensure user_profiles row exists for this session. Create from Google metadata if missing. */

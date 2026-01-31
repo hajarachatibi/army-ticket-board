@@ -7,19 +7,21 @@ export async function isBannedEmail(
   accessToken: string
 ): Promise<boolean> {
   if (!email?.trim()) return false;
-  const url = `${SUPABASE_URL}/rest/v1/banned_users?email=eq.${encodeURIComponent(email.trim())}&select=email`;
+  const url = `${SUPABASE_URL}/rest/v1/rpc/is_email_banned`;
   try {
     const res = await fetch(url, {
-      method: "GET",
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
+      body: JSON.stringify({ p_email: email.trim() }),
     });
     if (!res.ok) return false;
-    const arr = (await res.json()) as unknown[];
-    return Array.isArray(arr) && arr.length > 0;
+    const val = (await res.json()) as unknown;
+    return val === true;
   } catch {
     return false;
   }
