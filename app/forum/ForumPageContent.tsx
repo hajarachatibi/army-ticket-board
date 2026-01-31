@@ -99,10 +99,10 @@ export default function ForumPageContent() {
       <div className="mx-auto max-w-2xl">
         <div className="rounded-2xl border border-army-purple/15 bg-white p-6 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
           <h1 className="font-display text-2xl font-bold text-army-purple">
-            BTS Forum (required)
+            BTS Questions
           </h1>
           <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-            Please answer these questions before using the app.
+            Please answer these questions to help keep the community safe. You can skip for now, but you’ll be asked again later.
           </p>
 
           {loading ? (
@@ -151,8 +151,8 @@ export default function ForumPageContent() {
               )}
 
               <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-                <Link href="/" className="btn-army-outline">
-                  Back
+                <Link href={next} className="btn-army-outline">
+                  Skip for now
                 </Link>
                 <button
                   type="button"

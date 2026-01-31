@@ -20,6 +20,7 @@ import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
 import TurnstileGateModal from "@/components/TurnstileGateModal";
 import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
+import { fetchMyForumStatus } from "@/lib/supabase/forum";
 import {
   deleteTicket as deleteTicketApi,
   fetchTicketFilterOptions,
@@ -93,6 +94,7 @@ export default function TicketsView() {
   const [turnstileOpen, setTurnstileOpen] = useState(false);
   const [pendingContact, setPendingContact] = useState<Ticket | null>(null);
   const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
+  const [forumPromptOpen, setForumPromptOpen] = useState(false);
 
   const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -101,6 +103,19 @@ export default function TicketsView() {
     fetchMySellerProofStatus()
       .then(({ data }) => setSellerProofOk(data.hasApproved))
       .catch(() => setSellerProofOk(false));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `forum_prompt_dismissed_${user.id}`;
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(key) === "1") return;
+    fetchMyForumStatus()
+      .then(({ data }) => {
+        if (data?.needs_submit) setForumPromptOpen(true);
+      })
+      .catch(() => {
+        /* ignore */
+      });
   }, [user?.id]);
 
   const buildFilters = useCallback(
@@ -780,6 +795,47 @@ export default function TicketsView() {
         ticket={requestsTicket}
         onClose={() => setRequestsTicket(null)}
       />
+
+      {forumPromptOpen && user && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="BTS questions"
+          onClick={() => setForumPromptOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-xl font-bold text-army-purple">Quick BTS Questions</h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Please answer the BTS questions to help keep the community safe. You can do it now or later.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-army-outline"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(`forum_prompt_dismissed_${user.id}`, "1");
+                  }
+                  setForumPromptOpen(false);
+                }}
+              >
+                Later
+              </button>
+              <Link
+                href={`/forum?next=${encodeURIComponent("/tickets")}`}
+                className="btn-army"
+                onClick={() => setForumPromptOpen(false)}
+              >
+                Answer now
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TurnstileGateModal
         open={turnstileOpen}

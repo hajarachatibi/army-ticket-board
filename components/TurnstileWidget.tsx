@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -36,12 +36,18 @@ export default function TurnstileWidget({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
 
   useEffect(() => {
     ensureScriptLoaded();
     let cancelled = false;
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-    if (!siteKey) return;
+    if (!siteKey) {
+      setHint("Verification is not configured (missing NEXT_PUBLIC_TURNSTILE_SITE_KEY).");
+      return;
+    }
+
+    setHint("Loading verification…");
 
     const tryRender = () => {
       if (cancelled) return;
@@ -57,17 +63,27 @@ export default function TurnstileWidget({
           // user needs to complete again; no-op (caller will require token)
         },
         "error-callback": () => {
-          // no-op; caller should fail closed
+          setHint("Verification failed to load. If you use an ad blocker, allow challenges.cloudflare.com and try again.");
         },
         theme: "auto",
       });
+      setHint(null);
     };
 
     const t = setInterval(tryRender, 200);
     tryRender();
+
+    const warn = setTimeout(() => {
+      if (cancelled) return;
+      if (!widgetIdRef.current) {
+        setHint("Still loading… If this stays blank, allow challenges.cloudflare.com (ad blockers can block it).");
+      }
+    }, 3000);
+
     return () => {
       cancelled = true;
       clearInterval(t);
+      clearTimeout(warn);
       const id = widgetIdRef.current;
       widgetIdRef.current = null;
       if (id && window.turnstile?.remove) {
@@ -80,6 +96,15 @@ export default function TurnstileWidget({
     };
   }, [action, onToken]);
 
-  return <div ref={ref} className={className} />;
+  return (
+    <div className={className}>
+      <div ref={ref} />
+      {hint && (
+        <p className="mt-3 text-center text-xs text-neutral-600 dark:text-neutral-400">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
 }
 

@@ -11,8 +11,10 @@ import {
   adminAddDynamicForumQuestion,
   adminDeleteForumQuestion,
   adminFetchAllForumQuestions,
+  adminFetchForumSubmissions,
   adminSetForumQuestionActive,
   type ForumQuestion,
+  type AdminForumSubmission,
 } from "@/lib/supabase/forum";
 import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
 import { createAdminRecommendation, deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
@@ -55,6 +57,7 @@ type Tab =
   | "buyers"
   | "users"
   | "forum"
+  | "forumSubmissions"
   | "stories"
   | "recommendations"
   | "sellerProof"
@@ -107,6 +110,7 @@ export default function AdminPanelContent() {
 
   const [forumQuestions, setForumQuestions] = useState<ForumQuestion[]>([]);
   const [newForumPrompt, setNewForumPrompt] = useState("");
+  const [forumSubmissions, setForumSubmissions] = useState<AdminForumSubmission[]>([]);
 
   const [pendingStories, setPendingStories] = useState<ArmyStory[]>([]);
   const [adminRecs, setAdminRecs] = useState<AdminRecommendation[]>([]);
@@ -256,6 +260,15 @@ export default function AdminPanelContent() {
     else if (data) setForumQuestions(data);
   }, []);
 
+  const loadForumSubmissions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await adminFetchForumSubmissions();
+    setLoading(false);
+    if (e) setError(e);
+    else setForumSubmissions(data);
+  }, []);
+
   const loadPendingStories = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -317,11 +330,12 @@ export default function AdminPanelContent() {
     else if (tab === "buyers") loadBuyers();
     else if (tab === "users") loadAllUsers();
     else if (tab === "forum") loadForumQuestions();
+    else if (tab === "forumSubmissions") loadForumSubmissions();
     else if (tab === "stories") loadPendingStories();
     else if (tab === "recommendations") loadRecommendations();
     else if (tab === "sellerProof") loadSellerProof();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadForumQuestions, loadPendingStories, loadRecommendations, loadSellerProof, loadBanned]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadForumQuestions, loadForumSubmissions, loadPendingStories, loadRecommendations, loadSellerProof, loadBanned]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
@@ -617,6 +631,7 @@ export default function AdminPanelContent() {
     { id: "buyers", label: "Buyers" },
     { id: "users", label: "All users" },
     { id: "forum", label: "Forum questions" },
+    { id: "forumSubmissions", label: "Forum submissions" },
     { id: "stories", label: "ARMY Stories" },
     { id: "recommendations", label: "Recommendations" },
     { id: "sellerProof", label: "Seller proof" },
@@ -1751,6 +1766,60 @@ export default function AdminPanelContent() {
                   </table>
                 </div>
               </div>
+            </section>
+          )}
+
+          {tab === "forumSubmissions" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Forum submissions</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Latest BTS answers per user (manual review). If answers look suspicious, you can ban the user from the user popup.
+              </p>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : forumSubmissions.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No submissions yet.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {forumSubmissions.map((s) => (
+                    <div
+                      key={s.id}
+                      className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-army-purple">
+                            {s.userEmail ?? s.username ?? s.userId}
+                          </p>
+                          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">{formatDate(s.submittedAt)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReportUserOpen({ userId: s.userId, email: s.userEmail ?? null, title: "Forum submission user" })}
+                          className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                        >
+                          View user
+                        </button>
+                      </div>
+                      <div className="mt-3 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+                        {Object.entries(s.answers ?? {}).length === 0 ? (
+                          <p className="text-neutral-500 dark:text-neutral-400">No answers.</p>
+                        ) : (
+                          Object.entries(s.answers).map(([qid, ans]) => (
+                            <div key={qid} className="rounded-xl border border-army-purple/10 bg-army-purple/5 p-3 dark:border-army-purple/20 dark:bg-army-purple/10">
+                              <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">QID {qid}</p>
+                              <p className="mt-1 whitespace-pre-wrap break-words">{String(ans ?? "")}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
