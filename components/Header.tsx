@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import NotificationBell from "@/components/NotificationBell";
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Tickets" },
   { href: "/chats", label: "Chats" },
+  { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
   { href: "/user-manual", label: "User manual" },
 ];
@@ -27,6 +28,7 @@ export default function Header() {
   const unreadChatsCount = isLoggedIn && user ? getUnreadChatsCount(user.id) : 0;
   const showAdmin = isLoggedIn && isAdmin;
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,6 +49,20 @@ export default function Header() {
     }
     setMobileAnnouncementOpen(false);
   };
+
+  const topMobileLinks = useMemo(() => {
+    const base = [
+      { href: "/tickets", label: "Tickets" },
+      { href: "/chats", label: "Chats" },
+    ];
+    if (showAdmin) base.push({ href: "/admin", label: "Admin" });
+    return base;
+  }, [showAdmin]);
+
+  const overflowMobileLinks = useMemo(() => {
+    const allowed = new Set(topMobileLinks.map((x) => x.href));
+    return NAV.filter((x) => !allowed.has(x.href));
+  }, [topMobileLinks]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -218,41 +234,63 @@ export default function Header() {
         </div>
       </div>
 
-      <nav className="flex gap-1 border-t border-army-purple/10 px-4 py-2 md:hidden" aria-label="Mobile">
-        {NAV.map(({ href, label }) => {
-          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
-          const showChatBadge = href === "/chats" && unreadChatsCount > 0;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`relative flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-center text-sm font-semibold ${
-                isActive ? "bg-army-purple/10 text-army-purple" : "text-neutral-600 hover:bg-army-purple/5"
-              }`}
-            >
-              {label}
-              {showChatBadge && (
-                <span
-                  className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
-                  aria-label={`${unreadChatsCount} new discussion${unreadChatsCount !== 1 ? "s" : ""}`}
-                >
-                  {unreadChatsCount > 99 ? "99+" : unreadChatsCount}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-        {showAdmin && (
-          <Link
-            href="/admin"
-            className={`flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-center text-sm font-semibold ${
-              pathname === "/admin" || pathname.startsWith("/admin/")
-                ? "bg-army-purple/10 text-army-purple"
-                : "text-neutral-600 hover:bg-army-purple/5"
-            }`}
+      <nav className="border-t border-army-purple/10 px-4 py-2 md:hidden" aria-label="Mobile">
+        <div className="flex items-center gap-2">
+          {topMobileLinks.map(({ href, label }) => {
+            const isActive = pathname === href || pathname.startsWith(href + "/");
+            const showChatBadge = href === "/chats" && unreadChatsCount > 0;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`relative flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-center text-sm font-semibold ${
+                  isActive ? "bg-army-purple/10 text-army-purple" : "text-neutral-600 hover:bg-army-purple/5"
+                }`}
+              >
+                {label}
+                {showChatBadge && (
+                  <span
+                    className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+                    aria-label={`${unreadChatsCount} new discussion${unreadChatsCount !== 1 ? "s" : ""}`}
+                  >
+                    {unreadChatsCount > 99 ? "99+" : unreadChatsCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="inline-flex items-center justify-center rounded-lg border border-army-purple/20 bg-white px-3 py-2 text-sm font-semibold text-army-purple hover:bg-army-purple/5 dark:border-army-purple/30 dark:bg-neutral-900 dark:hover:bg-army-purple/10"
+            aria-expanded={mobileMenuOpen}
+            aria-label="Open menu"
           >
-            Admin
-          </Link>
+            ☰
+          </button>
+        </div>
+
+        {mobileMenuOpen && (
+          <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-army-purple/15 bg-white p-2 dark:border-army-purple/25 dark:bg-neutral-900">
+            {overflowMobileLinks.map(({ href, label }) => {
+              const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`rounded-lg px-3 py-2 text-center text-sm font-semibold ${
+                    isActive
+                      ? "bg-army-purple/10 text-army-purple"
+                      : "text-neutral-700 hover:bg-army-purple/5 dark:text-neutral-300 dark:hover:bg-army-purple/10"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
         )}
       </nav>
 

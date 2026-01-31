@@ -11,14 +11,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import { useRequest } from "@/lib/RequestContext";
 import UserReportModal from "@/components/UserReportModal";
-
-function safeDisplayName(name: string, allowEmail: boolean): string {
-  const raw = (name ?? "").trim();
-  if (!raw) return "User";
-  if (allowEmail) return raw;
-  if (raw.includes("@")) return raw.split("@")[0] || "User";
-  return raw;
-}
+import { displayName } from "@/lib/displayName";
+import LiteProfileModal from "@/components/LiteProfileModal";
 
 export default function ChatModal() {
   const { user, isAdmin } = useAuth();
@@ -39,6 +33,7 @@ export default function ChatModal() {
   const [uploading, setUploading] = useState(false);
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [userReportOpen, setUserReportOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -99,11 +94,7 @@ export default function ChatModal() {
   if (!activeChatId || !chat) return null;
 
   const otherIsAdmin = !!(otherId && adminIds.has(otherId));
-  const otherDisplayName = isAdmin
-    ? otherName
-    : otherIsAdmin
-      ? "Admin"
-      : safeDisplayName(otherName, false);
+  const otherDisplayName = displayName(otherName, { viewerIsAdmin: isAdmin, subjectIsAdmin: otherIsAdmin });
 
   const sendMessage = async (text: string, imageUrl?: string) => {
     if (!user || !isOpen) return null;
@@ -114,7 +105,7 @@ export default function ChatModal() {
       pushPendingForUser(otherId, {
         type: "new_message",
         ticketId: chat.ticketId,
-        message: `New message from ${user.username}: ${preview}`,
+        message: `New message from ${displayName(user.username, { viewerIsAdmin: false, subjectIsAdmin: isAdmin })}: ${preview}`,
         ticketSummary: chat.ticketSummary,
       });
     }
@@ -174,14 +165,28 @@ export default function ChatModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">
-          <h2 id="chat-modal-title" className="font-display text-xl font-bold text-army-purple">
-            Chat with {otherDisplayName}
-            {otherIsAdmin && <VerifiedAdminBadge />}
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            {chat.ticketSummary}
-            {!isOpen && " · Closed"}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 id="chat-modal-title" className="font-display text-xl font-bold text-army-purple">
+                Chat with {otherDisplayName}
+                {otherIsAdmin && <VerifiedAdminBadge />}
+              </h2>
+              <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                {chat.ticketSummary}
+                {!isOpen && " · Closed"}
+              </p>
+            </div>
+            {otherId && (
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="btn-army-outline shrink-0"
+                title="View lite profile"
+              >
+                Profile
+              </button>
+            )}
+          </div>
         </div>
 
         {isBuyer && isOpen && (
@@ -214,11 +219,7 @@ export default function ChatModal() {
               const senderIsAdmin = adminIds.has(m.senderId);
               const senderLabel = isMe
                 ? "You"
-                : isAdmin
-                  ? m.senderUsername
-                  : senderIsAdmin
-                    ? "Admin"
-                    : safeDisplayName(m.senderUsername, false);
+                : displayName(m.senderUsername, { viewerIsAdmin: isAdmin, subjectIsAdmin: senderIsAdmin });
               return (
                 <li
                   key={m.id}
@@ -343,6 +344,14 @@ export default function ChatModal() {
         reportedUserId={otherId}
         reportedLabel={otherDisplayName}
         onReported={() => {}}
+      />
+
+      <LiteProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        userId={otherId}
+        title={`Profile: ${otherDisplayName}`}
+        showSellerApprovedCount={isBuyer && !otherIsAdmin}
       />
     </div>
   );

@@ -108,20 +108,57 @@ async function insertRequestWithToken(
 
 export async function insertRequest(params: {
   ticketId: string;
-  requesterId: string;
-  requesterUsername: string;
+  requesterId?: string;
+  requesterUsername?: string;
   event?: string | null;
   seatPreference?: string | null;
   status?: "pending" | "accepted" | "rejected" | "closed";
   acceptedBy?: string | null;
+  turnstileToken?: string | null;
 }): Promise<{ data: Request | null; error: string | null }> {
   try {
+    // If Turnstile token is provided, use server route (server verifies, fail-closed).
+    if (params.turnstileToken) {
+      const res = await fetch("/api/requests/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: params.ticketId,
+          event: params.event ?? "—",
+          seatPreference: params.seatPreference ?? "—",
+          turnstileToken: params.turnstileToken,
+        }),
+      });
+      const j = (await res.json().catch(() => null)) as { data?: DbRequest; error?: string } | null;
+      if (!res.ok) return { data: null, error: j?.error ?? `HTTP ${res.status}` };
+      if (!j?.data) return { data: null, error: "No row returned" };
+      return { data: mapRow(j.data), error: null };
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (token) {
-      return insertRequestWithToken(params, token);
+      // Backwards-compatible path when Turnstile is disabled.
+      if (!params.requesterId || !params.requesterUsername) {
+        return { data: null, error: "Missing requester identity" };
+      }
+      return insertRequestWithToken(
+        {
+          ticketId: params.ticketId,
+          requesterId: params.requesterId,
+          requesterUsername: params.requesterUsername,
+          event: params.event,
+          seatPreference: params.seatPreference,
+          status: params.status,
+          acceptedBy: params.acceptedBy,
+        },
+        token
+      );
     }
 
+    if (!params.requesterId || !params.requesterUsername) {
+      return { data: null, error: "Missing requester identity" };
+    }
     const row: Record<string, unknown> = {
       ticket_id: params.ticketId,
       requester_id: params.requesterId,

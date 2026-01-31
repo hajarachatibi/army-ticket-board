@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
 import UserReportModal from "@/components/UserReportModal";
+import { displayName } from "@/lib/displayName";
+import LiteProfileModal from "@/components/LiteProfileModal";
 import {
   fetchAdminChatMessages,
   sendAdminChatMessage,
@@ -41,19 +43,14 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"open" | "closed">(adminChat.status ?? "open");
   const [userReportOpen, setUserReportOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = youAreAdmin ?? (!!user && !!adminChat.adminId && adminChat.adminId === user.id);
   const isOpen = status === "open";
   const otherIsAdmin = !!otherShowAdminBadge;
-  const titleName = isAdmin
-    ? userEmail
-    : otherIsAdmin
-      ? "Admin"
-      : userEmail.includes("@")
-        ? userEmail.split("@")[0]
-        : userEmail;
+  const titleName = displayName(userEmail, { viewerIsAdmin: isAdminFromAuth, subjectIsAdmin: otherIsAdmin });
   const otherUserIdResolved =
     (otherUserId && otherUserId.length > 0 ? otherUserId : null) ??
     (isAdmin ? (adminChat.userId || null) : (adminChat.adminId || null));
@@ -214,10 +211,22 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-army-purple/15 p-4 dark:border-army-purple/25">
-          <h2 id="admin-chat-modal-title" className="font-display text-xl font-bold text-army-purple">
-            Chat with {titleName}
-            {otherIsAdmin && <VerifiedAdminBadge />}
-          </h2>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h2 id="admin-chat-modal-title" className="font-display text-xl font-bold text-army-purple">
+              Chat with {titleName}
+              {otherIsAdmin && <VerifiedAdminBadge />}
+            </h2>
+            {!!otherUserIdResolved && (
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="btn-army-outline shrink-0"
+                title="View lite profile"
+              >
+                Profile
+              </button>
+            )}
+          </div>
         </div>
 
         <ul
@@ -238,11 +247,7 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
               const senderIsAdmin = isMe ? isAdmin : otherIsAdmin;
               const senderLabel = isMe
                 ? "You"
-                : isAdminFromAuth
-                  ? m.senderUsername
-                  : senderIsAdmin
-                    ? "Admin"
-                    : (m.senderUsername.includes("@") ? m.senderUsername.split("@")[0] : m.senderUsername);
+                : displayName(m.senderUsername, { viewerIsAdmin: isAdminFromAuth, subjectIsAdmin: senderIsAdmin });
               const showCaption = !!m.text?.trim() && !(m.imageUrl && m.text.trim() === "Photo");
               return (
                 <li
@@ -376,6 +381,14 @@ export default function AdminChatModal({ adminChat, userEmail, onClose, onStatus
         reportedUserId={otherUserIdResolved}
         reportedLabel={userEmail}
         onReported={() => {}}
+      />
+
+      <LiteProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        userId={otherUserIdResolved}
+        title={`Profile: ${titleName}`}
+        showSellerApprovedCount={false}
       />
     </div>
   );

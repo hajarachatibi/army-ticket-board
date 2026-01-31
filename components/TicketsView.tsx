@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ReportModal from "@/components/ReportModal";
 import SellTicketDisclaimerModal from "@/components/SellTicketDisclaimerModal";
 import SellTicketModal from "@/components/SellTicketModal";
+import TicketRequestsModal from "@/components/TicketRequestsModal";
 import { useAuth } from "@/lib/AuthContext";
 import { useChat } from "@/lib/ChatContext";
 import { useNotifications } from "@/lib/NotificationContext";
@@ -14,8 +15,11 @@ import { useRequest } from "@/lib/RequestContext";
 import { formatPrice } from "@/lib/data/currencies";
 import { fetchProfile } from "@/lib/data/user_profiles";
 import { pushPendingForUser } from "@/lib/notificationsStorage";
+import { displayName } from "@/lib/displayName";
 import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
+import TurnstileGateModal from "@/components/TurnstileGateModal";
+import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
 import {
   deleteTicket as deleteTicketApi,
   fetchTicketFilterOptions,
@@ -29,9 +33,15 @@ import {
 export default function TicketsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, isAdmin } = useAuth();
   const { add: addNotification } = useNotifications();
-  const { addRequest } = useRequest();
+  const {
+    addRequest,
+    fetchRequestsForTickets,
+    fetchRequestsForTicket,
+    getRequestsForTicket,
+    updateStatus,
+  } = useRequest();
   const {
     activeChatId,
     createChat,
@@ -79,6 +89,19 @@ export default function TicketsView() {
   const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
   const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
   const [filterOptions, setFilterOptions] = useState<TicketFilterOptions | null>(null);
+  const [requestsTicket, setRequestsTicket] = useState<Ticket | null>(null);
+  const [turnstileOpen, setTurnstileOpen] = useState(false);
+  const [pendingContact, setPendingContact] = useState<Ticket | null>(null);
+  const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
+
+  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    if (!user) return;
+    fetchMySellerProofStatus()
+      .then(({ data }) => setSellerProofOk(data.hasApproved))
+      .catch(() => setSellerProofOk(false));
+  }, [user?.id]);
 
   const buildFilters = useCallback(
     () => ({
@@ -260,6 +283,13 @@ export default function TicketsView() {
     });
   }, [filtered]);
 
+  const ticketIdsKey = useMemo(() => tickets.map((t) => t.id).sort().join(","), [tickets]);
+  useEffect(() => {
+    if (!user?.id || !ticketIdsKey) return;
+    const ids = ticketIdsKey.split(",").filter(Boolean);
+    void fetchRequestsForTickets(ids);
+  }, [user?.id, ticketIdsKey, fetchRequestsForTickets]);
+
   const openChat = (t: Ticket) =>
     requireUser(() => {
       if (!user) return;
@@ -278,6 +308,8 @@ export default function TicketsView() {
   const weSentRequest = (t: Ticket) => {
     if (!user) return false;
     if (requestedTicketIds.has(t.id)) return true;
+    const list = getRequestsForTicket(t.id) ?? [];
+    if (list.some((r) => r.requesterId === user.id && (r.status === "pending" || r.status === "accepted"))) return true;
     const existing = getChatsForUser(user.id).find(
       (c) => c.ticketId === t.id && c.buyerId === user.id
     );
@@ -285,8 +317,13 @@ export default function TicketsView() {
   };
 
   const handleBuy = useCallback(
-    async (t: Ticket) => {
+    async (t: Ticket, turnstileToken?: string) => {
       if (!user || !t.ownerId || t.status === "Sold") return;
+      if (turnstileEnabled && !turnstileToken) {
+        setPendingContact(t);
+        setTurnstileOpen(true);
+        return;
+      }
       const ticketId = t.id;
       const ownerId = t.ownerId;
 
@@ -298,6 +335,13 @@ export default function TicketsView() {
         return;
       }
 
+      // If we already requested (server-side), don't spam duplicates.
+      const reqs = getRequestsForTicket(ticketId) ?? [];
+      if (reqs.some((r) => r.requesterId === user.id && r.status === "pending")) {
+        setRequestedTicketIds((prev) => new Set(prev).add(t.id));
+        return;
+      }
+
       setRequestedTicketIds((prev) => new Set(prev).add(t.id));
       const ticketSummary = [t.event, t.city, t.day].filter(Boolean).join(" · ") || ticketId;
       const req = await addRequest(
@@ -306,35 +350,20 @@ export default function TicketsView() {
         user.username,
         t.event ?? "—",
         "—",
-        { status: "accepted", acceptedBy: ownerId }
+        undefined,
+        turnstileToken ?? null
       );
       if (!req) return;
-      const { data: sellerProfile } = await fetchProfile(ownerId);
-      const sellerUsername = sellerProfile?.username ?? "Seller";
-      const chat = await createChat({
-        requestId: req.id,
-        ticketId,
-        buyerId: user.id,
-        sellerId: ownerId,
-        buyerUsername: user.username,
-        sellerUsername,
-        ticketSummary,
-      });
       pushPendingForUser(ownerId, {
         type: "request_received",
         ticketId,
-        message: `${user.username} wants to buy your ticket: ${ticketSummary}. You can chat now.`,
+        requestId: req.id,
+        message: `${displayName(user.username, { viewerIsAdmin: false, subjectIsAdmin: isAdmin })} requested your ticket: ${ticketSummary}.`,
         ticketSummary,
       });
-      addNotification({
-        type: "request_received",
-        ticketId,
-        message: "Chat opened. You can message the seller.",
-        ticketSummary,
-      });
-      if (chat) openChatModal(chat.id);
+      // Buyer-side UI already shows "Message sent" on the ticket card/table.
     },
-    [user, getChatsForUser, addRequest, createChat, openChatModal, addNotification]
+    [user, turnstileEnabled, getChatsForUser, getRequestsForTicket, addRequest, openChatModal, isAdmin]
   );
 
   const openReport = (t: Ticket) => requireUser(() => {
@@ -437,6 +466,11 @@ export default function TicketsView() {
               My tickets
             </button>
           </div>
+          {user && sellerProofOk === false && (
+            <Link href="/seller-proof" className="btn-army-outline">
+              Apply for seller proof
+            </Link>
+          )}
           <button type="button" onClick={openSell} className="btn-army">
             Sell ticket
           </button>
@@ -486,6 +520,10 @@ export default function TicketsView() {
                     onBuy={() => requireUser(() => handleBuy(row))}
                     onOpenChat={() => openChat(row)}
                     onReport={() => openReport(row)}
+                    onOpenRequests={() => {
+                      setRequestsTicket(row);
+                      void fetchRequestsForTicket(row.id);
+                    }}
                     onMarkSold={() => handleMarkSold(row)}
                     onEdit={() => openEdit(row)}
                     onDelete={() => setDeleteConfirm(row)}
@@ -622,6 +660,22 @@ export default function TicketsView() {
                               </Link>
                             )}
                             {row.status !== "Sold" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRequestsTicket(row);
+                                  void fetchRequestsForTicket(row.id);
+                                }}
+                                className="rounded-lg border-2 border-army-purple/40 bg-transparent px-3 py-2 text-sm font-semibold text-army-purple transition-colors hover:bg-army-purple/10 dark:border-army-400/60 dark:text-army-300 dark:hover:bg-army-purple/20"
+                                title="Review buyer requests"
+                              >
+                                Requests{(() => {
+                                  const n = (getRequestsForTicket(row.id) ?? []).filter((r) => r.status === "pending").length;
+                                  return n > 0 ? ` (${n})` : "";
+                                })()}
+                              </button>
+                            )}
+                            {row.status !== "Sold" && (
                               <button type="button" onClick={() => handleMarkSold(row)} className="rounded-lg px-2 py-1 text-xs font-semibold text-army-600 hover:bg-army-200/40 dark:text-army-400 dark:hover:bg-army-800/30">
                                 Mark sold
                               </button>
@@ -720,6 +774,28 @@ export default function TicketsView() {
           </div>
         </div>
       )}
+
+      <TicketRequestsModal
+        open={!!requestsTicket}
+        ticket={requestsTicket}
+        onClose={() => setRequestsTicket(null)}
+      />
+
+      <TurnstileGateModal
+        open={turnstileOpen}
+        onClose={() => {
+          setTurnstileOpen(false);
+          setPendingContact(null);
+        }}
+        title="Verify to contact seller"
+        action="contact_request"
+        onVerified={(token) => {
+          const t = pendingContact;
+          setTurnstileOpen(false);
+          setPendingContact(null);
+          if (t) void handleBuy(t, token);
+        }}
+      />
     </div>
   );
 }
@@ -734,6 +810,7 @@ type TicketCardProps = {
   onBuy: () => void;
   onOpenChat: () => void;
   onReport: () => void;
+  onOpenRequests?: () => void;
   onMarkSold: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -749,6 +826,7 @@ function TicketCard({
   onBuy,
   onOpenChat,
   onReport,
+  onOpenRequests,
   onMarkSold,
   onEdit,
   onDelete,
@@ -871,6 +949,15 @@ function TicketCard({
               >
                 Chats{openChatsCount > 0 ? ` (${openChatsCount})` : ""}
               </Link>
+            )}
+            {!sold && (
+              <button
+                type="button"
+                onClick={onOpenRequests}
+                className="rounded-lg border-2 border-army-purple/40 bg-transparent px-3 py-2 text-sm font-semibold text-army-purple transition-colors hover:bg-army-purple/10 dark:border-army-400/60 dark:text-army-300 dark:hover:bg-army-purple/20"
+              >
+                Requests
+              </button>
             )}
             {!sold && (
               <button type="button" onClick={onMarkSold} className="rounded-lg px-3 py-2 text-sm font-semibold text-army-600 transition-colors hover:bg-army-200/40 dark:text-army-400 dark:hover:bg-army-800/30">

@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
 import { insertUserReport } from "@/lib/supabase/userReports";
+import TurnstileGateModal from "@/components/TurnstileGateModal";
+import { uploadUserReportImage } from "@/lib/supabase/uploadUserReportImage";
 
 export const USER_REPORT_REASONS = [
   "Pretending to be admin",
@@ -27,14 +29,19 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
   const { add: addNotification } = useNotifications();
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileOpen, setTurnstileOpen] = useState(false);
+
+  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   if (!open) return null;
 
   const handleClose = () => {
     setReason("");
     setDetails("");
+    setImageFile(null);
     setError(null);
     onClose();
   };
@@ -42,8 +49,23 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportedUserId || !reason) return;
+    if (turnstileEnabled) {
+      setTurnstileOpen(true);
+      return;
+    }
     setSubmitting(true);
     setError(null);
+
+    let imageUrl: string | null = null;
+    if (imageFile) {
+      const up = await uploadUserReportImage(imageFile);
+      if ("error" in up) {
+        setSubmitting(false);
+        setError(up.error);
+        return;
+      }
+      imageUrl = up.url;
+    }
 
     const { error: dbError } = await insertUserReport({
       reportedUserId,
@@ -51,6 +73,48 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
       reportedByUsername: user?.username ?? user?.email ?? null,
       reason,
       details: details.trim() || undefined,
+      imageUrl,
+    });
+
+    setSubmitting(false);
+    if (dbError) {
+      setError(dbError);
+      return;
+    }
+
+    addNotification({
+      type: "ticket_reported",
+      ticketId: "user_report",
+      message: "Thanks — your report has been submitted.",
+      ticketSummary: reportedLabel ? `User: ${reportedLabel}` : "User report",
+    });
+    onReported?.();
+    handleClose();
+  };
+
+  const submitWithToken = async (turnstileToken: string) => {
+    if (!reportedUserId || !reason) return;
+    setSubmitting(true);
+    setError(null);
+
+    let imageUrl: string | null = null;
+    if (imageFile) {
+      const up = await uploadUserReportImage(imageFile);
+      if ("error" in up) {
+        setSubmitting(false);
+        setError(up.error);
+        return;
+      }
+      imageUrl = up.url;
+    }
+    const { error: dbError } = await insertUserReport({
+      reportedUserId,
+      reporterId: user?.id ?? null,
+      reportedByUsername: user?.username ?? user?.email ?? null,
+      reason,
+      details: details.trim() || undefined,
+      imageUrl,
+      turnstileToken,
     });
 
     setSubmitting(false);
@@ -123,6 +187,27 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-army-purple">
+              Proof photo <span className="font-normal text-neutral-500">(optional)</span>
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              className="mt-2 block w-full text-sm text-neutral-700 file:mr-3 file:rounded-lg file:border-0 file:bg-army-purple file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-army-700 dark:text-neutral-300"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            />
+            {imageFile && (
+              <button
+                type="button"
+                className="mt-2 btn-army-outline"
+                onClick={() => setImageFile(null)}
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+
           {error && (
             <p className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
               {error}
@@ -139,6 +224,17 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
           </div>
         </form>
       </div>
+
+      <TurnstileGateModal
+        open={turnstileOpen}
+        onClose={() => setTurnstileOpen(false)}
+        title="Verify to submit report"
+        action="report_user"
+        onVerified={(token) => {
+          setTurnstileOpen(false);
+          void submitWithToken(token);
+        }}
+      />
     </div>
   );
 }

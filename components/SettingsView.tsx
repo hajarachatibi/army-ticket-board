@@ -13,7 +13,7 @@ export default function SettingsView() {
   const [preview, setPreview] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<{ username: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<{ username: string } | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -23,11 +23,11 @@ export default function SettingsView() {
     setProfileLoading(false);
     if (error) {
       setProfileError(error);
-      setProfile({ username: user.username, email: user.email });
+      setProfile({ username: user.username });
       return;
     }
-    if (data) setProfile({ username: data.username, email: data.email });
-    else setProfile({ username: user.username, email: user.email });
+    if (data) setProfile({ username: data.username });
+    else setProfile({ username: user.username });
   }, [user?.id, user?.username, user?.email]);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function SettingsView() {
             <p className="text-sm font-semibold text-army-purple">Username</p>
             <p className="text-neutral-700 dark:text-neutral-300">{profile.username}</p>
             <p className="mt-2 text-sm font-semibold text-army-purple">Email</p>
-            <p className="text-neutral-700 dark:text-neutral-300">{profile.email}</p>
+            <p className="text-neutral-700 dark:text-neutral-300">{user?.email ?? ""}</p>
           </div>
         ) : null}
       </section>

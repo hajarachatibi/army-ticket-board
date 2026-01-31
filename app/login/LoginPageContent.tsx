@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/lib/AuthContext";
+import TurnstileGateModal from "@/components/TurnstileGateModal";
 
 function GoogleIcon() {
   return (
@@ -35,17 +36,30 @@ export default function LoginPageContent() {
   const { user, isLoading, signInWithGoogle, error, clearError } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const banned = searchParams.get("banned") === "1";
+  const rateLimited = searchParams.get("rate_limited") === "1";
+  const retry = Number(searchParams.get("retry") ?? "0");
+  const kind = searchParams.get("kind") || "ip";
+  const captchaBlocked = searchParams.get("captcha") === "1";
+  const [turnstileOpen, setTurnstileOpen] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
     if (!isLoading && user) router.replace("/tickets");
   }, [isLoading, user, router]);
 
   useEffect(() => {
-    if (!banned) clearError();
-  }, [banned, clearError]);
+    if (!banned && !rateLimited && !captchaBlocked) clearError();
+    if (!captchaBlocked) setLocalError(null);
+  }, [banned, rateLimited, captchaBlocked, clearError]);
 
   const handleGoogleSignIn = async () => {
     if (submitting) return;
+    if (turnstileEnabled) {
+      setTurnstileOpen(true);
+      return;
+    }
     setSubmitting(true);
     try {
       await signInWithGoogle();
@@ -90,18 +104,57 @@ export default function LoginPageContent() {
           <GoogleIcon />
           {submitting ? "Connecting…" : "Continue with Google"}
         </button>
-        {(banned || error) && (
+        {(banned || rateLimited || captchaBlocked || localError || error) && (
           <div
             className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300"
             role="alert"
           >
-            {banned ? "Your account has been banned." : error}
+            {banned
+              ? "Your account has been banned."
+              : rateLimited
+                ? `Too many sign-in attempts (${kind}). Please wait ${retry > 0 ? `${retry}s` : "a bit"} and try again.`
+                : captchaBlocked
+                  ? "Please complete verification and try signing in again."
+                  : localError
+                    ? localError
+                : error}
           </div>
         )}
       </div>
       <Link href="/" className="btn-army-outline">
         Back to Home
       </Link>
+
+      <TurnstileGateModal
+        open={turnstileOpen}
+        onClose={() => setTurnstileOpen(false)}
+        title="Verify to continue"
+        action="signup"
+        onVerified={async (token) => {
+          setSubmitting(true);
+          setLocalError(null);
+          try {
+            const res = await fetch("/api/turnstile/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token, action: "signup" }),
+            });
+            const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+            if (!res.ok || !j?.ok) {
+              setLocalError(j?.error || "Verification failed");
+              setSubmitting(false);
+              setTurnstileOpen(false);
+              return;
+            }
+            setTurnstileOpen(false);
+            await signInWithGoogle();
+          } catch (e) {
+            setLocalError(e instanceof Error ? e.message : "Verification failed");
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+      />
     </main>
   );
 }

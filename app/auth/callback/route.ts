@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isBannedEmail } from "@/lib/supabase/banned";
 import { ensureGoogleProfile, touchLastLogin } from "@/lib/supabase/profile";
+import { rateLimitSigninByAccount } from "@/lib/rateLimit";
+
+function isTruthyEnv(value: string | undefined) {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,6 +19,18 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Turnstile signup gate (fail closed when enabled).
+  if (isTruthyEnv(process.env.ENABLE_TURNSTILE)) {
+    const ts = request.cookies.get("ts_signup")?.value ?? "";
+    const at = Number(ts);
+    const tooOld = !Number.isFinite(at) || Date.now() - at > 10 * 60 * 1000;
+    if (tooOld) {
+      const blocked = new URL("/login", origin);
+      blocked.searchParams.set("captcha", "1");
+      return NextResponse.redirect(blocked);
+    }
   }
 
   const redirectResponse = NextResponse.redirect(redirectTo);
@@ -44,6 +62,20 @@ export async function GET(request: NextRequest) {
 
   if (session) {
     const email = session.user?.email ?? "";
+
+    // Rate limit sign-ins by account (after we know the user).
+    const acctKey = session.user.id || email.toLowerCase();
+    const rl = await rateLimitSigninByAccount(acctKey);
+    if (!rl.ok) {
+      await supabase.auth.signOut();
+      const limitedUrl = new URL("/login", origin);
+      limitedUrl.searchParams.set("rate_limited", "1");
+      limitedUrl.searchParams.set("retry", String(rl.retryAfterSeconds));
+      limitedUrl.searchParams.set("kind", "account");
+      redirectResponse.headers.set("Location", limitedUrl.toString());
+      return redirectResponse;
+    }
+
     const banned = await isBannedEmail(email, session.access_token);
     if (banned) {
       await supabase.auth.signOut();
@@ -58,6 +90,11 @@ export async function GET(request: NextRequest) {
     } catch (e) {
       if (process.env.NODE_ENV === "development") console.error("[Auth callback] ensureGoogleProfile", e);
     }
+  }
+
+  // Consume signup Turnstile cookie.
+  if (isTruthyEnv(process.env.ENABLE_TURNSTILE)) {
+    redirectResponse.cookies.set("ts_signup", "", { path: "/", maxAge: 0 });
   }
 
   return redirectResponse;

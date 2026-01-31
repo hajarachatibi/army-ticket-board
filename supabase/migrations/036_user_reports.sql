@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.user_reports (
   reported_by_username text,
   reason text NOT NULL,
   details text,
+  image_url text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -51,6 +52,7 @@ AS $$
       ur.reported_by_username,
       ur.reason,
       ur.details,
+      ur.image_url,
       ur.created_at
     FROM public.user_reports ur
     LEFT JOIN public.user_profiles up_reported ON up_reported.id = ur.reported_user_id

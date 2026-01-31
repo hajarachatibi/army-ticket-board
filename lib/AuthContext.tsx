@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setUser({
         id: u.id,
-        email: email || (u.email ?? ""),
+        email: u.email ?? email ?? "",
         username,
         isAdmin: role === "admin",
       });

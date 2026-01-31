@@ -8,6 +8,16 @@ import { formatPrice } from "@/lib/data/currencies";
 import { useAuth } from "@/lib/AuthContext";
 import AdminChatModal from "@/components/AdminChatModal";
 import {
+  adminAddDynamicForumQuestion,
+  adminDeleteForumQuestion,
+  adminFetchAllForumQuestions,
+  adminSetForumQuestionActive,
+  type ForumQuestion,
+} from "@/lib/supabase/forum";
+import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
+import { createAdminRecommendation, deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
+import { adminFetchSellerProofApplications, adminSetSellerProofStatus, type SellerProofApplication } from "@/lib/supabase/sellerProof";
+import {
   adminApproveTicket,
   adminBanAndDeleteUser,
   adminClaimTicket,
@@ -34,7 +44,20 @@ import {
 } from "@/lib/supabase/admin";
 import { adminGetOrCreateChat, type AdminChat } from "@/lib/supabase/adminChats";
 
-type Tab = "dashboard" | "ticketReports" | "userReports" | "pending" | "tickets" | "sellers" | "buyers" | "users" | "banned";
+type Tab =
+  | "dashboard"
+  | "ticketReports"
+  | "userReports"
+  | "pending"
+  | "tickets"
+  | "sellers"
+  | "buyers"
+  | "users"
+  | "forum"
+  | "stories"
+  | "recommendations"
+  | "sellerProof"
+  | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -80,6 +103,16 @@ export default function AdminPanelContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+
+  const [forumQuestions, setForumQuestions] = useState<ForumQuestion[]>([]);
+  const [newForumPrompt, setNewForumPrompt] = useState("");
+
+  const [pendingStories, setPendingStories] = useState<ArmyStory[]>([]);
+  const [adminRecs, setAdminRecs] = useState<AdminRecommendation[]>([]);
+  const [recTitle, setRecTitle] = useState("");
+  const [recBody, setRecBody] = useState("");
+
+  const [sellerProofApps, setSellerProofApps] = useState<SellerProofApplication[]>([]);
 
   const [selectedSellers, setSelectedSellers] = useState<Set<string>>(new Set());
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
@@ -201,6 +234,42 @@ export default function AdminPanelContent() {
     else if (data) setBanned(data);
   }, []);
 
+  const loadForumQuestions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await adminFetchAllForumQuestions();
+    setLoading(false);
+    if (e) setError(e);
+    else if (data) setForumQuestions(data);
+  }, []);
+
+  const loadPendingStories = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await adminFetchPendingStories();
+    setLoading(false);
+    if (e) setError(e);
+    else setPendingStories(data);
+  }, []);
+
+  const loadRecommendations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminRecommendations();
+    setLoading(false);
+    if (e) setError(e);
+    else setAdminRecs(data);
+  }, []);
+
+  const loadSellerProof = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await adminFetchSellerProofApplications();
+    setLoading(false);
+    if (e) setError(e);
+    else setSellerProofApps(data);
+  }, []);
+
   const loadDashboardStats = useCallback(async () => {
     const { data, error: e } = await fetchAdminDashboardStats();
     if (e) setError(e);
@@ -225,8 +294,12 @@ export default function AdminPanelContent() {
     else if (tab === "sellers") loadSellers();
     else if (tab === "buyers") loadBuyers();
     else if (tab === "users") loadAllUsers();
+    else if (tab === "forum") loadForumQuestions();
+    else if (tab === "stories") loadPendingStories();
+    else if (tab === "recommendations") loadRecommendations();
+    else if (tab === "sellerProof") loadSellerProof();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadBanned]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadForumQuestions, loadPendingStories, loadRecommendations, loadSellerProof, loadBanned]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
@@ -271,6 +344,133 @@ export default function AdminPanelContent() {
     setActionFeedback(`Unbanned ${email}.`);
     setBanned((prev) => prev.filter((b) => b.email !== email));
   }, []);
+
+  const handleAddForumQuestion = useCallback(async () => {
+    const prompt = newForumPrompt.trim();
+    if (!prompt) return;
+    setLoading(true);
+    setError(null);
+    const { error: e } = await adminAddDynamicForumQuestion({ prompt });
+    setLoading(false);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setNewForumPrompt("");
+    setActionFeedback("Forum question added.");
+    loadForumQuestions();
+  }, [newForumPrompt, loadForumQuestions]);
+
+  const handleToggleForumQuestion = useCallback(
+    async (id: string, active: boolean) => {
+      setLoading(true);
+      setError(null);
+      const { error: e } = await adminSetForumQuestionActive({ id, active });
+      setLoading(false);
+      if (e) setError(e);
+      else {
+        setActionFeedback(active ? "Question activated." : "Question deactivated.");
+        loadForumQuestions();
+      }
+    },
+    [loadForumQuestions]
+  );
+
+  const handleDeleteForumQuestion = useCallback(
+    async (id: string) => {
+      if (!confirm("Delete this question?")) return;
+      setLoading(true);
+      setError(null);
+      const { error: e } = await adminDeleteForumQuestion({ id });
+      setLoading(false);
+      if (e) setError(e);
+      else {
+        setActionFeedback("Question deleted.");
+        loadForumQuestions();
+      }
+    },
+    [loadForumQuestions]
+  );
+
+  const handleModerateStory = useCallback(
+    async (id: string, status: "approved" | "rejected") => {
+      setLoading(true);
+      setError(null);
+      const { error: e } = await adminModerateStory({ id, status });
+      setLoading(false);
+      if (e) setError(e);
+      else {
+        setActionFeedback(`Story ${status}.`);
+        loadPendingStories();
+      }
+    },
+    [loadPendingStories]
+  );
+
+  const handleDeleteStory = useCallback(
+    async (id: string) => {
+      if (!confirm("Delete this story?")) return;
+      setLoading(true);
+      setError(null);
+      const { error: e } = await adminDeleteStory(id);
+      setLoading(false);
+      if (e) setError(e);
+      else {
+        setActionFeedback("Story deleted.");
+        loadPendingStories();
+      }
+    },
+    [loadPendingStories]
+  );
+
+  const handleCreateRec = useCallback(async () => {
+    if (!user?.id) return;
+    const t = recTitle.trim();
+    const b = recBody.trim();
+    if (!t || !b) return;
+    setLoading(true);
+    setError(null);
+    const { error: e } = await createAdminRecommendation({ authorId: user.id, title: t, body: b });
+    setLoading(false);
+    if (e) setError(e);
+    else {
+      setRecTitle("");
+      setRecBody("");
+      setActionFeedback("Recommendation added.");
+      loadRecommendations();
+    }
+  }, [user?.id, recTitle, recBody, loadRecommendations]);
+
+  const handleDeleteRec = useCallback(
+    async (id: string) => {
+      if (!confirm("Delete this recommendation?")) return;
+      setLoading(true);
+      setError(null);
+      const { error: e } = await deleteAdminRecommendation(id);
+      setLoading(false);
+      if (e) setError(e);
+      else {
+        setActionFeedback("Recommendation deleted.");
+        loadRecommendations();
+      }
+    },
+    [loadRecommendations]
+  );
+
+  const handleSellerProofDecision = useCallback(
+    async (id: string, status: "approved" | "rejected") => {
+      setLoading(true);
+      setError(null);
+      const { error: e } = await adminSetSellerProofStatus({ id, status });
+      setLoading(false);
+      if (e) setError(e);
+      else {
+        setActionFeedback(`Seller proof ${status}.`);
+        loadSellerProof();
+      }
+    },
+    [loadSellerProof]
+  );
 
   const handleBanAndDelete = useCallback(
     async (email: string) => {
@@ -394,6 +594,10 @@ export default function AdminPanelContent() {
     { id: "sellers", label: "Sellers" },
     { id: "buyers", label: "Buyers" },
     { id: "users", label: "All users" },
+    { id: "forum", label: "Forum questions" },
+    { id: "stories", label: "ARMY Stories" },
+    { id: "recommendations", label: "Recommendations" },
+    { id: "sellerProof", label: "Seller proof" },
     { id: "banned", label: "Banned users" },
   ];
 
@@ -1400,6 +1604,291 @@ export default function AdminPanelContent() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "forum" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Forum questions</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Static questions are seeded and should usually stay. Dynamic questions can be added/disabled any time.
+                When questions change, users will be asked to re-submit the forum.
+              </p>
+
+              <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                <label className="block text-sm font-semibold text-army-purple">Add a new dynamic question</label>
+                <textarea
+                  value={newForumPrompt}
+                  onChange={(e) => setNewForumPrompt(e.target.value)}
+                  rows={3}
+                  className="input-army mt-2 resize-none"
+                  placeholder="Type the question…"
+                />
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    className="btn-army"
+                    onClick={handleAddForumQuestion}
+                    disabled={loading || !newForumPrompt.trim()}
+                  >
+                    Add question
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Type</th>
+                        <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Active</th>
+                        <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Question</th>
+                        <th className="px-4 py-3 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr>
+                          <td className="px-4 py-6 text-neutral-500" colSpan={4}>
+                            Loading…
+                          </td>
+                        </tr>
+                      ) : forumQuestions.length === 0 ? (
+                        <tr>
+                          <td className="px-4 py-6 text-neutral-500" colSpan={4}>
+                            No questions found.
+                          </td>
+                        </tr>
+                      ) : (
+                        forumQuestions.map((q) => (
+                          <tr
+                            key={q.id}
+                            className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10"
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 font-medium text-neutral-700 dark:text-neutral-300">
+                              {q.kind === "static" ? "Static" : "Dynamic"}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                  q.active
+                                    ? "bg-army-200/50 text-army-800 dark:bg-army-300/30 dark:text-army-200"
+                                    : "bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+                                }`}
+                              >
+                                {q.active ? "Yes" : "No"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{q.prompt}</td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleForumQuestion(q.id, !q.active)}
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                >
+                                  {q.active ? "Deactivate" : "Activate"}
+                                </button>
+                                {q.kind === "dynamic" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteForumQuestion(q.id)}
+                                    className="rounded bg-red-500/15 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-500/25 dark:bg-red-500/20 dark:text-red-300 dark:hover:bg-red-500/30"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {tab === "stories" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">ARMY Stories moderation</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Stories are submitted as <span className="font-semibold">pending</span>. Approve to publish on `/stories`.
+              </p>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : pendingStories.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No pending stories.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {pendingStories.map((s) => (
+                    <div
+                      key={s.id}
+                      className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{s.status}</p>
+                          <h3 className="mt-1 font-display text-lg font-bold text-army-purple">{s.title}</h3>
+                          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                            {s.anonymous ? "Anonymous" : s.authorUsername} · {formatDate(s.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {s.status !== "approved" && (
+                            <button
+                              type="button"
+                              onClick={() => handleModerateStory(s.id, "approved")}
+                              className="rounded bg-army-purple px-3 py-2 text-sm font-semibold text-white hover:bg-army-700"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          {s.status !== "rejected" && (
+                            <button
+                              type="button"
+                              onClick={() => handleModerateStory(s.id, "rejected")}
+                              className="rounded bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                            >
+                              Reject
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStory(s.id)}
+                            className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
+                        {s.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "recommendations" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">ARMY Recommendations (admin-only)</h2>
+              <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                <p className="text-sm font-semibold text-army-purple">Add recommendation</p>
+                <input
+                  className="input-army mt-2"
+                  placeholder="Title"
+                  value={recTitle}
+                  onChange={(e) => setRecTitle(e.target.value)}
+                />
+                <textarea
+                  className="input-army mt-2 resize-none"
+                  rows={4}
+                  placeholder="Write recommendation…"
+                  value={recBody}
+                  onChange={(e) => setRecBody(e.target.value)}
+                />
+                <div className="mt-3 flex justify-end">
+                  <button type="button" className="btn-army" onClick={handleCreateRec} disabled={loading || !recTitle.trim() || !recBody.trim()}>
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {loading ? (
+                  <p className="text-neutral-500">Loading…</p>
+                ) : adminRecs.length === 0 ? (
+                  <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                    No recommendations yet.
+                  </p>
+                ) : (
+                  adminRecs.map((r) => (
+                    <div key={r.id} className="rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-display text-lg font-bold text-army-purple">{r.title}</h3>
+                          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{formatDate(r.createdAt)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRec(r.id)}
+                          className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">{r.body}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
+
+          {tab === "sellerProof" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Seller proof applications</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Review seller proof submissions before approving new ticket listings.
+              </p>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : sellerProofApps.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No applications yet.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {sellerProofApps.map((a) => (
+                    <div
+                      key={a.id}
+                      className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{a.status}</p>
+                          <p className="mt-1 text-sm font-semibold text-army-purple">{a.fullName}</p>
+                          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                            {a.country} · {a.platform} · {formatDate(a.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSellerProofDecision(a.id, "approved")}
+                            className="rounded bg-army-purple px-3 py-2 text-sm font-semibold text-white hover:bg-army-700"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSellerProofDecision(a.id, "rejected")}
+                            className="rounded bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
+                        {a.proofDetails}
+                      </p>
+
+                      <div className="mt-3 overflow-hidden rounded-2xl border border-army-purple/15 dark:border-army-purple/25">
+                        <img src={a.screenshotUrl} alt="Seller proof screenshot" className="h-auto w-full" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>

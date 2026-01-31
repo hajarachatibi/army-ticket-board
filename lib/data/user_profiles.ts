@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabaseClient";
 export type UserProfile = {
   id: string;
   username: string;
-  email: string;
   role: string;
 };
 
@@ -13,7 +12,7 @@ export async function fetchProfile(
   try {
     const { data, error } = await supabase
       .from("user_profiles")
-      .select("id, username, email, role")
+      .select("id, username, role")
       .eq("id", userId)
       .single();
 
@@ -24,7 +23,6 @@ export async function fetchProfile(
       data: {
         id: String(data.id),
         username: String(data.username ?? "ARMY"),
-        email: String(data.email ?? ""),
         role: String(data.role ?? "user"),
       },
       error: null,

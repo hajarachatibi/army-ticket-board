@@ -12,6 +12,7 @@ import {
   MAX_PINNED,
   togglePinned as togglePinnedStorage,
 } from "@/lib/chatPinned";
+import { displayName } from "@/lib/displayName";
 import type { AdminChatListItem } from "@/lib/supabase/adminChats";
 import type { Chat } from "@/lib/ChatContext";
 
@@ -76,16 +77,9 @@ export default function ChatsPageContent() {
 
   const chats = user ? getChatsForUser(user.id) : [];
 
-  const safeName = useCallback(
-    (name: string) => {
-      if (isAdmin) return name;
-      const raw = (name ?? "").trim();
-      if (!raw) return "User";
-      if (raw.includes("@")) return raw.split("@")[0] || "User";
-      return raw;
-    },
-    [isAdmin]
-  );
+  const safeName = useCallback((name: string, subjectIsAdmin?: boolean) => {
+    return displayName(name, { viewerIsAdmin: isAdmin, subjectIsAdmin });
+  }, [isAdmin]);
   type ChatRow =
     | { type: "ticket"; chat: Chat }
     | { type: "admin"; item: AdminChatListItem };
@@ -169,6 +163,23 @@ export default function ChatsPageContent() {
           Your chat history. Open a conversation to view messages. Pin up to 3 chats to keep them at the top.
         </p>
 
+        <Link
+          href="/channel"
+          className="mt-4 block rounded-2xl border border-army-purple/30 bg-gradient-to-r from-army-purple to-army-700 p-4 shadow-sm transition-colors hover:brightness-105"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-lg font-bold text-white">Official Admin Channel</p>
+              <p className="mt-1 text-sm text-white/90">
+                Announcements from verified admins. Users can read and reply.
+              </p>
+            </div>
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white">
+              Channel
+            </span>
+          </div>
+        </Link>
+
         {!hasAnyChats ? (
           <div className="mt-8 rounded-xl border border-army-purple/15 bg-white p-8 text-center dark:border-army-purple/25 dark:bg-neutral-900">
             <p className="text-neutral-500 dark:text-neutral-400">
@@ -192,9 +203,14 @@ export default function ChatsPageContent() {
                 const c = row.chat;
                 const other =
                   c.buyerId === user.id ? c.sellerUsername : c.buyerUsername;
-                const otherLabel = safeName(other);
+                const otherLabel = safeName(other, false);
                 const last = lastMessage(c.id);
                 const unread = getUnreadCount(c.id);
+                const lastSenderLabel = last
+                  ? last.senderId === user.id
+                    ? "You"
+                    : otherLabel
+                  : null;
                 return (
                   <li key={c.id}>
                     <div className="relative flex gap-2 rounded-xl border border-army-purple/15 bg-white transition-colors dark:border-army-purple/25 dark:bg-neutral-900">
@@ -232,7 +248,7 @@ export default function ChatsPageContent() {
                         </p>
                         {last && (
                           <p className="truncate text-xs text-neutral-500 dark:text-neutral-500">
-                            {last.senderUsername}: {last.text}
+                            {lastSenderLabel}: {last.text}
                           </p>
                         )}
                       </button>
@@ -253,12 +269,12 @@ export default function ChatsPageContent() {
 
               const a = row.item;
               const unreadAdmin = getUnreadCountAdmin(a.id);
-              const lastPreview =
-                a.lastText && a.lastSenderUsername
-                  ? `${a.lastSenderUsername}: ${a.lastText}`
-                  : a.lastText ?? null;
-              const adminLabel =
-                !isAdmin && a.otherShowAdminBadge ? "Admin" : safeName(a.otherEmail || "Chat");
+              const lastSenderLabel =
+                a.lastSenderId && a.lastSenderId === user.id
+                  ? "You"
+                  : safeName(a.otherEmail || "Chat", a.otherShowAdminBadge);
+              const lastPreview = a.lastText ? `${lastSenderLabel}: ${a.lastText}` : null;
+              const adminLabel = safeName(a.otherEmail || "Chat", a.otherShowAdminBadge);
               return (
                 <li key={a.id}>
                   <div className="relative flex gap-2 rounded-xl border border-army-purple/15 bg-white transition-colors dark:border-army-purple/25 dark:bg-neutral-900">

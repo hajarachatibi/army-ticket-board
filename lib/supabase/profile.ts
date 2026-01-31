@@ -7,7 +7,7 @@ export async function fetchProfileWithToken(
   userId: string,
   accessToken: string
 ): Promise<{ username: string; email: string; role: string } | null> {
-  const url = `${SUPABASE_URL}/rest/v1/user_profiles?select=username,email,role&id=eq.${userId}`;
+  const url = `${SUPABASE_URL}/rest/v1/user_profiles?select=username,role&id=eq.${userId}`;
   try {
     const res = await fetch(url, {
       method: "GET",
@@ -23,7 +23,7 @@ export async function fetchProfileWithToken(
     if (!row) return null;
     return {
       username: row.username,
-      email: row.email ?? "",
+      email: "",
       role: typeof row.role === "string" ? row.role : "user",
     };
   } catch {
@@ -37,7 +37,7 @@ async function insertUserProfile(
   accessToken: string,
   email?: string | null
 ): Promise<{ data: Array<{ username: string; email?: string | null }> | null; error: { message: string } | null }> {
-  const url = `${SUPABASE_URL}/rest/v1/user_profiles?select=username,email`;
+  const url = `${SUPABASE_URL}/rest/v1/user_profiles?select=username`;
   const body: { id: string; username: string; email?: string; role: string } = {
     id: userId,
     username,

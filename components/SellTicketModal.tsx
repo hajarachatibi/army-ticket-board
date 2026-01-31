@@ -6,7 +6,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { ARIRANG_CITIES, ARIRANG_EVENTS } from "@/lib/data/arirang";
 import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
 import type { Ticket } from "@/lib/data/tickets";
-import { insertTicket, updateTicket } from "@/lib/supabase/tickets";
+import { updateTicket } from "@/lib/supabase/tickets";
+import TurnstileGateModal from "@/components/TurnstileGateModal";
+import Link from "next/link";
+import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
 
 type SellTicketModalProps = {
   open: boolean;
@@ -23,7 +26,7 @@ export default function SellTicketModal({
   onTicketAdded,
   onTicketUpdated,
 }: SellTicketModalProps) {
-  const { user, getAccessToken } = useAuth();
+  const { user } = useAuth();
   const [event, setEvent] = useState("");
   const [city, setCity] = useState("");
   const [day, setDay] = useState("");
@@ -37,8 +40,19 @@ export default function SellTicketModal({
   const [currency, setCurrency] = useState("USD");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileOpen, setTurnstileOpen] = useState(false);
+  const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
 
   const isEdit = !!editTicket;
+  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    if (!open || !user || isEdit) return;
+    setSellerProofOk(null);
+    fetchMySellerProofStatus()
+      .then(({ data }) => setSellerProofOk(data.hasApproved))
+      .catch(() => setSellerProofOk(false));
+  }, [open, user, isEdit]);
 
   useEffect(() => {
     if (!open) return;
@@ -97,6 +111,21 @@ export default function SellTicketModal({
       setFormError("Please enter a valid price (face value per ticket).");
       return;
     }
+
+    if (!isEdit) {
+      if (sellerProofOk === false) {
+        setFormError("Seller proof is required before submitting new tickets.");
+        return;
+      }
+      if (turnstileEnabled) {
+        setTurnstileOpen(true);
+        return;
+      }
+      // Turnstile disabled: submit without token (server will allow).
+      void submitNewTicket("");
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (isEdit && editTicket) {
@@ -116,31 +145,70 @@ export default function SellTicketModal({
         if (error) throw new Error(error);
         if (data) onTicketUpdated?.(data);
       } else {
-        const token = await getAccessToken();
-        if (!token) {
-          setFormError("Session expired. Please refresh the page and try again.");
-          return;
-        }
-        const { data, error } = await insertTicket(
-          {
-            event,
-            city,
-            day,
-            vip,
-            quantity: qty,
-            section,
-            row,
-            seat: seatVal,
-            type: seatType,
-            ownerId: user.id,
-            price: priceNum,
-            currency,
-          },
-          token
-        );
-        if (error) throw new Error(error);
-        if (data) onTicketAdded?.(data);
+        // handled above
       }
+      resetForm();
+      onClose();
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") console.error("[SellTicketModal]", err);
+      setFormError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitNewTicket = async (turnstileToken: string) => {
+    if (!user) return;
+    setFormError(null);
+    const qty = Math.min(4, Math.max(1, parseInt(quantity, 10) || 1));
+    const seatVal = seat.trim() || (qty > 1 ? `1-${qty}` : "1");
+    const priceNum = Math.max(0, parseFloat(String(price).replace(/,/g, ".")) || 0);
+    if (priceNum <= 0) {
+      setFormError("Please enter a valid price (face value per ticket).");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/tickets/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turnstileToken,
+          event,
+          city,
+          day,
+          vip,
+          quantity: qty,
+          section,
+          row,
+          seat: seatVal,
+          type: seatType,
+          price: priceNum,
+          currency,
+        }),
+      });
+      const j = (await res.json().catch(() => null)) as { data?: any; error?: string } | null;
+      if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
+      // Server returns DB row shape; reuse existing mapper by calling insertTicket() only for mapping fallback.
+      const raw = j?.data;
+      if (!raw) throw new Error("No ticket returned");
+      onTicketAdded?.({
+        id: String(raw.id),
+        event: String(raw.event),
+        city: String(raw.city),
+        day: String(raw.day),
+        vip: Boolean(raw.vip),
+        quantity: Number(raw.quantity),
+        section: String(raw.section),
+        row: String(raw.seat_row),
+        seat: String(raw.seat),
+        type: String(raw.type) as Ticket["type"],
+        status: String(raw.status) as Ticket["status"],
+        ownerId: raw.owner_id ?? null,
+        price: Number(raw.price ?? 0),
+        currency: String(raw.currency ?? "USD"),
+        listingStatus: raw.listing_status ?? undefined,
+      } as Ticket);
       resetForm();
       onClose();
     } catch (err) {
@@ -172,6 +240,15 @@ export default function SellTicketModal({
         <h2 id="sell-ticket-modal-title" className="font-display text-xl font-bold text-army-purple">
           {isEdit ? "Edit ticket" : "Sell ticket"}
         </h2>
+        {!isEdit && sellerProofOk === false && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+            Seller proof is required before submitting new tickets.{" "}
+            <Link href="/seller-proof" className="font-semibold underline">
+              Apply here
+            </Link>
+            .
+          </div>
+        )}
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
           <strong>Face value only.</strong> Non–face-value listings will be reported and may result in a ban.
         </div>
@@ -368,6 +445,17 @@ export default function SellTicketModal({
           </div>
         </form>
       </div>
+
+      <TurnstileGateModal
+        open={turnstileOpen}
+        onClose={() => setTurnstileOpen(false)}
+        title="Verify to submit ticket"
+        action="ticket_submit"
+        onVerified={(token) => {
+          setTurnstileOpen(false);
+          void submitNewTicket(token);
+        }}
+      />
     </div>
   );
 }

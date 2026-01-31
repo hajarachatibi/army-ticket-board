@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { rateLimitSigninByIp } from "@/lib/rateLimit";
+import { getRequestIp } from "@/lib/requestIp";
+
 function isTruthyEnv(value: string | undefined) {
   if (!value) return false;
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
@@ -23,10 +26,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  const requiresAuth = pathname.startsWith("/chats") || pathname.startsWith("/settings") || pathname.startsWith("/admin");
-  if (!requiresAuth) {
-    return NextResponse.next({ request });
+  // Rate limit sign-in endpoints by IP (edge).
+  if (pathname === "/login" || pathname.startsWith("/auth/callback")) {
+    const ip = getRequestIp(request) ?? "unknown";
+    const rl = await rateLimitSigninByIp(ip);
+    if (!rl.ok) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("rate_limited", "1");
+      url.searchParams.set("retry", String(rl.retryAfterSeconds));
+      url.searchParams.set("kind", "ip");
+      return NextResponse.redirect(url);
+    }
   }
+
+  const requiresAuth =
+    pathname.startsWith("/chats") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/channel");
+  const allowDuringForumEnforcement =
+    pathname === "/forum" ||
+    pathname === "/login" ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/maintenance";
 
   // Always start with a passthrough response; Supabase may set refreshed cookies on it.
   const passThrough = NextResponse.next({ request });
@@ -57,6 +80,20 @@ export async function middleware(request: NextRequest) {
     const redirect = NextResponse.redirect(loginUrl);
     passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
     return redirect;
+  }
+
+  // Forum enforcement: any signed-in user must submit (or re-submit if questions changed).
+  if (user && !allowDuringForumEnforcement) {
+    const { data, error } = await supabase.rpc("my_forum_status");
+    const needsSubmit = !error && (data as any)?.needs_submit === true;
+    if (needsSubmit) {
+      const forumUrl = request.nextUrl.clone();
+      forumUrl.pathname = "/forum";
+      forumUrl.searchParams.set("next", pathname + request.nextUrl.search);
+      const redirect = NextResponse.redirect(forumUrl);
+      passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
+      return redirect;
+    }
   }
 
   if (pathname.startsWith("/admin") && user) {
