@@ -8,7 +8,7 @@ import RequireAuth from "@/components/RequireAuth";
 import UserReportModal from "@/components/UserReportModal";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { acceptConnectionAgreement, sellerRespondConnection, setComfortDecision, setSocialShareDecision, submitBondingAnswers } from "@/lib/supabase/listings";
+import { acceptConnectionAgreement, endConnection, sellerRespondConnection, setComfortDecision, setSocialShareDecision, submitBondingAnswers } from "@/lib/supabase/listings";
 
 type ConnectionRow = {
   id: string;
@@ -45,6 +45,9 @@ export default function ConnectionPageContent() {
 
   const [preview, setPreview] = useState<Preview | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const [matchAck1, setMatchAck1] = useState(false);
+  const [matchAck2, setMatchAck2] = useState(false);
 
   const isBuyer = useMemo(() => !!user && conn?.buyer_id === user.id, [conn?.buyer_id, user]);
   const isSeller = useMemo(() => !!user && conn?.seller_id === user.id, [conn?.seller_id, user]);
@@ -101,6 +104,13 @@ export default function ConnectionPageContent() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionId, user?.id]);
+
+  useEffect(() => {
+    // Auto-open the match modal once the connection reaches the match step.
+    if (!conn) return;
+    if (conn.stage !== "agreement" && conn.stage !== "chat_open") return;
+    setMatchOpen(true);
+  }, [conn?.stage]);
 
   const expiresLabel = useMemo(() => {
     if (!conn?.stage_expires_at) return "";
@@ -171,6 +181,43 @@ export default function ConnectionPageContent() {
     else void load();
   };
 
+  const doEndConnection = async () => {
+    if (!conn) return;
+    setSubmitting(true);
+    setError(null);
+    const { error: e } = await endConnection(conn.id);
+    setSubmitting(false);
+    if (e) setError(e);
+    else void load();
+  };
+
+  const bothAgreed = useMemo(() => {
+    return Boolean(conn?.buyer_agreed) && Boolean(conn?.seller_agreed);
+  }, [conn?.buyer_agreed, conn?.seller_agreed]);
+
+  const socials = useMemo(() => {
+    const b = (preview as any)?.buyer ?? null;
+    const s = (preview as any)?.seller ?? null;
+    if (!b || !s) return null;
+    const show = Boolean((preview as any)?.showSocials);
+    if (!show) return { show: false as const };
+    return {
+      show: true as const,
+      buyer: {
+        instagram: b.instagram ? String(b.instagram) : null,
+        facebook: b.facebook ? String(b.facebook) : null,
+        tiktok: b.tiktok ? String(b.tiktok) : null,
+        snapchat: b.snapchat ? String(b.snapchat) : null,
+      },
+      seller: {
+        instagram: s.instagram ? String(s.instagram) : null,
+        facebook: s.facebook ? String(s.facebook) : null,
+        tiktok: s.tiktok ? String(s.tiktok) : null,
+        snapchat: s.snapchat ? String(s.snapchat) : null,
+      },
+    };
+  }, [preview]);
+
 
   return (
     <RequireAuth>
@@ -221,6 +268,11 @@ export default function ConnectionPageContent() {
               <div className="text-sm text-neutral-600 dark:text-neutral-400">
                 {isBuyer ? "You are the buyer." : isSeller ? "You are the seller." : "Participant"}
               </div>
+              {conn.stage !== "ended" && conn.stage !== "expired" && conn.stage !== "declined" && (
+                <button type="button" className="btn-army-outline" onClick={doEndConnection} disabled={submitting}>
+                  {conn.stage === "pending_seller" && isBuyer ? "Cancel request" : "Release / end"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -329,11 +381,11 @@ export default function ConnectionPageContent() {
           {conn.stage === "agreement" && (
             <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
               <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                Please confirm: admins do not verify tickets, handle payments, or take responsibility for transactions.
+                You have a match. Please read the message and confirm to continue.
               </p>
               <div className="mt-5 flex justify-end">
-                <button type="button" className="btn-army" onClick={doAgreement} disabled={submitting}>
-                  I understand and agree
+                <button type="button" className="btn-army" onClick={() => setMatchOpen(true)} disabled={submitting}>
+                  Open match message
                 </button>
               </div>
             </div>
@@ -361,6 +413,154 @@ export default function ConnectionPageContent() {
         reportedLabel={otherLabel}
         onReported={() => setError("Thanks — your report has been submitted.")}
       />
+
+      {matchOpen && conn && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="match-modal-title"
+          onClick={() => setMatchOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="match-modal-title" className="font-display text-xl font-bold text-army-purple">
+                  You Have a Match
+                </h2>
+                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Please read carefully.</p>
+              </div>
+              <button type="button" className="btn-army-outline" onClick={() => setMatchOpen(false)} disabled={submitting}>
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-[70vh] overflow-y-auto rounded-xl border border-army-purple/15 bg-white/80 p-4 text-sm text-neutral-800 dark:border-army-purple/25 dark:bg-neutral-900/60 dark:text-neutral-200">
+              {!bothAgreed ? (
+                <>
+                  <p className="font-semibold text-army-purple">💜 Before You Continue</p>
+                  <p className="mt-2">
+                    You are about to connect with another ARMY outside this platform. Please read carefully.
+                    <br />
+                    This platform is only here to help ARMYs connect. We do not verify tickets, identities, or payments. Once you move to social media or private communication, you do so at your own discretion.
+                  </p>
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">Take your time</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1">
+                    <li>Get comfortable as ARMY first, not as buyer or seller</li>
+                    <li>Talk about BTS, your experiences, your story</li>
+                    <li>A real connection should not feel rushed</li>
+                  </ul>
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">Never feel pressured</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1">
+                    <li>Anyone pushing you to “act fast” is a red flag</li>
+                    <li>You can walk away at any time</li>
+                    <li>You do not owe anyone a ticket or a payment</li>
+                  </ul>
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">Protect your personal information</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1">
+                    <li>Do not click unknown links</li>
+                    <li>Do not share private details until you feel fully comfortable</li>
+                    <li>Be cautious with brand new, empty, or very generic social media accounts</li>
+                  </ul>
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">Payment &amp; ticket transfer safety</p>
+                  <p className="mt-2 font-semibold">For Buyers</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    <li>Use protected payment methods when possible (for example, PayPal Goods &amp; Services)</li>
+                    <li>Video call is strongly recommended before any payment</li>
+                    <li>Double-check ticket details before sending money</li>
+                    <li>Be cautious of fake ticket and email screenshots</li>
+                  </ul>
+                  <p className="mt-3 font-semibold">For Sellers</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    <li>Never transfer a ticket before receiving confirmed payment</li>
+                    <li>Be cautious of fake payment screenshots</li>
+                    <li>Keep proof of the original purchase and transfer</li>
+                  </ul>
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">Trust your instincts</p>
+                  <p className="mt-2">If something feels off, it probably is. It is always okay to stop.</p>
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">By continuing, you confirm:</p>
+                  <div className="mt-2 space-y-2">
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input type="checkbox" className="mt-1 h-4 w-4" checked={matchAck1} onChange={(e) => setMatchAck1(e.target.checked)} />
+                      <span>
+                        I understand the admins do not verify tickets, handle payments, or take responsibility for transactions
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input type="checkbox" className="mt-1 h-4 w-4" checked={matchAck2} onChange={(e) => setMatchAck2(e.target.checked)} />
+                      <span>I choose to continue this connection at my own discretion</span>
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-army-purple">💜 You’re Connected, ARMY</p>
+                  <p className="mt-2">Here is your match’s social media:</p>
+                  {socials?.show ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
+                        <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Buyer</p>
+                        <p className="mt-1">Instagram: {socials.buyer.instagram ?? "—"}</p>
+                        <p>Facebook: {socials.buyer.facebook ?? "—"}</p>
+                        <p>TikTok: {socials.buyer.tiktok ?? "—"}</p>
+                        <p>Snapchat: {socials.buyer.snapchat ?? "—"}</p>
+                      </div>
+                      <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
+                        <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Seller</p>
+                        <p className="mt-1">Instagram: {socials.seller.instagram ?? "—"}</p>
+                        <p>Facebook: {socials.seller.facebook ?? "—"}</p>
+                        <p>TikTok: {socials.seller.tiktok ?? "—"}</p>
+                        <p>Snapchat: {socials.seller.snapchat ?? "—"}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                      Socials will appear here once both users choose to share socials and both confirm.
+                    </p>
+                  )}
+                  <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
+                  <p className="font-semibold text-army-purple">Before you go 💌</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1">
+                    <li>Make sure your social media message settings allow new messages</li>
+                    <li>Check your message requests or spam folder</li>
+                    <li>Be patient — the other ARMY might be in a different timezone</li>
+                  </ul>
+                  <p className="mt-3">
+                    This listing is now removed. If the connection doesn’t work out, the seller can add it back later.
+                  </p>
+                  <p className="mt-2">Wishing you a meaningful ARMY connection 💜</p>
+                </>
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              {!bothAgreed ? (
+                <button
+                  type="button"
+                  className="btn-army"
+                  onClick={doAgreement}
+                  disabled={submitting || conn.stage !== "agreement" || !matchAck1 || !matchAck2}
+                >
+                  {submitting ? "Confirming…" : "CONFIRM"}
+                </button>
+              ) : (
+                <button type="button" className="btn-army" onClick={() => setMatchOpen(false)}>
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </RequireAuth>
   );
 }

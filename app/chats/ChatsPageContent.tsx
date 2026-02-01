@@ -1,171 +1,70 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import AdminChatModal from "@/components/AdminChatModal";
 import { useAuth } from "@/lib/AuthContext";
-import { useChat } from "@/lib/ChatContext";
-import {
-  getPinnedChatIds,
-  MAX_PINNED,
-  togglePinned as togglePinnedStorage,
-} from "@/lib/chatPinned";
-import { displayName } from "@/lib/displayName";
-import type { AdminChatListItem } from "@/lib/supabase/adminChats";
-import type { Chat } from "@/lib/ChatContext";
-import { fetchAdminContacts } from "@/lib/supabase/liteProfile";
-
-function PinIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5 shrink-0"
-      aria-hidden
-    >
-      <circle cx="12" cy="6" r="3" />
-      <path d="M12 9v11" />
-    </svg>
-  );
-}
+import { fetchMyAdminChats, type AdminChatListItem } from "@/lib/supabase/adminChats";
 
 export default function ChatsPageContent() {
+  const router = useRouter();
   const { user, isLoggedIn, isAdmin } = useAuth();
-  const searchParams = useSearchParams();
-  const ticketId = searchParams.get("ticket");
-  const {
-    getChatsForUser,
-    getMessagesForChat,
-    getUnreadCount,
-    getUnreadCountAdmin,
-    openChatModal,
-    fetchChatsForUser,
-    fetchMessagesForChat,
-    adminChats,
-    fetchAdminChats,
-  } = useChat();
-  const openedForTicketRef = useRef<string | null>(null);
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-  const [activeAdminChat, setActiveAdminChat] = useState<AdminChatListItem | null>(null);
-  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [items, setItems] = useState<AdminChatListItem[]>([]);
+  const [active, setActive] = useState<AdminChatListItem | null>(null);
+
+  const load = async () => {
+    if (!isLoggedIn || !user || !isAdmin) return;
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchMyAdminChats();
+    if (e) setError(e);
+    setItems(data);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (user) void fetchChatsForUser(user.id);
-  }, [user?.id, fetchChatsForUser]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await fetchAdminContacts();
-      if (cancelled) return;
-      if (error || !data) {
-        setAdminIds(new Set());
-        return;
-      }
-      setAdminIds(new Set(data.map((a) => a.id)));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (user?.id && typeof window !== "undefined") {
-      setPinnedIds(getPinnedChatIds(user.id));
+    if (isLoggedIn && user && !isAdmin) {
+      router.replace("/tickets");
     }
-  }, [user?.id]);
-
-  const togglePin = useCallback(
-    (e: React.MouseEvent, chatId: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!user?.id) return;
-      const { pinnedIds: next } = togglePinnedStorage(user.id, chatId, pinnedIds);
-      setPinnedIds(next);
-    },
-    [user?.id, pinnedIds]
-  );
-
-  const chats = user ? getChatsForUser(user.id) : [];
-
-  const safeName = useCallback((name: string, subjectIsAdmin?: boolean) => {
-    return displayName(name, { viewerIsAdmin: isAdmin, subjectIsAdmin });
-  }, [isAdmin]);
-  type ChatRow =
-    | { type: "ticket"; chat: Chat }
-    | { type: "admin"; item: AdminChatListItem };
-
-  const lastMessage = useCallback(
-    (chatId: string) => {
-      const msgs = getMessagesForChat(chatId);
-      return msgs.length > 0 ? msgs[msgs.length - 1] : null;
-    },
-    [getMessagesForChat]
-  );
-
-  const sortedChats = useMemo(() => {
-    const rows: ChatRow[] = [
-      ...chats.map((c) => ({ type: "ticket" as const, chat: c })),
-      ...adminChats.map((item: AdminChatListItem) => ({ type: "admin" as const, item })),
-    ];
-    const lastActivity = (r: ChatRow): number => {
-      if (r.type === "ticket") {
-        const last = lastMessage(r.chat.id);
-        return last ? last.createdAt : r.chat.closedAt ?? r.chat.createdAt;
-      }
-      const at = r.item.lastMessageAt ?? r.item.createdAt;
-      return new Date(at).getTime();
-    };
-    const idOf = (r: ChatRow): string => (r.type === "ticket" ? r.chat.id : r.item.id);
-    const pinned: ChatRow[] = [];
-    const rest: ChatRow[] = [];
-    for (const r of rows) {
-      if (pinnedIds.includes(idOf(r))) pinned.push(r);
-      else rest.push(r);
-    }
-    rest.sort((a, b) => lastActivity(b) - lastActivity(a));
-    return [...pinned, ...rest];
-  }, [chats, adminChats, pinnedIds, lastMessage]);
-
-  const chatIdsKey = useMemo(
-    () => chats.map((c) => c.id).sort().join(","),
-    [chats]
-  );
+  }, [isAdmin, isLoggedIn, router, user]);
 
   useEffect(() => {
-    if (!chatIdsKey) return;
-    chatIdsKey.split(",").forEach((id) => void fetchMessagesForChat(id));
-  }, [chatIdsKey, fetchMessagesForChat]);
-
-  useEffect(() => {
-    if (!user?.id || !ticketId) return;
-    if (openedForTicketRef.current === ticketId) return;
-    const chat = chats.find((c) => c.ticketId === ticketId);
-    if (chat) {
-      openedForTicketRef.current = ticketId;
-      openChatModal(chat.id);
-    }
-  }, [user?.id, ticketId, chats, openChatModal]);
-
-  const hasAnyChats = chats.length > 0 || adminChats.length > 0;
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, user?.id, isAdmin]);
 
   if (!isLoggedIn || !user) {
     return (
       <main className="min-h-screen bg-gradient-army-subtle">
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8">
-          <h1 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">
-            Chat history
-          </h1>
+          <h1 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">Admin chats</h1>
           <p className="mt-4 text-neutral-600 dark:text-neutral-400">
-            <Link href="/login" className="font-semibold text-army-purple underline">Sign in with Google</Link> to view your chats.
+            <Link href="/login" className="font-semibold text-army-purple underline">
+              Sign in with Google
+            </Link>{" "}
+            to view admin chats.
           </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className="min-h-screen bg-gradient-army-subtle">
+        <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8">
+          <h1 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">Admin chats</h1>
+          <p className="mt-4 text-neutral-600 dark:text-neutral-400">This page is for admins only.</p>
+          <div className="mt-6">
+            <Link href="/tickets" className="btn-army">
+              Back to listings
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -174,204 +73,95 @@ export default function ChatsPageContent() {
   return (
     <main className="min-h-screen bg-gradient-army-subtle">
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <h1 className="font-display text-3xl font-bold text-army-purple">
-          Chats
-        </h1>
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Your chat history. Open a conversation to view messages. Pin up to 3 chats to keep them at the top.
-        </p>
-
-        <Link
-          href="/channel"
-          className="mt-4 block rounded-2xl border border-army-purple/30 bg-gradient-to-r from-army-purple to-army-700 p-4 shadow-sm transition-colors hover:brightness-105"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-display text-lg font-bold text-white">Official Admin Channel</p>
-              <p className="mt-1 text-sm text-white/90">
-                Announcements from verified admins. Users can read and reply.
-              </p>
-            </div>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white">
-              Channel
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-army-purple">Admin chats</h1>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              Admin-only: message users when needed. No user-to-user chats.
+            </p>
           </div>
-        </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin" className="btn-army-outline">
+              Admin panel
+            </Link>
+            <Link href="/channel" className="btn-army-outline">
+              Admin Channel
+            </Link>
+            <button type="button" className="btn-army-outline" onClick={() => void load()}>
+              Refresh
+            </button>
+          </div>
+        </div>
 
-        {!hasAnyChats ? (
+        {error && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <p className="mt-8 text-center text-neutral-500 dark:text-neutral-400">Loading…</p>
+        ) : items.length === 0 ? (
           <div className="mt-8 rounded-xl border border-army-purple/15 bg-white p-8 text-center dark:border-army-purple/25 dark:bg-neutral-900">
             <p className="text-neutral-500 dark:text-neutral-400">
-              No chats yet. Click Contact on a ticket to open a chat with the seller, or use Message in the admin panel to talk to users.
+              No admin chats yet. Open a user from the admin panel and click “Admin chat” to start messaging.
             </p>
-            <Link
-              href="/tickets"
-              className="btn-army mt-4 inline-block"
-            >
-              Browse tickets
-            </Link>
           </div>
         ) : (
           <ul className="mt-6 space-y-3">
-            {sortedChats.map((row) => {
-              const id = row.type === "ticket" ? row.chat.id : row.item.id;
-              const isPinned = pinnedIds.includes(id);
-              const pinDisabled = !isPinned && pinnedIds.length >= MAX_PINNED;
-
-              if (row.type === "ticket") {
-                const c = row.chat;
-                const other =
-                  c.buyerId === user.id ? c.sellerUsername : c.buyerUsername;
-                const otherId = c.buyerId === user.id ? c.sellerId : c.buyerId;
-                const otherIsAdmin = !!otherId && adminIds.has(otherId);
-                const otherLabel = safeName(other, otherIsAdmin);
-                const last = lastMessage(c.id);
-                const unread = getUnreadCount(c.id);
-                const lastSenderLabel = last
-                  ? last.senderId === user.id
-                    ? "You"
-                    : safeName(last.senderUsername, adminIds.has(last.senderId))
-                  : null;
-                return (
-                  <li key={c.id}>
-                    <div className="relative flex gap-2 rounded-xl border border-army-purple/15 bg-white transition-colors dark:border-army-purple/25 dark:bg-neutral-900">
-                      <button
-                        type="button"
-                        onClick={() => openChatModal(c.id)}
-                        className="flex min-w-0 flex-1 flex-col gap-1 rounded-xl p-4 text-left transition-colors hover:bg-army-purple/5 dark:hover:bg-army-purple/10"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-semibold text-army-purple">
-                            {otherLabel}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {unread > 0 && (
-                              <span
-                                className="absolute right-14 top-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-army-purple px-1.5 text-[10px] font-bold text-white shadow-sm"
-                                aria-label={`${unread} new message${unread !== 1 ? "s" : ""}`}
-                              >
-                                {unread > 99 ? "99+" : unread}
-                              </span>
-                            )}
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                                c.status === "open"
-                                  ? "bg-army-200/50 text-army-800 dark:bg-army-300/30 dark:text-army-200"
-                                  : "bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400"
-                              }`}
-                            >
-                              {c.status === "open" ? "Open" : "Closed"}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                          {c.ticketSummary}
-                        </p>
-                        {last && (
-                          <p className="truncate text-xs text-neutral-500 dark:text-neutral-500">
-                            {lastSenderLabel}: {last.text}
-                          </p>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => togglePin(e, c.id)}
-                        disabled={pinDisabled}
-                        title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 4)" : "Pin"}
-                        className="flex shrink-0 items-center justify-center self-center rounded-lg p-3 text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
-                        aria-label={isPinned ? "Unpin chat" : "Pin chat"}
-                      >
-                        {isPinned ? <PinIcon filled /> : <PinIcon filled={false} />}
-                      </button>
+            {items.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className="w-full rounded-2xl border border-army-purple/15 bg-white p-4 text-left shadow-sm transition-colors hover:bg-army-purple/5 dark:border-army-purple/25 dark:bg-neutral-900 dark:hover:bg-army-purple/10"
+                  onClick={() => setActive(item)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-army-purple">{item.otherEmail || "Unknown user"}</p>
+                      <p className="mt-1 truncate text-sm text-neutral-600 dark:text-neutral-400">
+                        {item.lastText ?? (item.status === "closed" ? "Closed" : "No messages yet")}
+                      </p>
                     </div>
-                  </li>
-                );
-              }
-
-              const a = row.item;
-              const unreadAdmin = getUnreadCountAdmin(a.id);
-              const lastSenderLabel =
-                a.lastSenderId && a.lastSenderId === user.id
-                  ? "You"
-                  : safeName(a.otherEmail || "Chat", a.otherShowAdminBadge);
-              const lastPreview = a.lastText ? `${lastSenderLabel}: ${a.lastText}` : null;
-              const adminLabel = safeName(a.otherEmail || "Chat", a.otherShowAdminBadge);
-              return (
-                <li key={a.id}>
-                  <div className="relative flex gap-2 rounded-xl border border-army-purple/15 bg-white transition-colors dark:border-army-purple/25 dark:bg-neutral-900">
-                    <button
-                      type="button"
-                      onClick={() => setActiveAdminChat(a)}
-                      className="flex min-w-0 flex-1 flex-col gap-1 rounded-xl p-4 text-left transition-colors hover:bg-army-purple/5 dark:hover:bg-army-purple/10"
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        item.status === "open"
+                          ? "bg-army-200/50 text-army-800 dark:bg-army-300/30 dark:text-army-200"
+                          : "bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400"
+                      }`}
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-semibold text-army-purple">
-                          {adminLabel}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {unreadAdmin > 0 && (
-                            <span
-                              className="absolute right-14 top-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-army-purple px-1.5 text-[10px] font-bold text-white shadow-sm"
-                              aria-label={`${unreadAdmin} new message${unreadAdmin !== 1 ? "s" : ""}`}
-                            >
-                              {unreadAdmin > 99 ? "99+" : unreadAdmin}
-                            </span>
-                          )}
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                              a.status === "open"
-                                ? "bg-army-200/50 text-army-800 dark:bg-army-300/30 dark:text-army-200"
-                                : "bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400"
-                            }`}
-                          >
-                            {a.status === "open" ? "Open" : "Closed"}
-                          </span>
-                        </div>
-                      </div>
-                      {lastPreview && (
-                        <p className="truncate text-xs text-neutral-500 dark:text-neutral-500">
-                          {lastPreview}
-                        </p>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => togglePin(e, a.id)}
-                      disabled={pinDisabled}
-                      title={isPinned ? "Unpin" : pinnedIds.length >= MAX_PINNED ? "Unpin a chat to pin more (max 4)" : "Pin"}
-                      className="flex shrink-0 items-center justify-center self-center rounded-lg p-3 text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
-                      aria-label={isPinned ? "Unpin chat" : "Pin chat"}
-                    >
-                      {isPinned ? <PinIcon filled /> : <PinIcon filled={false} />}
-                    </button>
+                      {item.status === "open" ? "Open" : "Closed"}
+                    </span>
                   </div>
-                </li>
-              );
-            })}
+                </button>
+              </li>
+            ))}
           </ul>
         )}
 
-        {activeAdminChat && (
+        {active && (
           <AdminChatModal
             adminChat={{
-              id: activeAdminChat.id,
-              adminId: "",
-              userId: "",
-              createdAt: activeAdminChat.createdAt,
-              status: activeAdminChat.status,
-              closedAt: activeAdminChat.closedAt,
+              id: active.id,
+              adminId: user.id,
+              userId: active.otherUserId ?? "",
+              createdAt: active.createdAt,
+              status: active.status,
+              closedAt: active.closedAt,
             }}
-            userEmail={activeAdminChat.otherEmail || "User"}
-            youAreAdmin={activeAdminChat.isAdmin}
-            otherShowAdminBadge={activeAdminChat.otherShowAdminBadge}
-            otherUserId={activeAdminChat.otherUserId}
+            userEmail={active.otherEmail || "User"}
+            youAreAdmin={true}
+            otherShowAdminBadge={active.otherShowAdminBadge}
+            otherUserId={active.otherUserId}
             onClose={() => {
-              setActiveAdminChat(null);
-              fetchAdminChats();
+              setActive(null);
+              void load();
             }}
-            onStatusChange={fetchAdminChats}
+            onStatusChange={() => void load()}
           />
         )}
       </div>
     </main>
   );
 }
+

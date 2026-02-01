@@ -48,18 +48,18 @@ export async function POST(request: NextRequest) {
 
   const service = createServiceClient();
 
-  // Close connection + chat (if any) and mark sold.
-  const { data: conn } = await service
+  // Mark sold: end ALL active connections/requests for this listing.
+  const { data: conns } = await service
     .from("connections")
     .select("id, chat_id")
     .eq("listing_id", listingId)
-    .maybeSingle();
+    .in("stage", ["pending_seller", "bonding", "preview", "social", "agreement", "chat_open"]);
 
-  if (conn?.chat_id) {
-    await service.from("chats").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", conn.chat_id);
-  }
-  if (conn?.id) {
-    await service.from("connections").update({ stage: "ended", stage_expires_at: new Date().toISOString() }).eq("id", conn.id);
+  for (const c of (conns ?? []) as any[]) {
+    if (c.chat_id) {
+      await service.from("chats").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", c.chat_id);
+    }
+    await service.from("connections").update({ stage: "ended", stage_expires_at: new Date().toISOString() }).eq("id", c.id);
   }
 
   const { error: upErr } = await service

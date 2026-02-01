@@ -127,3 +127,8 @@ export async function acceptConnectionAgreement(connectionId: string): Promise<{
   return { error: error?.message ?? null };
 }
 
+export async function endConnection(connectionId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("end_connection", { p_connection_id: connectionId });
+  return { error: error?.message ?? null };
+}
+
