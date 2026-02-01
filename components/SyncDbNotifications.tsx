@@ -4,13 +4,36 @@ import { useEffect } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
+import type { NotificationType } from "@/lib/NotificationContext";
 import { supabase } from "@/lib/supabaseClient";
+
+const SUPPORTED_TYPES = [
+  "ticket_approved",
+  "ticket_rejected",
+  "connection_request_received",
+  "connection_request_accepted",
+  "connection_request_declined",
+  "connection_bonding_submitted",
+  "connection_preview_ready",
+  "connection_comfort_updated",
+  "connection_social_updated",
+  "connection_agreement_updated",
+  "connection_match_confirmed",
+  "connection_ended",
+  "connection_expired",
+] as const satisfies readonly NotificationType[];
+
+type SupportedType = (typeof SUPPORTED_TYPES)[number];
+const SUPPORTED_SET = new Set<string>(SUPPORTED_TYPES as readonly string[]);
 
 type DbNotificationRow = {
   id: string;
   type: string;
   ticket_id: string | null;
   ticket_summary: string | null;
+  listing_id?: string | null;
+  listing_summary?: string | null;
+  connection_id?: string | null;
   message: string | null;
   delivered: boolean;
   created_at: string;
@@ -40,14 +63,18 @@ export default function SyncDbNotifications() {
       if (rows.length === 0) return;
 
       rows.forEach((r) => {
-        if (r.type === "ticket_approved" || r.type === "ticket_rejected") {
-          add({
-            type: r.type as "ticket_approved" | "ticket_rejected",
-            ticketId: r.ticket_id ?? undefined,
-            message: r.message ?? undefined,
-            ticketSummary: r.ticket_summary ?? undefined,
-          });
-        }
+        if (!SUPPORTED_SET.has(r.type)) return;
+        add({
+          // These rows are server-created with a strict CHECK constraint (see migrations),
+          // but we still keep the client defensive by treating unknown types as a no-op.
+          type: r.type as SupportedType,
+          ticketId: r.ticket_id ?? undefined,
+          ticketSummary: r.ticket_summary ?? undefined,
+          listingId: r.listing_id ?? undefined,
+          listingSummary: r.listing_summary ?? undefined,
+          connectionId: r.connection_id ?? undefined,
+          message: r.message ?? undefined,
+        });
       });
 
       // Mark as delivered so we don't re-add on refresh.
@@ -66,12 +93,15 @@ export default function SyncDbNotifications() {
         { event: "INSERT", schema: "public", table: "user_notifications", filter: `user_id=eq.${uid}` },
         (payload) => {
           const r = payload.new as DbNotificationRow;
-          if (r.type !== "ticket_approved" && r.type !== "ticket_rejected") return;
+          if (!SUPPORTED_SET.has(r.type)) return;
           add({
-            type: r.type as "ticket_approved" | "ticket_rejected",
+            type: r.type as SupportedType,
             ticketId: r.ticket_id ?? undefined,
-            message: r.message ?? undefined,
             ticketSummary: r.ticket_summary ?? undefined,
+            listingId: r.listing_id ?? undefined,
+            listingSummary: r.listing_summary ?? undefined,
+            connectionId: r.connection_id ?? undefined,
+            message: r.message ?? undefined,
           });
           void supabase.from("user_notifications").update({ delivered: true }).eq("id", r.id);
         }

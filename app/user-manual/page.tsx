@@ -41,6 +41,7 @@ export default function UserManualPage() {
             <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
               <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). New listings appear after a short delay.</li>
               <li><strong>CONNECT:</strong> Starts a connection with the seller. You’ll go through steps (accept/decline, bonding questions, comfort checks, socials decision, agreement).</li>
+              <li><strong>Connection alerts:</strong> If there’s an update in one of your connections, you’ll see a <strong>red dot</strong> on <strong>My Connections</strong>, and on the specific connection card.</li>
               <li><strong>No in-app buyer/seller chat:</strong> If you both agree to share socials, you continue on social media.</li>
               <li><strong>Report:</strong> Report suspicious or non–face-value listings. After multiple reports from different users, listings can be removed and users can be banned.</li>
             </ul>
@@ -63,7 +64,7 @@ export default function UserManualPage() {
               Header &amp; notifications
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              The header has <strong>dark/light mode</strong>, a <strong>notification bell</strong>, and your email or <strong>Get started</strong>. Notifications can include admin channel updates and important listing/connection updates.
+              The header has <strong>dark/light mode</strong>, a <strong>notification bell</strong>, and your email or <strong>Get started</strong>. Notifications can include important connection updates (request received/accepted/declined, next steps, and match confirmation).
             </p>
           </div>
 

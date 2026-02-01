@@ -15,6 +15,28 @@ function label(type: NotificationType): string {
       return "Request rejected";
     case "request_received":
       return "New ticket request";
+    case "connection_request_received":
+      return "New connection request";
+    case "connection_request_accepted":
+      return "Connection accepted";
+    case "connection_request_declined":
+      return "Connection declined";
+    case "connection_bonding_submitted":
+      return "Bonding answers submitted";
+    case "connection_preview_ready":
+      return "Preview ready";
+    case "connection_comfort_updated":
+      return "Comfort answer updated";
+    case "connection_social_updated":
+      return "Social sharing updated";
+    case "connection_agreement_updated":
+      return "Match confirmation";
+    case "connection_match_confirmed":
+      return "Match confirmed";
+    case "connection_ended":
+      return "Connection ended";
+    case "connection_expired":
+      return "Connection expired";
     case "ticket_approved":
       return "Ticket approved";
     case "ticket_rejected":
@@ -31,6 +53,7 @@ function label(type: NotificationType): string {
 }
 
 function notificationHref(n: Notification): string {
+  if (n.connectionId) return `/connections/${encodeURIComponent(n.connectionId)}`;
   const ticket = n.ticketId;
   if (!ticket) return "/tickets";
   switch (n.type) {
@@ -123,9 +146,9 @@ export default function NotificationBell() {
                               {n.message}
                             </p>
                           )}
-                          {(n.ticketSummary || n.ticketId) && (
+                          {(n.listingSummary || n.ticketSummary || n.ticketId) && (
                             <p className="mt-1 text-xs text-neutral-500">
-                              {n.ticketSummary ?? `Ticket ${n.ticketId}`}
+                              {n.listingSummary ?? n.ticketSummary ?? `Ticket ${n.ticketId}`}
                             </p>
                           )}
                         </button>
@@ -148,9 +171,9 @@ export default function NotificationBell() {
                               {n.message}
                             </p>
                           )}
-                          {(n.ticketSummary || n.ticketId) && (
+                          {(n.listingSummary || n.ticketSummary || n.ticketId) && (
                             <p className="mt-1 text-xs text-neutral-500">
-                              {n.ticketSummary ?? `Ticket ${n.ticketId}`}
+                              {n.listingSummary ?? n.ticketSummary ?? `Ticket ${n.ticketId}`}
                             </p>
                           )}
                         </Link>

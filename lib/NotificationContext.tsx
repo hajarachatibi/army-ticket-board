@@ -17,13 +17,27 @@ export type NotificationType =
   | "new_message"
   | "ticket_reported"
   | "ticket_approved"
-  | "ticket_rejected";
+  | "ticket_rejected"
+  | "connection_request_received"
+  | "connection_request_accepted"
+  | "connection_request_declined"
+  | "connection_bonding_submitted"
+  | "connection_preview_ready"
+  | "connection_comfort_updated"
+  | "connection_social_updated"
+  | "connection_agreement_updated"
+  | "connection_match_confirmed"
+  | "connection_ended"
+  | "connection_expired";
 
 export type Notification = {
   id: string;
   type: NotificationType;
   ticketId?: string;
   requestId?: string;
+  listingId?: string;
+  listingSummary?: string;
+  connectionId?: string;
   message?: string;
   /** Ticket basic info (e.g. "Event · City · Day") for display instead of ticket ID. */
   ticketSummary?: string;

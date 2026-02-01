@@ -45,6 +45,7 @@ export default function ConnectionPageContent() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [conn, setConn] = useState<ConnectionRow | null>(null);
 
   const [bondingQuestions, setBondingQuestions] = useState<Array<{ id: string; prompt: string }>>([]);
@@ -139,6 +140,11 @@ export default function ConnectionPageContent() {
     if (!conn) return;
     setSubmitting(true);
     setError(null);
+    setNotice(
+      accept
+        ? "Saved: you accepted this connection request. We'll notify you when the other ARMY completes the next step."
+        : "Saved: you declined this connection request."
+    );
     const { error: e } = await sellerRespondConnection(conn.id, accept);
     setSubmitting(false);
     if (e) setError(e);
@@ -159,6 +165,7 @@ export default function ConnectionPageContent() {
     if (!conn || !canSubmitBonding) return;
     setSubmitting(true);
     setError(null);
+    setNotice("Saved: your bonding answers were submitted. We'll notify you when the other ARMY submits theirs.");
     const payload: Record<string, string> = {};
     for (const q of bondingQuestions) payload[q.id] = (answers[q.id] ?? "").trim();
     const { error: e } = await submitBondingAnswers(conn.id, payload);
@@ -171,6 +178,11 @@ export default function ConnectionPageContent() {
     if (!conn) return;
     setSubmitting(true);
     setError(null);
+    setNotice(
+      comfort
+        ? "Saved: you answered Yes. Once the other ARMY answers too, you'll get a notification."
+        : "Saved: you answered No. This connection will end."
+    );
     const { error: e } = await setComfortDecision(conn.id, comfort);
     setSubmitting(false);
     if (e) setError(e);
@@ -181,6 +193,11 @@ export default function ConnectionPageContent() {
     if (!conn) return;
     setSubmitting(true);
     setError(null);
+    setNotice(
+      share
+        ? "Saved: you chose Yes (share socials). Once the other ARMY chooses too, you'll get a notification."
+        : "Saved: you chose No (do not share socials). Once the other ARMY chooses too, you'll get a notification."
+    );
     const { error: e } = await setSocialShareDecision(conn.id, share);
     setSubmitting(false);
     if (e) setError(e);
@@ -191,6 +208,7 @@ export default function ConnectionPageContent() {
     if (!conn) return;
     setSubmitting(true);
     setError(null);
+    setNotice("Saved: you confirmed. We'll notify you once the other ARMY confirms too.");
     const { error: e } = await acceptConnectionAgreement(conn.id);
     setSubmitting(false);
     if (e) setError(e);
@@ -201,6 +219,7 @@ export default function ConnectionPageContent() {
     if (!conn) return;
     setSubmitting(true);
     setError(null);
+    setNotice("Saved: this connection has been ended.");
     const { error: e } = await endConnection(conn.id);
     setSubmitting(false);
     if (e) setError(e);
@@ -267,6 +286,11 @@ export default function ConnectionPageContent() {
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
               {error}
+            </div>
+          )}
+          {notice && !error && (
+            <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/5 px-4 py-3 text-sm text-army-purple dark:border-army-purple/30 dark:bg-army-purple/10">
+              {notice}
             </div>
           )}
 

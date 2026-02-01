@@ -8,6 +8,7 @@ import RequireAuth from "@/components/RequireAuth";
 import ListingReportModal from "@/components/ListingReportModal";
 import PostListingModal from "@/components/PostListingModal";
 import { useAuth } from "@/lib/AuthContext";
+import { useNotifications } from "@/lib/NotificationContext";
 import { connectToListing, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type MyListing } from "@/lib/supabase/listings";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -31,6 +32,7 @@ function listingStatusLabel(l: MyListing): { label: string; color: string } {
 
 export default function ConnectionBoardView() {
   const { user, isAdmin } = useAuth();
+  const { notifications, markRead } = useNotifications();
   const [tab, setTab] = useState<"my" | "all" | "connections">("all");
 
   const [loading, setLoading] = useState(true);
@@ -115,6 +117,18 @@ export default function ConnectionBoardView() {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [browse]);
+
+  const unreadConnectionNotificationCount = useMemo(() => {
+    return notifications.filter((n) => !n.read && !!n.connectionId).length;
+  }, [notifications]);
+
+  const unreadConnectionIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of notifications) {
+      if (!n.read && n.connectionId) set.add(n.connectionId);
+    }
+    return set;
+  }, [notifications]);
 
   const filteredBrowse = useMemo(() => {
     const city = filterCity.trim();
@@ -233,7 +247,15 @@ export default function ConnectionBoardView() {
           className={tab === "connections" ? "btn-army" : "btn-army-outline"}
           onClick={() => setTab("connections")}
         >
-          My Connections
+          <span className="relative inline-flex items-center">
+            My Connections
+            {unreadConnectionNotificationCount > 0 && (
+              <span
+                className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-red-500"
+                aria-label="Unread connection updates"
+              />
+            )}
+          </span>
         </button>
         <button
           type="button"
@@ -278,9 +300,26 @@ export default function ConnectionBoardView() {
                         </p>
                       ) : null}
                     </div>
-                    <Link href={`/connections/${encodeURIComponent(c.id)}`} className="btn-army">
-                      Open
-                    </Link>
+                    <div className="relative">
+                      {unreadConnectionIds.has(c.id) && (
+                        <span
+                          className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500"
+                          aria-label="Unread updates for this connection"
+                        />
+                      )}
+                      <Link
+                        href={`/connections/${encodeURIComponent(c.id)}`}
+                        className="btn-army"
+                        onClick={() => {
+                          // Mark related notifications read so the red dot clears once the user opens the connection.
+                          notifications
+                            .filter((n) => !n.read && n.connectionId === c.id)
+                            .forEach((n) => markRead(n.id));
+                        }}
+                      >
+                        Open
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
