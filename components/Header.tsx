@@ -7,13 +7,12 @@ import { createPortal } from "react-dom";
 
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthContext";
-import { useChat } from "@/lib/ChatContext";
 import { useTheme } from "@/lib/ThemeContext";
 
 const NAV = [
   { href: "/", label: "Home" },
-  { href: "/tickets", label: "Tickets" },
-  { href: "/chats", label: "Chats" },
+  { href: "/tickets", label: "Listings" },
+  { href: "/channel", label: "Admin Channel" },
   { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
   { href: "/user-manual", label: "User manual" },
@@ -29,8 +28,6 @@ export default function Header() {
   const router = useRouter();
   const { dark, toggle } = useTheme();
   const { user, isLoggedIn, isAdmin, signOut } = useAuth();
-  const { getUnreadChatsCount } = useChat();
-  const unreadChatsCount = isLoggedIn && user ? getUnreadChatsCount(user.id) : 0;
   const showAdmin = isLoggedIn && isAdmin;
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -58,8 +55,8 @@ export default function Header() {
 
   const topMobileLinks = useMemo(() => {
     const base = [
-      { href: "/tickets", label: "Tickets" },
-      { href: "/chats", label: "Chats" },
+      { href: "/tickets", label: "Listings" },
+      { href: "/channel", label: "Admin Channel" },
     ];
     if (showAdmin) base.push({ href: "/admin", label: "Admin" });
     return base;
@@ -77,7 +74,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-army-purple/10 bg-white/95 shadow-header backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-army-purple/20 dark:bg-[#0f0f0f]/95 dark:supports-[backdrop-filter]:bg-[#0f0f0f]/80">
-      {/* Ticket review notice */}
+      {/* Safety update notice */}
       <div className="border-b border-army-purple/20 bg-gradient-to-r from-army-purple to-army-700 px-4 py-2 text-white shadow-sm dark:border-army-purple/30">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-center text-xs font-semibold sm:text-sm">
           <span className="relative inline-flex h-2.5 w-2.5">
@@ -89,10 +86,9 @@ export default function Header() {
           </span>
           <div className="flex items-center gap-2 text-white/95">
             <span>
-              We’re temporarily hiding all available tickets while admins review them. Approved tickets will be re-listed soon.
+              This platform is now community-run. We don’t approve or verify listings or users. Please report non–face-value listings and report scammers.
               <span className="hidden sm:inline">
-                {" "}If you’re a seller with a <strong>pending</strong> ticket, please submit the <strong>Seller proof</strong> form under <strong>My tickets</strong>.
-                {" "}This is temporary for existing pending tickets only — all new tickets already include proofs in the <strong>Sell ticket</strong> form.
+                {" "}After multiple reports from different users, listings can be removed. If a seller gets multiple scam reports from different users, they can be banned.
               </span>
             </span>
             <button
@@ -121,7 +117,7 @@ export default function Header() {
               Admins will never ask for ticket transfer, order numbers, or payment info.
               <span className="hidden sm:inline">
                 {" "}Hajar (achatibihajar@gmail.com) and Tom (tomkoods2020@gmail.com) are the only admins right now. We haven't sent any emails to any of the users, and we are not sending anything now. Please don't reply to scammers.
-                {" "}If someone claims they’re an admin, check for the blue verified <strong>Admin</strong> badge. If there’s no badge (or the message feels suspicious), use the <strong>Report</strong> button inside the chat.
+                {" "}If someone claims they’re an admin, check for the blue verified <strong>Admin</strong> badge. If there’s no badge (or the message feels suspicious), use the <strong>Report</strong> button on the listing or report the user.
               </span>
             </span>
             <button
@@ -146,7 +142,6 @@ export default function Header() {
           <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
             {NAV.map(({ href, label }) => {
               const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
-              const showChatBadge = href === "/chats" && unreadChatsCount > 0;
               return (
                 <Link
                   key={href}
@@ -158,14 +153,6 @@ export default function Header() {
                   }`}
                 >
                   {label}
-                  {showChatBadge && (
-                    <span
-                      className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
-                      aria-label={`${unreadChatsCount} new discussion${unreadChatsCount !== 1 ? "s" : ""}`}
-                    >
-                      {unreadChatsCount > 99 ? "99+" : unreadChatsCount}
-                    </span>
-                  )}
                 </Link>
               );
             })}
@@ -246,7 +233,6 @@ export default function Header() {
         <div className="flex items-center gap-2">
           {topMobileLinks.map(({ href, label }) => {
             const isActive = pathname === href || pathname.startsWith(href + "/");
-            const showChatBadge = href === "/chats" && unreadChatsCount > 0;
             return (
               <Link
                 key={href}
@@ -256,14 +242,6 @@ export default function Header() {
                 }`}
               >
                 {label}
-                {showChatBadge && (
-                  <span
-                    className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
-                    aria-label={`${unreadChatsCount} new discussion${unreadChatsCount !== 1 ? "s" : ""}`}
-                  >
-                    {unreadChatsCount > 99 ? "99+" : unreadChatsCount}
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -329,10 +307,11 @@ export default function Header() {
               <div className="rounded-xl border border-army-purple/15 bg-army-purple/5 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-army-purple">Safety update</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-                  We’re temporarily hiding all available tickets while admins review them. Approved tickets will be re-listed soon.
+                  This platform is now community-run. We don’t approve or verify tickets or users.
                 </p>
                 <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                  <span className="font-semibold">Sellers with pending tickets:</span> please submit the <span className="font-semibold">Seller proof</span> form under <span className="font-semibold">My tickets</span>. This is temporary for existing pending tickets only — all new tickets already include proofs in the <span className="font-semibold">Sell ticket</span> form.
+                  <span className="font-semibold">Face value only:</span> if a ticket is not face value, please report the ticket. If a user is a scammer, please report the user.
+                  After multiple reports from different users, tickets can be removed and scammers can be banned.
                 </p>
               </div>
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">

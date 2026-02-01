@@ -105,7 +105,7 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
           Report user
         </h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          {reportedLabel ? `Reporting: ${reportedLabel}` : "Report suspicious behavior in chats."}
+          {reportedLabel ? `Reporting: ${reportedLabel}` : "Report suspicious behavior."}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">

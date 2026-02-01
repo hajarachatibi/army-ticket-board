@@ -10,6 +10,29 @@ export default function DisclaimersPage() {
         </p>
 
         <section className="mt-10 space-y-8">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-900/20">
+            <h2 className="font-display text-xl font-bold text-amber-900 dark:text-amber-200">
+              Important (read this)
+            </h2>
+            <ul className="mt-3 list-inside list-disc space-y-2 text-amber-900 dark:text-amber-200">
+              <li>
+                <strong>We don’t approve or verify tickets or users anymore.</strong> This platform is community-run.
+              </li>
+              <li>
+                <strong>We do not take responsibility</strong> for scams, fraud, chargebacks, lost money, or ticket issues.
+              </li>
+              <li>
+                If a ticket is <strong>not face value</strong>, please <strong>report the ticket</strong>.
+              </li>
+              <li>
+                If someone is a <strong>scammer</strong>, please <strong>report the user</strong>.
+              </li>
+              <li>
+                After multiple reports from different users, tickets can be removed and users can be banned.
+              </li>
+            </ul>
+          </div>
+
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
               For buyers
@@ -41,7 +64,7 @@ export default function DisclaimersPage() {
               Agreement
             </h2>
             <p className="mt-3 text-amber-900 dark:text-amber-200">
-              By using this site, you agree that we are <strong>not responsible</strong> for scams, fraud, or lost money. Army Ticket Board <strong>only connects ARMY</strong> with each other. We do not verify sellers, buyers, or tickets. You use the platform at your own risk. Always verify the other party and use safe payment methods.
+              By using this site, you agree that we are <strong>not responsible</strong> for scams, fraud, chargebacks, lost money, or ticket issues. We only connect ARMY with each other. We do not verify sellers, buyers, or tickets. You use the platform at your own risk.
             </p>
           </div>
 
@@ -50,7 +73,7 @@ export default function DisclaimersPage() {
               Face value only
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              Only face-value listings are allowed. Non–face-value listings will be reported and may result in a ban. Made by Army, for Army.
+              Only face-value listings are allowed. If a listing is not face value, please report it. If a user is a scammer, please report the user. Listings can be removed and users can be banned after multiple reports from different users.
             </p>
           </div>
         </section>

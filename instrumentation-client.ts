@@ -7,10 +7,16 @@ try {
     protect: [
       { path: "/api/tickets/create", method: "POST" },
       { path: "/api/tickets/proofs", method: "POST" },
+      { path: "/api/listings/create", method: "POST" },
       { path: "/api/requests/create", method: "POST" },
       { path: "/api/reports/ticket", method: "POST" },
+      { path: "/api/reports/listing", method: "POST" },
       { path: "/api/reports/user", method: "POST" },
-      { path: "/api/forum/submit", method: "POST" },
+      { path: "/api/onboarding/complete", method: "POST" },
+      { path: "/api/listings/mark-sold", method: "POST" },
+      { path: "/api/listings/mark-not-sold", method: "POST" },
+      { path: "/api/listings/update", method: "POST" },
+      { path: "/api/listings/delete", method: "POST" },
     ],
   });
 } catch {

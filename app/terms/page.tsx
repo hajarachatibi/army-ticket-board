@@ -32,8 +32,9 @@ export default function TermsPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">Listings &amp; reviews</h2>
               <p className="mt-2">
-                Listings may require admin review before becoming publicly visible. Admins can approve, reject, remove listings, or
-                request additional proof.
+                Listings are community-run: admins do not approve or verify listings before they appear publicly. Please use the
+                Report feature for non–face-value listings, scams, or abuse. After multiple reports from different users, listings
+                may be removed and users may be banned.
               </p>
             </section>
 

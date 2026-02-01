@@ -1,13 +1,9 @@
-import ForumPageContent from "@/app/forum/ForumPageContent";
 import { Suspense } from "react";
-
-export const metadata = {
-  title: "Forum | ARMY Ticket Board",
-};
+import OnboardingPageContent from "@/app/onboarding/OnboardingPageContent";
 
 export const dynamic = "force-dynamic";
 
-export default function ForumPage() {
+export default function OnboardingPage() {
   return (
     <Suspense
       fallback={
@@ -18,7 +14,7 @@ export default function ForumPage() {
         </main>
       }
     >
-      <ForumPageContent />
+      <OnboardingPageContent />
     </Suspense>
   );
 }

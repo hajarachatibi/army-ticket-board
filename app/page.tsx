@@ -28,14 +28,14 @@ export default function HomePage() {
             Army Ticket Board
           </h1>
           <p className="max-w-xl text-lg text-white/90 sm:text-xl">
-            Find, book, and manage BTS concert tickets with ARMY.
+            Browse and post face-value BTS concert listings with ARMY.
           </p>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
             <Link href="/tickets" className="btn-army rounded-xl px-8 py-4 text-lg">
-              Book Tickets
+              Browse Listings
             </Link>
             <Link href="/tickets" className="btn-army-outline rounded-xl px-8 py-4 text-lg">
-              Sell Ticket
+              Post Listing
             </Link>
           </div>
         </div>

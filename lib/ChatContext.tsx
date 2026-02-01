@@ -27,8 +27,10 @@ export type ChatStatus = "open" | "closed";
 
 export type Chat = {
   id: string;
-  requestId: string;
-  ticketId: string;
+  requestId: string | null;
+  ticketId: string | null;
+  connectionId?: string | null;
+  listingId?: string | null;
   buyerId: string;
   sellerId: string;
   buyerUsername: string;

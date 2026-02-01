@@ -24,6 +24,41 @@ export type AdminReport = {
   createdAt: string;
 };
 
+export type AdminListingReport = {
+  id: string;
+  listingId: string;
+  reporterId: string | null;
+  reporterEmail: string | null;
+  sellerId: string | null;
+  sellerEmail: string | null;
+  reporterUsername: string | null;
+  reason: string;
+  details: string | null;
+  createdAt: string;
+  concertCity: string;
+  concertDate: string;
+  listingStatus: string;
+  section: string;
+  seatRow: string;
+  seat: string;
+  faceValuePrice: number;
+  currency: string;
+};
+
+export type AdminListing = {
+  id: string;
+  sellerEmail: string | null;
+  concertCity: string;
+  concertDate: string;
+  status: string;
+  createdAt: string;
+  section: string;
+  seatRow: string;
+  seat: string;
+  faceValuePrice: number;
+  currency: string;
+};
+
 export type AdminUserReport = {
   id: string;
   reportedUserId: string | null;
@@ -135,6 +170,100 @@ export async function fetchAdminReports(): Promise<{
       data: [],
       error: e instanceof Error ? e.message : "Failed to fetch reports",
     };
+  }
+}
+
+export async function fetchAdminListingReports(): Promise<{
+  data: AdminListingReport[];
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_listing_reports_with_details");
+    if (error) return { data: [], error: error.message };
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    return {
+      data: rows.map((r) => ({
+        id: String(r.id),
+        listingId: String(r.listing_id),
+        reporterId: r.reporter_id != null ? String(r.reporter_id) : null,
+        reporterEmail: r.reporter_email != null ? String(r.reporter_email) : null,
+        sellerId: r.seller_id != null ? String(r.seller_id) : null,
+        sellerEmail: r.seller_email != null ? String(r.seller_email) : null,
+        reporterUsername: r.reported_by_username != null ? String(r.reported_by_username) : null,
+        reason: String(r.reason ?? ""),
+        details: r.details != null ? String(r.details) : null,
+        createdAt: String(r.created_at ?? ""),
+        concertCity: String(r.concert_city ?? ""),
+        concertDate: String(r.concert_date ?? ""),
+        listingStatus: String(r.listing_status ?? ""),
+        section: String(r.section ?? ""),
+        seatRow: String(r.seat_row ?? ""),
+        seat: String(r.seat ?? ""),
+        faceValuePrice: Number(r.face_value_price ?? 0),
+        currency: String(r.currency ?? "USD"),
+      })),
+      error: null,
+    };
+  } catch (e) {
+    return { data: [], error: e instanceof Error ? e.message : "Failed to fetch listing reports" };
+  }
+}
+
+export async function adminDeleteListingReport(reportId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_delete_listing_report", { p_report_id: reportId });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to delete listing report" };
+  }
+}
+
+export async function adminRemoveListing(listingId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_remove_listing", { p_listing_id: listingId });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to remove listing" };
+  }
+}
+
+export async function fetchAdminListingsFiltered(params: {
+  page: number;
+  search?: string;
+  status?: string; // '', 'active', 'sold', 'removed', 'processing', 'locked'
+  pageSize?: number;
+}): Promise<{ data: AdminListing[]; total: number; error: string | null }> {
+  const pageSize = params.pageSize ?? 24;
+  try {
+    const { data, error } = await supabase.rpc("admin_listings_paged_filtered", {
+      p_limit: pageSize,
+      p_offset: params.page * pageSize,
+      p_search: params.search ?? "",
+      p_status: params.status ?? "",
+    });
+    if (error) return { data: [], total: 0, error: error.message };
+    const obj = data as { data: Array<Record<string, unknown>>; total?: number | string } | null;
+    const list = Array.isArray(obj?.data) ? obj.data : [];
+    const total = Math.max(0, Number(obj?.total ?? 0));
+    return {
+      data: list.map((d) => ({
+        id: String(d.id),
+        sellerEmail: d.seller_email != null ? String(d.seller_email) : null,
+        concertCity: String(d.concert_city ?? ""),
+        concertDate: String(d.concert_date ?? ""),
+        status: String(d.status ?? ""),
+        createdAt: String(d.created_at ?? ""),
+        section: String(d.section ?? ""),
+        seatRow: String(d.seat_row ?? ""),
+        seat: String(d.seat ?? ""),
+        faceValuePrice: Number(d.face_value_price ?? 0),
+        currency: String(d.currency ?? "USD"),
+      })),
+      total,
+      error: null,
+    };
+  } catch (e) {
+    return { data: [], total: 0, error: e instanceof Error ? e.message : "Failed to fetch listings" };
   }
 }
 
@@ -577,7 +706,7 @@ export async function adminUnbanUser(email: string): Promise<{ error: string | n
 
 export type AdminDashboardStats = {
   users: number;
-  tickets: number;
+  listings: number;
   reports: number;
   banned: number;
   sellers: number;
@@ -596,7 +725,7 @@ export async function fetchAdminDashboardStats(): Promise<{
     return {
       data: {
         users: Number(o.users) || 0,
-        tickets: Number(o.tickets) || 0,
+        listings: Number((o as any).listings) || 0,
         reports: Number(o.reports) || 0,
         banned: Number(o.banned) || 0,
         sellers: Number(o.sellers) || 0,

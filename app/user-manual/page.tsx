@@ -15,10 +15,10 @@ export default function UserManualPage() {
               Getting started
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              You can <strong>browse tickets</strong> without an account. To buy, sell, chat, or report, tap <strong>Get started</strong> in the header and <strong>Continue with Google</strong> to sign in with your Gmail. One account, no password. Use <strong>Sign out</strong> in the header to switch accounts.
+              To use the app, tap <strong>Get started</strong> in the header and <strong>Continue with Google</strong> to sign in with your Gmail. One account, no password. Use <strong>Sign out</strong> in the header to switch accounts.
             </p>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              After your first login, you’ll be asked to complete the <strong>ARMY check form</strong>.
+              After your first login, you’ll be asked to complete <strong>Finish setup</strong> (basic profile + at least one social). This is required to use listings and connections.
             </p>
           </div>
 
@@ -27,38 +27,34 @@ export default function UserManualPage() {
               Home
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              The home page has a hero section and links to <strong>Book Tickets</strong> (browse) and <strong>Sell Ticket</strong>. Only face-value tickets are allowed; non–face-value listings can be reported. See <strong>Disclaimers</strong> for safe-trading tips.
+              The home page has a hero section and links to browse <strong>Listings</strong>. This is not a marketplace. Only face-value listings are allowed; non–face-value listings can be reported. See <strong>Disclaimers</strong> for safe-trading tips.
             </p>
           </div>
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
-              Tickets
+              Listings &amp; connections
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              Use <strong>Tickets</strong> to browse or manage your listings. Switch between <strong>Browse</strong> and <strong>My tickets</strong>.
+              Use <strong>Listings</strong> to browse or manage your posts. You can switch between <strong>All Listings</strong>, <strong>My Listings</strong>, and <strong>My Connections</strong>.
             </p>
             <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
-              <li><strong>Filters:</strong> Event, status, city, day, VIP, section, row, seat type, quantity.</li>
-              <li><strong>Contact:</strong> Sends a request to the seller. The seller can accept or reject.</li>
-              <li><strong>Chat:</strong> Opens after the seller accepts your request. Use it to coordinate payment and delivery.</li>
-              <li><strong>Report:</strong> Report suspicious or non–face-value listings. The seller gets an in-app notice; we review reports.</li>
-              <li><strong>Sell Ticket:</strong> Add a listing and upload required Ticketmaster proofs for admin review. You must be signed in.</li>
+              <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). New listings appear after a short delay.</li>
+              <li><strong>CONNECT:</strong> Starts a connection with the seller. You’ll go through steps (accept/decline, bonding questions, comfort checks, socials decision, agreement).</li>
+              <li><strong>No in-app buyer/seller chat:</strong> If you both agree to share socials, you continue on social media.</li>
+              <li><strong>Report:</strong> Report suspicious or non–face-value listings. After multiple reports from different users, listings can be removed and users can be banned.</li>
             </ul>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              In <strong>My tickets</strong>, you can <strong>Edit</strong>, <strong>Delete</strong>, or <strong>Mark sold</strong>. Use <strong>Chats</strong> to talk to buyers, and <strong>Chat</strong> when someone has contacted you. Sold tickets move to the end of the list; Contact, Chat, and Report are disabled for them.
-            </p>
-            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              <strong>Pending tickets:</strong> If your listing is <strong>Pending review</strong>, you may see a <strong>Seller proof</strong> button under <strong>My tickets</strong>. This is temporary for pending tickets only; all new tickets include proofs inside the Sell Ticket form.
+              In <strong>My Listings</strong>, you can <strong>Edit</strong>, <strong>Delete</strong>, or <strong>Mark sold</strong>. Sold listings stay visible in browsing but can’t be connected to.
             </p>
           </div>
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
-              Chats
+              Admin Channel
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              <strong>Chats</strong> shows all your conversations, grouped by ticket. You can send text and images. Sellers can <strong>stop</strong> a chat if you don’t agree on a deal; you can’t reopen it from that ticket. Always ask for proof (screenshots, confirmation emails) and consider a video call. Use <strong>PayPal Goods &amp; Services</strong> when paying. See <strong>Disclaimers</strong> for more.
+              Use the <strong>Admin Channel</strong> to message the official admins. This is the only in-app messaging channel.
             </p>
           </div>
 
@@ -67,7 +63,7 @@ export default function UserManualPage() {
               Header &amp; notifications
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              The header has <strong>dark/light mode</strong>, a <strong>notification bell</strong> (new messages, chat opened, etc.), and your email or <strong>Get started</strong>. Use the bell to jump to the relevant ticket or chat.
+              The header has <strong>dark/light mode</strong>, a <strong>notification bell</strong>, and your email or <strong>Get started</strong>. Notifications can include admin channel updates and important listing/connection updates.
             </p>
           </div>
 

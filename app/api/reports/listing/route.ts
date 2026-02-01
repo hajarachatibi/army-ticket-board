@@ -9,13 +9,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { answers?: Record<string, string> }
+    | { listingId?: string; reason?: string; details?: string | null }
     | null;
 
-  const answers = body?.answers ?? null;
-  if (!answers || typeof answers !== "object") {
-    return NextResponse.json({ error: "Missing answers" }, { status: 400 });
-  }
+  const listingId = String(body?.listingId ?? "").trim();
+  const reason = String(body?.reason ?? "").trim();
+  const details = body?.details != null ? String(body.details) : null;
+  if (!listingId) return NextResponse.json({ error: "Missing listingId" }, { status: 400 });
+  if (!reason) return NextResponse.json({ error: "Missing reason" }, { status: 400 });
 
   const response = NextResponse.json({ ok: true });
   const supabase = createServerClient(
@@ -38,9 +39,19 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const { error } = await supabase.from("forum_submissions").insert({
-    user_id: user.id,
-    answers,
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("username")
+    .eq("id", user.id)
+    .single();
+  const reportedByUsername = String(profile?.username ?? user.email ?? `ARMY-${user.id.slice(0, 8)}`);
+
+  const { error } = await supabase.from("listing_reports").insert({
+    listing_id: listingId,
+    reporter_id: user.id,
+    reported_by_username: reportedByUsername,
+    reason,
+    details,
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

@@ -3,8 +3,10 @@ import type { Chat, ChatMessage, ChatStatus } from "@/lib/ChatContext";
 
 type DbChat = {
   id: string;
-  request_id: string;
-  ticket_id: string;
+  request_id: string | null;
+  ticket_id: string | null;
+  connection_id?: string | null;
+  listing_id?: string | null;
   buyer_id: string;
   seller_id: string;
   buyer_username: string;
@@ -32,8 +34,10 @@ function toMs(iso: string): number {
 function mapChat(d: DbChat): Chat {
   return {
     id: d.id,
-    requestId: d.request_id,
-    ticketId: d.ticket_id,
+    requestId: d.request_id ?? null,
+    ticketId: d.ticket_id ?? null,
+    connectionId: d.connection_id ?? null,
+    listingId: d.listing_id ?? null,
     buyerId: d.buyer_id,
     sellerId: d.seller_id,
     buyerUsername: d.buyer_username,

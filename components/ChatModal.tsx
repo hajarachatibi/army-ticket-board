@@ -97,7 +97,7 @@ export default function ChatModal() {
       const preview = text ? `${text.slice(0, 50)}${text.length > 50 ? "…" : ""}` : "[Image]";
       pushPendingForUser(otherId, {
         type: "new_message",
-        ticketId: chat.ticketId,
+        ticketId: chat.ticketId ?? undefined,
         message: `New message from ${displayName(user.username, { viewerIsAdmin: false, subjectIsAdmin: isAdmin })}: ${preview}`,
         ticketSummary: chat.ticketSummary,
       });
@@ -131,14 +131,66 @@ export default function ChatModal() {
   const handleCloseChat = async () => {
     if (!isSeller || !isOpen) return;
     await closeChat(chat.id);
-    await closeRequest(chat.requestId, chat.ticketId);
+    if (chat.requestId && chat.ticketId) {
+      await closeRequest(chat.requestId, chat.ticketId);
+    }
     closeChatModal();
+  };
+
+  const handleMarkNotSold = async () => {
+    if (!isSeller || !isOpen) return;
+    if (!chat.listingId) return;
+    if (!confirm("Mark as NOT sold and return listing to All Listings?")) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const res = await fetch("/api/listings/mark-not-sold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: chat.listingId }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      if (!res.ok || !j?.ok) {
+        setUploadError(j?.error || `HTTP ${res.status}`);
+        return;
+      }
+      await closeChat(chat.id);
+      closeChatModal();
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleMarkSold = async () => {
+    if (!isSeller || !isOpen) return;
+    if (!chat.listingId) return;
+    if (!confirm("Mark as SOLD and remove listing permanently?")) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const res = await fetch("/api/listings/mark-sold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: chat.listingId }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      if (!res.ok || !j?.ok) {
+        setUploadError(j?.error || `HTTP ${res.status}`);
+        return;
+      }
+      await closeChat(chat.id);
+      closeChatModal();
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleReactivateChat = async () => {
     if (!isSeller || isOpen) return;
     await reactivateChat(chat.id);
-    await reopenRequest(chat.requestId, chat.sellerId, chat.ticketId);
+    if (chat.requestId && chat.ticketId) {
+      await reopenRequest(chat.requestId, chat.sellerId, chat.ticketId);
+    }
   };
 
   const handleDismiss = () => {
@@ -169,6 +221,7 @@ export default function ChatModal() {
                 {!isOpen && " · Closed"}
               </p>
             </div>
+            {/* Buyer/seller chats removed — socials are used instead. */}
             {otherId && (
               <button
                 type="button"
