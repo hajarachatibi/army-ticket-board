@@ -49,7 +49,7 @@ export default function ConnectionBoardView() {
   const [filterPriceMin, setFilterPriceMin] = useState("");
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterCurrency, setFilterCurrency] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"" | "active" | "sold">("");
+  const [filterStatus, setFilterStatus] = useState<"" | "active" | "locked" | "sold">("");
 
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
@@ -387,6 +387,7 @@ export default function ConnectionBoardView() {
                       <select className="input-army mt-2" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)}>
                         <option value="">All</option>
                         <option value="active">Active</option>
+                        <option value="locked">Locked</option>
                         <option value="sold">Sold</option>
                       </select>
                     </div>
@@ -427,6 +428,10 @@ export default function ConnectionBoardView() {
                           <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
                             Sold
                           </span>
+                        ) : String(l.status) === "locked" ? (
+                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                            Locked
+                          </span>
                         ) : null}
                       </div>
                       <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
@@ -452,9 +457,15 @@ export default function ConnectionBoardView() {
                           type="button"
                           className="btn-army"
                           onClick={() => connect(l.listingId)}
-                          disabled={connectingId === l.listingId || String(l.status) === "sold"}
+                          disabled={connectingId === l.listingId || String(l.status) === "sold" || String(l.status) === "locked"}
                         >
-                          {String(l.status) === "sold" ? "SOLD" : connectingId === l.listingId ? "Connecting…" : "CONNECT"}
+                          {String(l.status) === "sold"
+                            ? "SOLD"
+                            : String(l.status) === "locked"
+                              ? "LOCKED"
+                              : connectingId === l.listingId
+                                ? "Connecting…"
+                                : "CONNECT"}
                         </button>
                       </div>
                     </div>

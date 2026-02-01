@@ -137,7 +137,7 @@ export default function TicketRequestsModal({
       onClick={close}
     >
       <div
-        className="w-full max-w-2xl cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">

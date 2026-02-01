@@ -123,7 +123,7 @@ export default function PendingTicketProofModal({
       }}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

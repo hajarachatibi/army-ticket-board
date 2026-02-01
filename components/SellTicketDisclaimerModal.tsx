@@ -22,7 +22,7 @@ export default function SellTicketDisclaimerModal({
       onClick={onClose}
     >
       <div
-        className="modal-panel w-full max-w-md cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+        className="modal-panel w-full max-w-md max-h-[90vh] overflow-y-auto cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="sell-disclaimer-title" className="font-display text-xl font-bold text-army-purple">

@@ -253,6 +253,59 @@ export default function ConnectionPageContent() {
     };
   }, [preview]);
 
+  const waitingBanner = useMemo(() => {
+    if (!conn) return null;
+    if (!user) return null;
+    if (!isBuyer && !isSeller) return null;
+
+    if (conn.stage === "pending_seller") {
+      if (isBuyer) return "Waiting for the seller’s response. You’ll be notified as soon as they accept or decline.";
+      return null;
+    }
+
+    if (conn.stage === "bonding") {
+      const mySubmitted = isBuyer ? !!conn.buyer_bonding_submitted_at : !!conn.seller_bonding_submitted_at;
+      const otherSubmitted = isBuyer ? !!conn.seller_bonding_submitted_at : !!conn.buyer_bonding_submitted_at;
+      if (mySubmitted && !otherSubmitted) return "Waiting for the other ARMY to submit bonding answers. You’ll be notified.";
+      return null;
+    }
+
+    if (conn.stage === "preview") {
+      const my = isBuyer ? conn.buyer_comfort : conn.seller_comfort;
+      const other = isBuyer ? conn.seller_comfort : conn.buyer_comfort;
+      if (my !== null && other === null) return "Waiting for the other ARMY’s comfort answer. You’ll be notified.";
+      return null;
+    }
+
+    if (conn.stage === "social") {
+      const my = isBuyer ? conn.buyer_social_share : conn.seller_social_share;
+      const other = isBuyer ? conn.seller_social_share : conn.buyer_social_share;
+      if (my !== null && other === null) return "Waiting for the other ARMY’s social-sharing choice. You’ll be notified.";
+      return null;
+    }
+
+    if (conn.stage === "agreement") {
+      const my = isBuyer ? conn.buyer_agreed : conn.seller_agreed;
+      const other = isBuyer ? conn.seller_agreed : conn.buyer_agreed;
+      if (my && !other) return "Waiting for the other ARMY to confirm the match message. You’ll be notified.";
+      return null;
+    }
+
+    return null;
+  }, [conn, isBuyer, isSeller, user]);
+
+  const myComfort = useMemo(() => {
+    if (!conn) return null;
+    if (!isBuyer && !isSeller) return null;
+    return isBuyer ? conn.buyer_comfort : conn.seller_comfort;
+  }, [conn, isBuyer, isSeller]);
+
+  const mySocialShare = useMemo(() => {
+    if (!conn) return null;
+    if (!isBuyer && !isSeller) return null;
+    return isBuyer ? conn.buyer_social_share : conn.seller_social_share;
+  }, [conn, isBuyer, isSeller]);
+
 
   return (
     <RequireAuth>
@@ -291,6 +344,11 @@ export default function ConnectionPageContent() {
           {notice && !error && (
             <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/5 px-4 py-3 text-sm text-army-purple dark:border-army-purple/30 dark:bg-army-purple/10">
               {notice}
+            </div>
+          )}
+          {waitingBanner && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              {waitingBanner}
             </div>
           )}
 
@@ -333,7 +391,9 @@ export default function ConnectionPageContent() {
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-neutral-700 dark:text-neutral-300">Waiting for the seller to accept or decline…</p>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                  Waiting for the seller to accept or decline… You’ll be notified.
+                </p>
               )}
             </div>
           )}
@@ -345,7 +405,9 @@ export default function ConnectionPageContent() {
               </p>
 
               {((isBuyer && conn.buyer_bonding_submitted_at) || (isSeller && conn.seller_bonding_submitted_at)) ? (
-                <p className="mt-4 text-sm font-semibold text-army-purple">Thanks — you’ve submitted your answers. Waiting for the other ARMY…</p>
+                <p className="mt-4 text-sm font-semibold text-army-purple">
+                  Thanks — you’ve submitted your answers. Waiting for the other ARMY… You’ll be notified.
+                </p>
               ) : (
                 <>
                   <div className="mt-5 space-y-4">
@@ -475,10 +537,10 @@ export default function ConnectionPageContent() {
               )}
 
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" className="btn-army-outline" onClick={() => doComfort(false)} disabled={submitting}>
+                <button type="button" className="btn-army-outline" onClick={() => doComfort(false)} disabled={submitting || myComfort !== null}>
                   No
                 </button>
-                <button type="button" className="btn-army" onClick={() => doComfort(true)} disabled={submitting}>
+                <button type="button" className="btn-army" onClick={() => doComfort(true)} disabled={submitting || myComfort !== null}>
                   Yes
                 </button>
               </div>
@@ -491,10 +553,10 @@ export default function ConnectionPageContent() {
                 Share your connected social media with this ARMY? Socials are shared only if BOTH say Yes.
               </p>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" className="btn-army-outline" onClick={() => doSocial(false)} disabled={submitting}>
+                <button type="button" className="btn-army-outline" onClick={() => doSocial(false)} disabled={submitting || mySocialShare !== null}>
                   No
                 </button>
-                <button type="button" className="btn-army" onClick={() => doSocial(true)} disabled={submitting}>
+                <button type="button" className="btn-army" onClick={() => doSocial(true)} disabled={submitting || mySocialShare !== null}>
                   Yes
                 </button>
               </div>
