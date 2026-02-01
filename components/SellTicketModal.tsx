@@ -6,8 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { ARIRANG_CITIES, ARIRANG_EVENTS } from "@/lib/data/arirang";
 import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
 import type { Ticket } from "@/lib/data/tickets";
-import { updateTicket } from "@/lib/supabase/tickets";
-import TurnstileGateModal from "@/components/TurnstileGateModal";
+import { insertTicket, updateTicket } from "@/lib/supabase/tickets";
 import Link from "next/link";
 import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
 
@@ -40,11 +39,9 @@ export default function SellTicketModal({
   const [currency, setCurrency] = useState("USD");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [turnstileOpen, setTurnstileOpen] = useState(false);
   const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
 
   const isEdit = !!editTicket;
-  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
     if (!open || !user || isEdit) return;
@@ -117,12 +114,7 @@ export default function SellTicketModal({
         setFormError("Seller proof is required before submitting new tickets.");
         return;
       }
-      if (turnstileEnabled) {
-        setTurnstileOpen(true);
-        return;
-      }
-      // Turnstile disabled: submit without token (server will allow).
-      void submitNewTicket("");
+      void submitNewTicket();
       return;
     }
 
@@ -157,7 +149,7 @@ export default function SellTicketModal({
     }
   };
 
-  const submitNewTicket = async (turnstileToken: string) => {
+  const submitNewTicket = async () => {
     if (!user) return;
     setFormError(null);
     const qty = Math.min(4, Math.max(1, parseInt(quantity, 10) || 1));
@@ -169,46 +161,23 @@ export default function SellTicketModal({
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/tickets/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          "cf-turnstile-response": turnstileToken,
-          event,
-          city,
-          day,
-          vip,
-          quantity: qty,
-          section,
-          row,
-          seat: seatVal,
-          type: seatType,
-          price: priceNum,
-          currency,
-        }),
+      const { data, error } = await insertTicket({
+        event,
+        city,
+        day,
+        vip,
+        quantity: qty,
+        section,
+        row,
+        seat: seatVal,
+        type: seatType,
+        ownerId: user.id,
+        price: priceNum,
+        currency,
       });
-      const j = (await res.json().catch(() => null)) as { data?: any; error?: string } | null;
-      if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
-      // Server returns DB row shape; reuse existing mapper by calling insertTicket() only for mapping fallback.
-      const raw = j?.data;
-      if (!raw) throw new Error("No ticket returned");
-      onTicketAdded?.({
-        id: String(raw.id),
-        event: String(raw.event),
-        city: String(raw.city),
-        day: String(raw.day),
-        vip: Boolean(raw.vip),
-        quantity: Number(raw.quantity),
-        section: String(raw.section),
-        row: String(raw.seat_row),
-        seat: String(raw.seat),
-        type: String(raw.type) as Ticket["type"],
-        status: String(raw.status) as Ticket["status"],
-        ownerId: raw.owner_id ?? null,
-        price: Number(raw.price ?? 0),
-        currency: String(raw.currency ?? "USD"),
-        listingStatus: raw.listing_status ?? undefined,
-      } as Ticket);
+      if (error) throw new Error(error);
+      if (!data) throw new Error("No ticket returned");
+      onTicketAdded?.(data);
       resetForm();
       onClose();
     } catch (err) {
@@ -445,17 +414,6 @@ export default function SellTicketModal({
           </div>
         </form>
       </div>
-
-      <TurnstileGateModal
-        open={turnstileOpen}
-        onClose={() => setTurnstileOpen(false)}
-        title="Verify to submit ticket"
-        action="ticket_submit"
-        onVerified={(token) => {
-          setTurnstileOpen(false);
-          void submitNewTicket(token);
-        }}
-      />
     </div>
   );
 }

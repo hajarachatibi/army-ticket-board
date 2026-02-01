@@ -7,26 +7,8 @@ export async function insertUserReport(params: {
   reason: string;
   details?: string | null;
   imageUrl?: string | null;
-  turnstileToken?: string | null;
 }): Promise<{ error: string | null }> {
   try {
-    if (params.turnstileToken) {
-      const res = await fetch("/api/reports/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportedUserId: params.reportedUserId,
-          reason: params.reason,
-          details: params.details ?? null,
-          imageUrl: params.imageUrl ?? null,
-          turnstileToken: params.turnstileToken,
-        }),
-      });
-      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!res.ok) return { error: j?.error ?? `HTTP ${res.status}` };
-      return { error: null };
-    }
-
     const { error } = await supabase.from("user_reports").insert({
       reported_user_id: params.reportedUserId,
       reporter_id: params.reporterId,

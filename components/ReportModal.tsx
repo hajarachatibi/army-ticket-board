@@ -7,7 +7,6 @@ import { useNotifications } from "@/lib/NotificationContext";
 import { pushPendingForUser } from "@/lib/notificationsStorage";
 import { insertReport } from "@/lib/supabase/reports";
 import type { Ticket } from "@/lib/data/tickets";
-import TurnstileGateModal from "@/components/TurnstileGateModal";
 
 export const REPORT_REASONS = [
   "Not face value",
@@ -36,19 +35,12 @@ export default function ReportModal({
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [turnstileOpen, setTurnstileOpen] = useState(false);
-
-  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   if (!open) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason || !ticket) return;
-    if (turnstileEnabled) {
-      setTurnstileOpen(true);
-      return;
-    }
     setSubmitting(true);
     setError(null);
 
@@ -66,51 +58,6 @@ export default function ReportModal({
         return;
       }
 
-      const sellerMessage =
-        "Hi, you have been reported for this ticket, the admins will check it, you will receive an email in case of any actions or justification needed.";
-      if (ticket.ownerId && ticket.ownerId !== user?.id) {
-        pushPendingForUser(ticket.ownerId, {
-          type: "ticket_reported",
-          ticketId: ticket.id,
-          message: sellerMessage,
-          ticketSummary: summary,
-        });
-      }
-      addNotification({
-        type: "ticket_reported",
-        ticketId: ticket.id,
-        message: "Your report has been submitted.",
-        ticketSummary: summary,
-      });
-      onReported?.(ticket.id);
-      setReason("");
-      setDetails("");
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const submitWithToken = async (turnstileToken: string) => {
-    if (!ticket || !reason) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const { error: dbError } = await insertReport({
-        ticketId: ticket.id,
-        reporterId: user?.id ?? null,
-        reportedByUsername: user?.username ?? user?.email ?? null,
-        reason,
-        details: details.trim() || undefined,
-        turnstileToken,
-      });
-      if (dbError) {
-        setError(dbError);
-        setSubmitting(false);
-        return;
-      }
       const sellerMessage =
         "Hi, you have been reported for this ticket, the admins will check it, you will receive an email in case of any actions or justification needed.";
       if (ticket.ownerId && ticket.ownerId !== user?.id) {
@@ -222,19 +169,6 @@ export default function ReportModal({
           </div>
         </form>
       </div>
-
-      <TurnstileGateModal
-        open={turnstileOpen}
-        onClose={() => {
-          setTurnstileOpen(false);
-        }}
-        title="Verify to submit report"
-        action="report_ticket"
-        onVerified={(token) => {
-          setTurnstileOpen(false);
-          void submitWithToken(token);
-        }}
-      />
     </div>
   );
 }

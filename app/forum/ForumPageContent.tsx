@@ -8,9 +8,9 @@ import { useAuth } from "@/lib/AuthContext";
 import {
   fetchActiveForumQuestions,
   fetchMyForumStatus,
+  submitForumAnswers,
   type ForumQuestion,
 } from "@/lib/supabase/forum";
-import TurnstileGateModal from "@/components/TurnstileGateModal";
 
 export default function ForumPageContent() {
   const router = useRouter();
@@ -24,7 +24,6 @@ export default function ForumPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
-  const [turnstileOpen, setTurnstileOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +55,22 @@ export default function ForumPageContent() {
 
   const onSubmit = async () => {
     if (!user || !canSubmit) return;
-    setTurnstileOpen(true);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const payload: Record<string, string> = {};
+      for (const q of questions) payload[q.id] = (answers[q.id] ?? "").trim();
+      const { error: err } = await submitForumAnswers({ userId: user.id, answers: payload });
+      if (err) {
+        setError(err);
+        return;
+      }
+      router.replace(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -160,38 +174,6 @@ export default function ForumPageContent() {
         </div>
       </div>
 
-      <TurnstileGateModal
-        open={turnstileOpen}
-        onClose={() => setTurnstileOpen(false)}
-        title="Verify to submit"
-        action="army_form"
-        onVerified={async (token) => {
-          if (!user || !canSubmit) return;
-          setSubmitting(true);
-          setError(null);
-          try {
-            const payload: Record<string, string> = {};
-            for (const q of questions) payload[q.id] = (answers[q.id] ?? "").trim();
-            const res = await fetch("/api/forum/submit", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ answers: payload, "cf-turnstile-response": token }),
-            });
-            const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-            if (!res.ok || !j?.ok) {
-              setError(j?.error || "Submission failed");
-              setSubmitting(false);
-              return;
-            }
-            setTurnstileOpen(false);
-            router.replace(next);
-          } catch (e) {
-            setError(e instanceof Error ? e.message : "Submission failed");
-          } finally {
-            setSubmitting(false);
-          }
-        }}
-      />
     </main>
   );
 }

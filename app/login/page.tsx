@@ -14,8 +14,17 @@ function LoginLoading() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<LoginLoading />}>
-      <LoginPageContent />
-    </Suspense>
+    <>
+      {/* Debug helper: if you only see "Loading…" forever, check DevTools Console for this log. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{document.documentElement.setAttribute('data-atb-inline','1');console.log('[ATB] /login inline script ran');}catch(e){}",
+        }}
+      />
+      <Suspense fallback={<LoginLoading />}>
+        <LoginPageContent />
+      </Suspense>
+    </>
   );
 }

@@ -29,25 +29,8 @@ export async function insertReport(params: {
   reportedByUsername: string | null;
   reason: string;
   details?: string | null;
-  turnstileToken?: string | null;
 }): Promise<{ error: string | null }> {
   try {
-    if (params.turnstileToken) {
-      const res = await fetch("/api/reports/ticket", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ticketId: params.ticketId,
-          reason: params.reason,
-          details: params.details ?? null,
-          turnstileToken: params.turnstileToken,
-        }),
-      });
-      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!res.ok) return { error: j?.error ?? `HTTP ${res.status}` };
-      return { error: null };
-    }
-
     const { error } = await supabase.from("reports").insert({
       ticket_id: params.ticketId,
       reporter_id: params.reporterId,

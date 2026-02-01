@@ -18,7 +18,6 @@ import { pushPendingForUser } from "@/lib/notificationsStorage";
 import { displayName } from "@/lib/displayName";
 import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
-import TurnstileGateModal from "@/components/TurnstileGateModal";
 import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
 import { fetchMyForumStatus } from "@/lib/supabase/forum";
 import {
@@ -91,12 +90,8 @@ export default function TicketsView() {
   const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
   const [filterOptions, setFilterOptions] = useState<TicketFilterOptions | null>(null);
   const [requestsTicket, setRequestsTicket] = useState<Ticket | null>(null);
-  const [turnstileOpen, setTurnstileOpen] = useState(false);
-  const [pendingContact, setPendingContact] = useState<Ticket | null>(null);
   const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
   const [forumPromptOpen, setForumPromptOpen] = useState(false);
-
-  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
     if (!user) return;
@@ -332,13 +327,8 @@ export default function TicketsView() {
   };
 
   const handleBuy = useCallback(
-    async (t: Ticket, turnstileToken?: string) => {
+    async (t: Ticket) => {
       if (!user || !t.ownerId || t.status === "Sold") return;
-      if (turnstileEnabled && !turnstileToken) {
-        setPendingContact(t);
-        setTurnstileOpen(true);
-        return;
-      }
       const ticketId = t.id;
       const ownerId = t.ownerId;
 
@@ -365,8 +355,7 @@ export default function TicketsView() {
         user.username,
         t.event ?? "—",
         "—",
-        undefined,
-        turnstileToken ?? null
+        undefined
       );
       if (!req) return;
       pushPendingForUser(ownerId, {
@@ -378,7 +367,7 @@ export default function TicketsView() {
       });
       // Buyer-side UI already shows "Message sent" on the ticket card/table.
     },
-    [user, turnstileEnabled, getChatsForUser, getRequestsForTicket, addRequest, openChatModal, isAdmin]
+    [user, getChatsForUser, getRequestsForTicket, addRequest, openChatModal, isAdmin]
   );
 
   const openReport = (t: Ticket) => requireUser(() => {
@@ -837,21 +826,6 @@ export default function TicketsView() {
         </div>
       )}
 
-      <TurnstileGateModal
-        open={turnstileOpen}
-        onClose={() => {
-          setTurnstileOpen(false);
-          setPendingContact(null);
-        }}
-        title="Verify to contact seller"
-        action="contact_request"
-        onVerified={(token) => {
-          const t = pendingContact;
-          setTurnstileOpen(false);
-          setPendingContact(null);
-          if (t) void handleBuy(t, token);
-        }}
-      />
     </div>
   );
 }

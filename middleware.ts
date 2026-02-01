@@ -77,8 +77,7 @@ export async function middleware(request: NextRequest) {
       pathname === "/maintenance" ||
       pathname === "/login" ||
       pathname.startsWith("/auth/") ||
-      pathname === "/auth/callback" ||
-      pathname === "/api/turnstile/verify";
+      pathname === "/auth/callback";
 
     let isAdmin = false;
     if (user) {
@@ -87,7 +86,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Block non-admin API calls during maintenance.
-    if (!isAdmin && pathname.startsWith("/api") && pathname !== "/api/turnstile/verify") {
+    if (!isAdmin && pathname.startsWith("/api")) {
       return NextResponse.json({ error: "maintenance" }, { status: 503 });
     }
 
