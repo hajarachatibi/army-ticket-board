@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import PayPalDonationWidget from "@/components/PayPalDonationWidget";
+
 function isTruthyEnv(value: string | undefined) {
   if (!value) return false;
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
@@ -23,9 +25,11 @@ export default function SupportPage() {
           <div className="mt-6 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 text-sm text-neutral-700 dark:border-army-purple/25 dark:bg-army-purple/10 dark:text-neutral-300">
             <p>Donations are optional and secure.</p>
             <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">
-              PayPal integration is not enabled yet. This page will be updated once it’s configured.
+              Payments are processed by PayPal. We never receive or store your card details.
             </p>
           </div>
+
+          <PayPalDonationWidget />
         </div>
       </div>
     </main>

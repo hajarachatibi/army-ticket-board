@@ -10,6 +10,14 @@ import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { acceptConnectionAgreement, endConnection, sellerRespondConnection, setComfortDecision, setSocialShareDecision, submitBondingAnswers } from "@/lib/supabase/listings";
 
+function formatPrice(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
+  } catch {
+    return `${amount} ${currency}`;
+  }
+}
+
 type ConnectionRow = {
   id: string;
   listing_id: string;
@@ -85,16 +93,24 @@ export default function ConnectionPageContent() {
 
     const stage = String((data as any)?.stage ?? "");
     const qIds = ((data as any)?.bonding_question_ids ?? []) as string[];
-    if (stage === "bonding" && qIds.length > 0) {
+    // Keep bonding prompts available for preview (so we can show Q+A nicely).
+    if (qIds.length > 0 && ["bonding", "preview", "social", "agreement", "chat_open", "ended", "expired"].includes(stage)) {
       const { data: qs } = await supabase.from("bonding_questions").select("id, prompt").in("id", qIds);
-      setBondingQuestions(((qs ?? []) as any[]).map((q) => ({ id: String(q.id), prompt: String(q.prompt ?? "") })));
+      const map = new Map<string, string>();
+      for (const q of (qs ?? []) as any[]) map.set(String(q.id), String(q.prompt ?? ""));
+      setBondingQuestions(qIds.map((id) => ({ id, prompt: map.get(id) ?? "Question" })));
     } else {
       setBondingQuestions([]);
     }
 
     if (["preview", "comfort", "social", "agreement", "chat_open", "ended", "expired"].includes(stage)) {
       const { data: p, error: pe } = await supabase.rpc("get_connection_preview", { p_connection_id: connectionId });
-      if (!pe) setPreview(p);
+      if (pe) {
+        setPreview(null);
+        setError(String(pe.message ?? "Failed to load preview"));
+      } else {
+        setPreview(p);
+      }
     } else {
       setPreview(null);
     }
@@ -340,15 +356,98 @@ export default function ConnectionPageContent() {
                 Preview each other’s info first. Then answer: “Are you comfortable speaking with this ARMY?”
               </p>
 
-              {preview ? (
-                <div className="mt-4 rounded-xl border border-army-purple/10 bg-army-purple/5 p-4 text-sm text-neutral-800 dark:border-army-purple/20 dark:bg-army-purple/10 dark:text-neutral-200">
-                  <p className="font-semibold text-army-purple">Preview loaded.</p>
-                  <p className="mt-1 text-neutral-700 dark:text-neutral-300">
-                    (Next step: we’ll format this nicely and show the full buyer/seller + listing preview exactly like the PDF.)
-                  </p>
-                </div>
-              ) : (
+              {!preview ? (
                 <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">Loading preview…</p>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-xl border border-army-purple/10 bg-army-purple/5 p-4 text-sm text-neutral-800 dark:border-army-purple/20 dark:bg-army-purple/10 dark:text-neutral-200">
+                    <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Listing</p>
+                    <p className="mt-1 font-semibold text-army-purple">
+                      {String((preview as any)?.listing?.concertCity ?? "—")} · {String((preview as any)?.listing?.concertDate ?? "—")}
+                    </p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {Array.isArray((preview as any)?.listing?.seats) && (preview as any).listing.seats.length > 0 ? (
+                        (preview as any).listing.seats.map((s: any) => (
+                          <div
+                            key={String(s.seatIndex ?? Math.random())}
+                            className="rounded-lg border border-army-purple/10 bg-white/70 p-3 dark:border-army-purple/20 dark:bg-neutral-900/60"
+                          >
+                            <p className="font-semibold text-army-purple">
+                              {String(s.section ?? "—")} · {String(s.seatRow ?? "—")} · {String(s.seat ?? "—")}
+                            </p>
+                            <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                              {Number(s.faceValuePrice ?? 0) > 0 ? formatPrice(Number(s.faceValuePrice ?? 0), String(s.currency ?? "USD")) : "—"}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-neutral-700 dark:text-neutral-300">No seat details available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {(["buyer", "seller"] as const).map((role) => {
+                      const p = (preview as any)?.[role] ?? null;
+                      const title =
+                        role === "buyer"
+                          ? isBuyer
+                            ? "You (Buyer)"
+                            : "Buyer"
+                          : isSeller
+                            ? "You (Seller)"
+                            : "Seller";
+
+                      const answersObj = (role === "buyer" ? (preview as any)?.buyer?.bondingAnswers : (preview as any)?.seller?.bondingAnswers) ?? {};
+                      const answers = typeof answersObj === "object" && answersObj ? (answersObj as Record<string, unknown>) : {};
+
+                      return (
+                        <div key={role} className="rounded-xl border border-army-purple/15 bg-white p-4 dark:border-army-purple/25 dark:bg-neutral-900">
+                          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{title}</p>
+                          <p className="mt-2 text-sm text-neutral-800 dark:text-neutral-200">
+                            <span className="font-semibold">First name:</span> {String(p?.firstName ?? "—")}
+                          </p>
+                          <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
+                            <span className="font-semibold">Country:</span> {String(p?.country ?? "—")}
+                          </p>
+
+                          <div className="mt-3 space-y-2 text-sm text-neutral-800 dark:text-neutral-200">
+                            <p className="font-semibold text-army-purple">ARMY profile</p>
+                            <p className="whitespace-pre-wrap break-words">
+                              <span className="font-semibold">Bias:</span> {String(p?.armyBiasAnswer ?? "—")}
+                            </p>
+                            <p className="whitespace-pre-wrap break-words">
+                              <span className="font-semibold">Years ARMY:</span> {String(p?.armyYearsArmy ?? "—")}
+                            </p>
+                            <p className="whitespace-pre-wrap break-words">
+                              <span className="font-semibold">Favorite album:</span> {String(p?.armyFavoriteAlbum ?? "—")}
+                            </p>
+                          </div>
+
+                          <div className="mt-4 rounded-lg border border-army-purple/10 bg-army-purple/5 p-3 dark:border-army-purple/20 dark:bg-army-purple/10">
+                            <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Bonding answers</p>
+                            {bondingQuestions.length === 3 ? (
+                              <div className="mt-2 space-y-3">
+                                {bondingQuestions.map((q, idx) => (
+                                  <div key={q.id}>
+                                    <p className="text-sm font-semibold text-army-purple">
+                                      {idx + 1}. {q.prompt}
+                                    </p>
+                                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
+                                      {String(answers[q.id] ?? "—")}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">Bonding answers not available.</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
               <div className="mt-5 flex flex-wrap justify-end gap-2">

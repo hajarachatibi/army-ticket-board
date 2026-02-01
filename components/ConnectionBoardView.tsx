@@ -107,8 +107,17 @@ export default function ConnectionBoardView() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [browse]);
 
+  const browseCities = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of browse) {
+      const c = String(l.concertCity ?? "").trim();
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [browse]);
+
   const filteredBrowse = useMemo(() => {
-    const city = filterCity.trim().toLowerCase();
+    const city = filterCity.trim();
     const min = filterPriceMin.trim() ? Number(filterPriceMin) : null;
     const max = filterPriceMax.trim() ? Number(filterPriceMax) : null;
     const from = filterDateFrom.trim();
@@ -118,7 +127,7 @@ export default function ConnectionBoardView() {
 
     return browse.filter((l) => {
       if (status && String(l.status) !== status) return false;
-      if (city && !String(l.concertCity ?? "").toLowerCase().includes(city)) return false;
+      if (city && String(l.concertCity ?? "") !== city) return false;
       if (currency && String(l.currency) !== currency) return false;
 
       const d = String(l.concertDate ?? "");
@@ -298,7 +307,14 @@ export default function ConnectionBoardView() {
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">City</label>
-                      <input className="input-army mt-2" value={filterCity} onChange={(e) => setFilterCity(e.target.value)} placeholder="e.g. Los Angeles" />
+                      <select className="input-army mt-2" value={filterCity} onChange={(e) => setFilterCity(e.target.value)}>
+                        <option value="">All cities</option>
+                        {browseCities.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">Date from</label>
