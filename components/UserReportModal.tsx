@@ -91,14 +91,14 @@ export default function UserReportModal({ open, onClose, reportedUserId, reporte
 
   return (
     <div
-      className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+      className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="user-report-modal-title"
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-md max-h-[90vh] overflow-y-auto cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+        className="modal-panel w-full max-w-md max-h-[90vh] overflow-y-auto cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="user-report-modal-title" className="font-display text-xl font-bold text-army-purple">

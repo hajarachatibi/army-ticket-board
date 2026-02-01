@@ -10,8 +10,11 @@ export async function GET() {
     paypalClientId: cfg.paypalClientId,
     currency: cfg.currency,
     allowedCurrencies: cfg.allowedCurrencies,
+    mode: cfg.mode,
     amount: cfg.amount,
     tiers: cfg.tiers,
+    minAmount: cfg.minAmount,
+    maxAmount: cfg.maxAmount,
     environment: cfg.environment,
     enableFunding: cfg.enableFunding,
   });

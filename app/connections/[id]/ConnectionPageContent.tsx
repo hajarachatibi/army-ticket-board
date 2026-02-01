@@ -306,15 +306,66 @@ export default function ConnectionPageContent() {
     return isBuyer ? conn.buyer_social_share : conn.seller_social_share;
   }, [conn, isBuyer, isSeller]);
 
+  const stageLabel = useMemo(() => {
+    const s = String(conn?.stage ?? "");
+    switch (s) {
+      case "pending_seller":
+        return "Seller decision";
+      case "bonding":
+        return "Bonding questions";
+      case "preview":
+        return "Preview";
+      case "social":
+        return "Social sharing";
+      case "agreement":
+        return "Match message";
+      case "chat_open":
+        return "Connected";
+      case "ended":
+        return "Ended";
+      case "declined":
+        return "Declined";
+      case "expired":
+        return "Expired";
+      default:
+        return s || "Connection";
+    }
+  }, [conn?.stage]);
+
+  const stageStep = useMemo(() => {
+    const s = String(conn?.stage ?? "");
+    const map: Record<string, number> = {
+      pending_seller: 1,
+      bonding: 2,
+      preview: 3,
+      social: 4,
+      agreement: 5,
+      chat_open: 6,
+      ended: 6,
+      declined: 6,
+      expired: 6,
+    };
+    return map[s] ?? 1;
+  }, [conn?.stage]);
+
 
   return (
     <RequireAuth>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-bold text-army-purple">Connection</h1>
-        <div className="flex gap-2">
-          <Link href="/tickets" className="btn-army-outline">
-            Back
-          </Link>
+      <div className="mx-auto max-w-5xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-army-purple">Connection</h1>
+            {conn ? (
+              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                <span className="font-semibold text-army-purple">{stageLabel}</span>{" "}
+                <span className="text-neutral-500 dark:text-neutral-400">· Step {stageStep} of 6</span>
+              </p>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <Link href="/tickets" className="btn-army-outline">
+              Back
+            </Link>
           <button
             type="button"
             className="btn-army-outline"
@@ -327,8 +378,8 @@ export default function ConnectionPageContent() {
           <button type="button" className="btn-army-outline" onClick={() => void load()} disabled={submitting}>
             Refresh
           </button>
+          </div>
         </div>
-      </div>
 
       {loading ? (
         <p className="mt-6 text-neutral-500 dark:text-neutral-400">Loading…</p>
@@ -356,7 +407,7 @@ export default function ConnectionPageContent() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Stage</p>
-                <p className="mt-1 font-display text-xl font-bold text-army-purple">{conn.stage}</p>
+                <p className="mt-1 font-display text-xl font-bold text-army-purple">{stageLabel}</p>
                 {!!expiresLabel && (
                   <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
                     Expires: <span className="font-semibold">{expiresLabel}</span>
@@ -746,6 +797,7 @@ export default function ConnectionPageContent() {
           </div>
         </div>
       )}
+      </div>
     </RequireAuth>
   );
 }

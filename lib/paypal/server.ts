@@ -5,8 +5,11 @@ export type DonationConfig = {
   paypalClientId: string | null; // safe to expose to client
   currency: string; // default currency
   allowedCurrencies: string[]; // server-controlled allowlist
-  amount: string; // default tier amount, e.g. "5.00"
-  tiers: string[]; // allowlisted tier amounts, e.g. ["5.00","10.00","25.00"]
+  mode: "tiers" | "custom";
+  amount: string; // default amount, e.g. "5.00"
+  tiers: string[]; // allowlisted tier amounts (used only in tiers mode)
+  minAmount: string; // used only in custom mode
+  maxAmount: string; // used only in custom mode
   environment: "sandbox" | "live";
   // Optional: if set, we lock the payee to this merchant id.
   merchantId: string | null;
@@ -17,6 +20,14 @@ export type DonationConfig = {
 function normalizeEnv(value: string | undefined): "sandbox" | "live" {
   const v = String(value ?? "sandbox").trim().toLowerCase();
   return v === "live" || v === "production" ? "live" : "sandbox";
+}
+
+function normalizeDonationMode(value: string | undefined): "tiers" | "custom" | null {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return null;
+  if (v === "tiers") return "tiers";
+  if (v === "custom") return "custom";
+  return null;
 }
 
 export function getDonationConfig(): DonationConfig {
@@ -35,6 +46,11 @@ export function getDonationConfig(): DonationConfig {
     .split(",")
     .map((v) => v.trim())
     .filter(Boolean);
+  const minAmount = (process.env.DONATION_MIN_AMOUNT || "1.00").trim();
+  const maxAmount = (process.env.DONATION_MAX_AMOUNT || "500.00").trim();
+
+  const explicitMode = normalizeDonationMode(process.env.DONATION_MODE);
+  const mode: "tiers" | "custom" = explicitMode ?? (process.env.DONATION_TIERS ? "tiers" : "custom");
 
   // Extra safety: when set, we explicitly set/verify the payee merchant id.
   const merchantId = (process.env.PAYPAL_MERCHANT_ID || "").trim() || null;
@@ -51,8 +67,11 @@ export function getDonationConfig(): DonationConfig {
     paypalClientId,
     currency,
     allowedCurrencies,
+    mode,
     amount,
     tiers,
+    minAmount,
+    maxAmount,
     environment,
     merchantId,
     enableFunding,
@@ -102,21 +121,66 @@ function isAllowedTierAmount(value: string, tiers: string[]) {
   return tiers.includes(value);
 }
 
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  // Common “no-decimal” currencies.
+  // If you add such currencies to your allowlist, donors must enter whole numbers.
+  "JPY",
+  "KRW",
+  "VND",
+  "CLP",
+  "PYG",
+]);
+
+function parseMoneyLike(value: string) {
+  const raw = String(value ?? "").trim();
+  // Accept "12", "12.3", "12.34"
+  if (!/^\d+(\.\d{1,2})?$/.test(raw)) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+function formatAmountForCurrency(amount: number, currency: string) {
+  if (ZERO_DECIMAL_CURRENCIES.has(currency)) {
+    if (!Number.isInteger(amount)) throw new Error("This currency requires a whole-number amount.");
+    return String(amount);
+  }
+  return amount.toFixed(2);
+}
+
 export async function createDonationOrder(opts?: { currency?: string; amount?: string }) {
   const config = getDonationConfig();
   if (!config.enabled) throw new Error("Donations are not enabled.");
 
   // SECURITY:
-  // - Amount is fixed server-side (no "flexible amount" from the browser).
-  // - Amount is selectable by the user, but ONLY from a server-controlled tier allowlist.
+  // - Amount is selectable by the user, but enforced server-side:
+  //   - either from preset tiers, OR
+  //   - as a custom amount within server-defined min/max bounds.
   // - Currency is selectable by the user, but ONLY from a server-controlled allowlist.
   const currency = String(opts?.currency ?? config.currency).trim().toUpperCase();
   if (!isAllowedCurrency(currency, config.allowedCurrencies)) {
     throw new Error("Unsupported currency.");
   }
-  const amount = String(opts?.amount ?? config.amount).trim();
-  if (!isAllowedTierAmount(amount, config.tiers)) {
-    throw new Error("Unsupported donation amount.");
+
+  let amount: string;
+  if (config.mode === "tiers") {
+    const requested = String(opts?.amount ?? config.amount).trim();
+    if (!isAllowedTierAmount(requested, config.tiers)) {
+      throw new Error("Unsupported donation amount.");
+    }
+    amount = requested;
+  } else {
+    const min = parseMoneyLike(config.minAmount);
+    const max = parseMoneyLike(config.maxAmount);
+    if (min == null || max == null || min <= 0 || max <= 0 || min > max) {
+      throw new Error("Donation min/max configuration is invalid.");
+    }
+    const requestedRaw = String(opts?.amount ?? config.amount).trim();
+    const requested = parseMoneyLike(requestedRaw);
+    if (requested == null) throw new Error("Invalid donation amount.");
+    if (requested < min) throw new Error(`Minimum donation is ${formatAmountForCurrency(min, currency)} ${currency}.`);
+    if (requested > max) throw new Error(`Maximum donation is ${formatAmountForCurrency(max, currency)} ${currency}.`);
+    amount = formatAmountForCurrency(requested, currency);
   }
 
   const { accessToken, baseUrl } = await getPayPalAccessToken();
@@ -192,8 +256,20 @@ export async function captureAndVerifyDonationOrder(orderId: string) {
   const amount = pu?.amount;
   const currency = String(amount?.currency_code ?? "");
   const value = String(amount?.value ?? "");
-  if (!isAllowedCurrency(currency, config.allowedCurrencies) || !isAllowedTierAmount(value, config.tiers)) {
+  if (!isAllowedCurrency(currency, config.allowedCurrencies)) {
     throw new Error("Captured amount does not match expected donation amount.");
+  }
+  if (config.mode === "tiers") {
+    if (!isAllowedTierAmount(value, config.tiers)) {
+      throw new Error("Captured amount does not match expected donation amount.");
+    }
+  } else {
+    const min = parseMoneyLike(config.minAmount);
+    const max = parseMoneyLike(config.maxAmount);
+    const captured = parseMoneyLike(value);
+    if (min == null || max == null || captured == null || captured < min || captured > max) {
+      throw new Error("Captured amount does not match expected donation amount.");
+    }
   }
 
   if (config.merchantId) {

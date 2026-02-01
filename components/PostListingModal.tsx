@@ -117,8 +117,8 @@ export default function PostListingModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4" onClick={close}>
-      <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4" onClick={close}>
+      <div className="modal-panel w-full max-w-2xl max-h-[85vh] overflow-y-auto cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-xl font-bold text-army-purple">Post Ticket (Listing)</h2>

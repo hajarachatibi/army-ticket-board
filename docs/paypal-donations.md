@@ -35,13 +35,22 @@ PAYPAL_MERCHANT_ID=YOUR_MERCHANT_ID
 # sandbox | live (defaults to sandbox if unset)
 PAYPAL_ENV=sandbox
 
-# Donation amount is fixed server-side (not user-editable)
-# Amount is user-selectable, but only from server-controlled preset tiers.
+# Donation amount is user-entered, but still enforced server-side.
 # Currency is user-selectable, but only from a server-controlled allowlist.
 DONATION_CURRENCY=USD
 DONATION_ALLOWED_CURRENCIES=USD,EUR,GBP
+
+# Donation mode:
+# - custom: user can type an amount (min/max enforced server-side)
+# - tiers: user can pick preset amounts from DONATION_TIERS
+DONATION_MODE=custom
+
+# Default shown in the UI input (also used if user leaves it blank)
 DONATION_AMOUNT=5.00
-DONATION_TIERS=5.00,10.00,25.00
+
+# Server-enforced bounds for custom amounts
+DONATION_MIN_AMOUNT=1.00
+DONATION_MAX_AMOUNT=500.00
 
 # Optional wallets (eligibility varies)
 # Examples: "applepay" or "applepay,googlepay"
@@ -58,7 +67,7 @@ This integration is designed so the **browser cannot choose where funds go**:
   - `POST /api/paypal/create-order`
   - `POST /api/paypal/capture-order`
 - Those routes create/capture orders using your secret and **enforce**:
-  - The **donation tiers** (`DONATION_TIERS`)
+  - The **donation bounds** (`DONATION_MIN_AMOUNT`/`DONATION_MAX_AMOUNT`) in custom mode
   - The **currency allowlist** (`DONATION_ALLOWED_CURRENCIES`)
   - The **payee** (optionally locked to `PAYPAL_MERCHANT_ID`)
 

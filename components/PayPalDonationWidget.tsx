@@ -10,8 +10,11 @@ type DonationConfigResponse = {
   paypalClientId: string | null;
   currency: string;
   allowedCurrencies: string[];
+  mode: "tiers" | "custom";
   amount: string;
   tiers: string[];
+  minAmount: string;
+  maxAmount: string;
   environment: "sandbox" | "live";
   enableFunding: string | null;
 };
@@ -31,6 +34,7 @@ export default function PayPalDonationWidget() {
   const [cfgError, setCfgError] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [customAmount, setCustomAmount] = useState<string>("");
 
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +54,7 @@ export default function PayPalDonationWidget() {
       setCfg(j);
       setSelectedCurrency(j.currency);
       setSelectedTier(j.amount);
+      setCustomAmount(j.amount);
     })();
     return () => {
       cancelled = true;
@@ -59,9 +64,9 @@ export default function PayPalDonationWidget() {
   const amountLabel = useMemo(() => {
     if (!cfg) return "$—";
     const c = selectedCurrency || cfg.currency;
-    const a = selectedTier || cfg.amount;
+    const a = cfg.mode === "custom" ? customAmount || cfg.amount : selectedTier || cfg.amount;
     return formatMoney(c, a);
-  }, [cfg, selectedCurrency, selectedTier]);
+  }, [cfg, selectedCurrency, selectedTier, customAmount]);
 
   const activeCurrency = useMemo(() => {
     if (!cfg) return null;
@@ -74,6 +79,13 @@ export default function PayPalDonationWidget() {
     const a = String(selectedTier || cfg.amount || "").trim();
     return cfg.tiers.includes(a) ? a : cfg.amount;
   }, [cfg, selectedTier]);
+
+  const activeAmount = useMemo(() => {
+    if (!cfg) return null;
+    if (cfg.mode === "tiers") return activeTier;
+    const raw = String(customAmount || "").trim();
+    return raw || cfg.amount;
+  }, [cfg, activeTier, customAmount]);
 
   const paypalOptions = useMemo((): ReactPayPalScriptOptions | null => {
     if (!cfg?.paypalClientId || !activeCurrency) return null;
@@ -135,7 +147,7 @@ export default function PayPalDonationWidget() {
               processed via PayPal.
             </p>
 
-            {cfg?.tiers?.length ? (
+            {cfg?.mode === "tiers" && cfg?.tiers?.length ? (
               <div className="mt-4">
                 <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-tier">
                   Donation amount
@@ -155,6 +167,26 @@ export default function PayPalDonationWidget() {
                 </select>
                 <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
                   Pick a preset tier (no custom amounts).
+                </p>
+              </div>
+            ) : null}
+
+            {cfg?.mode === "custom" ? (
+              <div className="mt-4">
+                <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-amount">
+                  Donation amount
+                </label>
+                <input
+                  id="donation-amount"
+                  inputMode="decimal"
+                  className="input-army mt-1"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  placeholder={cfg.amount}
+                  disabled={submitting}
+                />
+                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                  Allowed range is enforced server-side ({cfg.minAmount} – {cfg.maxAmount}).
                 </p>
               </div>
             ) : null}
@@ -217,7 +249,7 @@ export default function PayPalDonationWidget() {
                       const res = await fetch("/api/paypal/create-order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ currency: activeCurrency, amount: activeTier }),
+                        body: JSON.stringify({ currency: activeCurrency, amount: activeAmount }),
                       });
                       const j = (await res.json().catch(() => null)) as
                         | ApiOk<{ orderId: string }>
@@ -269,7 +301,7 @@ export default function PayPalDonationWidget() {
                       const res = await fetch("/api/paypal/create-order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ currency: activeCurrency, amount: activeTier }),
+                        body: JSON.stringify({ currency: activeCurrency, amount: activeAmount }),
                       });
                       const j = (await res.json().catch(() => null)) as
                         | ApiOk<{ orderId: string }>

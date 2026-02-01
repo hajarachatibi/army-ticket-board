@@ -31,7 +31,17 @@ import {
   type BannedUser,
 } from "@/lib/supabase/admin";
 
-type Tab = "dashboard" | "listingReports" | "userReports" | "listings" | "armyProfileQuestions" | "sellers" | "buyers" | "users" | "banned";
+type Tab =
+  | "dashboard"
+  | "listingReports"
+  | "userReports"
+  | "listings"
+  | "armyProfileQuestions"
+  | "bondingQuestions"
+  | "sellers"
+  | "buyers"
+  | "users"
+  | "banned";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
@@ -91,6 +101,9 @@ export default function AdminPanelContent() {
     Array<{ key: string; prompt: string; active: boolean; position: number }>
   >([]);
 
+  const [bondingQuestions, setBondingQuestions] = useState<Array<{ id: string; prompt: string; active: boolean; createdAt: string }>>([]);
+  const [newBondingPrompt, setNewBondingPrompt] = useState("");
+
   const TABS: { id: Tab; label: string }[] = useMemo(
     () => [
       { id: "dashboard", label: "Dashboard" },
@@ -98,6 +111,7 @@ export default function AdminPanelContent() {
       { id: "userReports", label: "User reports" },
       { id: "listings", label: "Listings" },
       { id: "armyProfileQuestions", label: "ARMY Profile Questions" },
+      { id: "bondingQuestions", label: "Connection bonding questions" },
       { id: "sellers", label: "Sellers" },
       { id: "buyers", label: "Buyers" },
       { id: "users", label: "All users" },
@@ -217,6 +231,26 @@ export default function AdminPanelContent() {
     else setArmyProfileQuestions((data ?? []) as any);
   }, []);
 
+  const loadBondingQuestions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await supabase
+      .from("bonding_questions")
+      .select("id, prompt, active, created_at")
+      .order("created_at", { ascending: false });
+    setLoading(false);
+    if (e) setError(e.message);
+    else {
+      const rows = ((data ?? []) as Array<{ id: string; prompt: string; active: boolean; created_at: string }>).map((r) => ({
+        id: String(r.id),
+        prompt: String(r.prompt ?? ""),
+        active: Boolean(r.active),
+        createdAt: String((r as any).created_at ?? ""),
+      }));
+      setBondingQuestions(rows);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user?.id || !isAdmin) return;
     if (tab === "dashboard") void loadDashboard();
@@ -224,11 +258,12 @@ export default function AdminPanelContent() {
     if (tab === "userReports") void loadUserReports();
     if (tab === "listings") void loadListings();
     if (tab === "armyProfileQuestions") void loadArmyProfileQuestions();
+    if (tab === "bondingQuestions") void loadBondingQuestions();
     if (tab === "sellers") void loadSellers();
     if (tab === "buyers") void loadBuyers();
     if (tab === "users") void loadAllUsers();
     if (tab === "banned") void loadBanned();
-  }, [isAdmin, tab, user?.id, loadAllUsers, loadArmyProfileQuestions, loadBanned, loadBuyers, loadDashboard, loadListingReports, loadListings, loadSellers, loadUserReports]);
+  }, [isAdmin, tab, user?.id, loadAllUsers, loadArmyProfileQuestions, loadBondingQuestions, loadBanned, loadBuyers, loadDashboard, loadListingReports, loadListings, loadSellers, loadUserReports]);
 
   useEffect(() => {
     if (tab === "listings") void loadListings();
@@ -328,6 +363,49 @@ export default function AdminPanelContent() {
       setLoading(false);
     }
   }, [loadArmyProfileQuestions]);
+
+  const addBondingQuestion = useCallback(async () => {
+    const prompt = newBondingPrompt.trim();
+    if (!prompt) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await supabase.from("bonding_questions").insert({ prompt, active: true });
+      if (e) setFeedback(`Error: ${e.message}`);
+      else setFeedback("Bonding question added.");
+      setNewBondingPrompt("");
+      await loadBondingQuestions();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadBondingQuestions, newBondingPrompt]);
+
+  const saveBondingQuestion = useCallback(async (q: { id: string; prompt: string; active: boolean }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await supabase.from("bonding_questions").update({ prompt: q.prompt, active: q.active }).eq("id", q.id);
+      if (e) setFeedback(`Error: ${e.message}`);
+      else setFeedback("Saved.");
+      await loadBondingQuestions();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadBondingQuestions]);
+
+  const deleteBondingQuestion = useCallback(async (id: string) => {
+    if (!confirm("Delete this bonding question?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await supabase.from("bonding_questions").delete().eq("id", id);
+      if (e) setFeedback(`Error: ${e.message}`);
+      else setFeedback("Deleted.");
+      await loadBondingQuestions();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadBondingQuestions]);
 
   if (authLoading || !user || !isAdmin) {
     return (
@@ -666,6 +744,75 @@ export default function AdminPanelContent() {
 
                       <div className="mt-3 flex justify-end">
                         <button type="button" className="btn-army" onClick={() => saveArmyProfileQuestion(q)}>
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "bondingQuestions" && (
+            <section>
+              <h2 className="mb-2 font-display text-xl font-bold text-army-purple">Connection bonding questions</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                These questions are randomly picked (3) when a seller accepts a connection, and are shown later in the preview/match flow.
+              </p>
+
+              <div className="mb-4 rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                <label className="block text-sm font-semibold text-army-purple">Add a new bonding question</label>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className="input-army flex-1"
+                    value={newBondingPrompt}
+                    onChange={(e) => setNewBondingPrompt(e.target.value)}
+                    placeholder="Type a prompt…"
+                  />
+                  <button type="button" className="btn-army" onClick={addBondingQuestion} disabled={loading || !newBondingPrompt.trim()}>
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : bondingQuestions.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No bonding questions found.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {bondingQuestions.map((q) => (
+                    <div key={q.id} className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+                          <input
+                            type="checkbox"
+                            checked={q.active}
+                            onChange={(e) => setBondingQuestions((prev) => prev.map((x) => (x.id === q.id ? { ...x, active: e.target.checked } : x)))}
+                          />
+                          Active
+                        </label>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">Created: {formatDate(q.createdAt)}</div>
+                      </div>
+
+                      <div className="mt-3">
+                        <label className="block text-sm font-semibold text-army-purple">Prompt</label>
+                        <textarea
+                          rows={2}
+                          className="input-army mt-2 resize-none"
+                          value={q.prompt}
+                          onChange={(e) => setBondingQuestions((prev) => prev.map((x) => (x.id === q.id ? { ...x, prompt: e.target.value } : x)))}
+                        />
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap justify-end gap-2">
+                        <button type="button" className="btn-army-outline" onClick={() => deleteBondingQuestion(q.id)} disabled={loading}>
+                          Delete
+                        </button>
+                        <button type="button" className="btn-army" onClick={() => saveBondingQuestion(q)} disabled={loading}>
                           Save
                         </button>
                       </div>

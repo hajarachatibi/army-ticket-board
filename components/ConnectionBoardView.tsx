@@ -144,6 +144,16 @@ export default function ConnectionBoardView() {
     return set;
   }, [notifications]);
 
+  const unreadConnectionCountById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const n of notifications) {
+      if (n.read) continue;
+      if (!n.connectionId) continue;
+      map.set(n.connectionId, (map.get(n.connectionId) ?? 0) + 1);
+    }
+    return map;
+  }, [notifications]);
+
   const filteredBrowse = useMemo(() => {
     const city = filterCity.trim();
     const min = filterPriceMin.trim() ? Number(filterPriceMin) : null;
@@ -277,11 +287,13 @@ export default function ConnectionBoardView() {
             My Connections
             {unreadConnectionNotificationCount > 0 && (
               <span
-                className={`absolute right-2 top-2 h-2.5 w-2.5 rounded-full ${
-                  tab === "connections" ? "bg-white" : "bg-army-purple"
+                className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                  tab === "connections" ? "bg-white text-army-purple" : "bg-army-purple text-white"
                 }`}
-                aria-label="Unread connection updates"
-              />
+                aria-label={`${unreadConnectionNotificationCount} unread connection updates`}
+              >
+                {unreadConnectionNotificationCount > 99 ? "99+" : unreadConnectionNotificationCount}
+              </span>
             )}
           </button>
           <button
@@ -335,9 +347,11 @@ export default function ConnectionBoardView() {
                     <div className="relative">
                       {unreadConnectionIds.has(c.id) && (
                         <span
-                          className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-army-purple"
-                          aria-label="Unread updates for this connection"
-                        />
+                          className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+                          aria-label={`${unreadConnectionCountById.get(c.id) ?? 1} unread updates for this connection`}
+                        >
+                          {(unreadConnectionCountById.get(c.id) ?? 1) > 99 ? "99+" : (unreadConnectionCountById.get(c.id) ?? 1)}
+                        </span>
                       )}
                       <Link
                         href={`/connections/${encodeURIComponent(c.id)}`}
