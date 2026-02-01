@@ -1,6 +1,6 @@
 "use client";
 
-import { PayPalButtons, PayPalScriptProvider, type PayPalScriptOptions, FUNDING } from "@paypal/react-paypal-js";
+import { PayPalButtons, PayPalScriptProvider, type ReactPayPalScriptOptions, FUNDING } from "@paypal/react-paypal-js";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -75,7 +75,7 @@ export default function PayPalDonationWidget() {
     return cfg.tiers.includes(a) ? a : cfg.amount;
   }, [cfg, selectedTier]);
 
-  const paypalOptions = useMemo((): PayPalScriptOptions | null => {
+  const paypalOptions = useMemo((): ReactPayPalScriptOptions | null => {
     if (!cfg?.paypalClientId || !activeCurrency) return null;
 
     // SECURITY:
