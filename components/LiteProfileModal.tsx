@@ -56,7 +56,7 @@ export default function LiteProfileModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+        className="w-full max-w-md cursor-default rounded-2xl border border-army-purple/20 bg-white p-4 shadow-xl dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -65,7 +65,7 @@ export default function LiteProfileModal({
               {title ?? "Profile"}
             </h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Lite profile (no sensitive data).
+              Lite profile: username, admin badge, and ARMY check answers.
             </p>
           </div>
           <button type="button" className="btn-army-outline" onClick={onClose}>
@@ -83,7 +83,7 @@ export default function LiteProfileModal({
           <p className="mt-6 text-neutral-500 dark:text-neutral-400">No profile found.</p>
         ) : (
           <>
-            <div className="mt-6 rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+            <div className="mt-5 rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Username</p>
@@ -91,7 +91,7 @@ export default function LiteProfileModal({
                     <span className="truncate">{profile.username}</span>
                     {profile.isAdmin && <VerifiedAdminBadge />}
                   </p>
-                  {profile.isAdmin && profile.email && (
+                  {!!profile.email && (
                     <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{profile.email}</p>
                   )}
                 </div>
@@ -106,7 +106,7 @@ export default function LiteProfileModal({
             </div>
 
             <div className="mt-6">
-              <h3 className="font-display text-lg font-bold text-army-purple">Forum answers</h3>
+              <h3 className="font-display text-lg font-bold text-army-purple">ARMY check answers</h3>
               {answers.length === 0 ? (
                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">No answers found.</p>
               ) : (
@@ -116,8 +116,12 @@ export default function LiteProfileModal({
                       key={a.id}
                       className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80"
                     >
-                      <p className="text-sm font-semibold text-army-purple">
-                        {idx + 1}. {a.prompt}
+                      <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
+                        Question {idx + 1}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-army-purple">{a.prompt}</p>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                        Answer
                       </p>
                       <p className="mt-1 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
                         {a.answer?.trim() ? a.answer : "—"}

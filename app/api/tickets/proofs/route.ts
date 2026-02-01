@@ -22,23 +22,16 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as
     | {
-        event?: string;
-        city?: string;
-        day?: string;
-        vip?: boolean;
-        quantity?: number;
-        section?: string;
-        row?: string;
-        seat?: string;
-        type?: string;
-        price?: number;
-        currency?: string;
+        ticketId?: string;
         proofTmTicketPagePath?: string;
         proofTmScreenRecordingPath?: string;
         proofTmEmailScreenshotPath?: string;
         proofPriceNote?: string | null;
       }
     | null;
+
+  const ticketId = String(body?.ticketId ?? "").trim();
+  if (!ticketId) return NextResponse.json({ error: "Missing ticketId" }, { status: 400 });
 
   const response = NextResponse.json({ ok: true });
   const supabase = createServerClient(
@@ -61,10 +54,6 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const qty = Math.min(4, Math.max(1, Number(body?.quantity ?? 1) || 1));
-  const price = Math.max(0, Number(body?.price ?? 0) || 0);
-  if (price <= 0) return NextResponse.json({ error: "Invalid price" }, { status: 400 });
-
   const proofTicketPage = String(body?.proofTmTicketPagePath ?? "").trim();
   const proofScreenRecording = String(body?.proofTmScreenRecordingPath ?? "").trim();
   const proofEmailScreenshot = String(body?.proofTmEmailScreenshotPath ?? "").trim();
@@ -80,31 +69,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing/invalid TM screen recording proof." }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  // Only allow sellers to attach proofs to their own pending tickets.
+  const { data: existing, error: tErr } = await supabase
     .from("tickets")
-    .insert({
-      event: String(body?.event ?? ""),
-      city: String(body?.city ?? ""),
-      day: String(body?.day ?? ""),
-      vip: !!body?.vip,
-      quantity: qty,
-      section: String(body?.section ?? ""),
-      seat_row: String(body?.row ?? ""),
-      seat: String(body?.seat ?? ""),
-      type: String(body?.type ?? "Seat"),
-      status: "Available",
-      owner_id: user.id,
-      price,
-      currency: String(body?.currency ?? "USD"),
+    .select("id, owner_id, listing_status")
+    .eq("id", ticketId)
+    .single();
+  if (tErr || !existing) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+  if (existing.owner_id !== user.id) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+  if (existing.listing_status !== "pending_review") {
+    return NextResponse.json({ error: "Ticket is not pending review" }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("tickets")
+    .update({
       proof_tm_ticket_page_path: proofTicketPage,
       proof_tm_screen_recording_path: proofScreenRecording,
       proof_tm_email_screenshot_path: proofEmailScreenshot,
       proof_price_note: proofPriceNote,
     })
-    .select()
-    .single();
+    .eq("id", ticketId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ data });
+  return NextResponse.json({ ok: true });
 }
 

@@ -8,6 +8,7 @@ import ReportModal from "@/components/ReportModal";
 import SellTicketDisclaimerModal from "@/components/SellTicketDisclaimerModal";
 import SellTicketModal from "@/components/SellTicketModal";
 import TicketRequestsModal from "@/components/TicketRequestsModal";
+import PendingTicketProofModal from "@/components/PendingTicketProofModal";
 import { useAuth } from "@/lib/AuthContext";
 import { useChat } from "@/lib/ChatContext";
 import { useNotifications } from "@/lib/NotificationContext";
@@ -18,7 +19,6 @@ import { pushPendingForUser } from "@/lib/notificationsStorage";
 import { displayName } from "@/lib/displayName";
 import type { Ticket, TicketStatus } from "@/lib/data/tickets";
 import { closeAllChatsForTicket } from "@/lib/supabase/chats";
-import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
 import { fetchMyForumStatus } from "@/lib/supabase/forum";
 import {
   deleteTicket as deleteTicketApi,
@@ -90,20 +90,11 @@ export default function TicketsView() {
   const [requestedTicketIds, setRequestedTicketIds] = useState<Set<string>>(new Set());
   const [filterOptions, setFilterOptions] = useState<TicketFilterOptions | null>(null);
   const [requestsTicket, setRequestsTicket] = useState<Ticket | null>(null);
-  const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
   const [forumPromptOpen, setForumPromptOpen] = useState(false);
+  const [pendingProofTicket, setPendingProofTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    fetchMySellerProofStatus()
-      .then(({ data }) => setSellerProofOk(data.hasApproved))
-      .catch(() => setSellerProofOk(false));
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user) return;
-    const key = `forum_prompt_dismissed_${user.id}`;
-    if (typeof window !== "undefined" && window.sessionStorage.getItem(key) === "1") return;
     fetchMyForumStatus()
       .then(({ data }) => {
         if (data?.needs_submit) setForumPromptOpen(true);
@@ -470,11 +461,6 @@ export default function TicketsView() {
               My tickets
             </button>
           </div>
-          {user && sellerProofOk === false && (
-            <Link href="/seller-proof" className="btn-army-outline">
-              Apply for seller proof
-            </Link>
-          )}
           <button type="button" onClick={openSell} className="btn-army">
             Sell ticket
           </button>
@@ -648,6 +634,16 @@ export default function TicketsView() {
                           )
                         ) : (
                           <>
+                            {row.listingStatus === "pending_review" && row.status !== "Sold" && (
+                              <button
+                                type="button"
+                                onClick={() => setPendingProofTicket(row)}
+                                className="rounded-lg border-2 border-army-purple/40 bg-army-purple/5 px-3 py-2 text-sm font-semibold text-army-purple transition-colors hover:bg-army-purple/10 dark:border-army-400/60 dark:bg-army-purple/10 dark:text-army-300 dark:hover:bg-army-purple/20"
+                                title="Submit seller proof form for pending review"
+                              >
+                                Seller proof
+                              </button>
+                            )}
                             {row.status === "Sold" ? null : (
                               <Link
                                 href={
@@ -785,41 +781,35 @@ export default function TicketsView() {
         onClose={() => setRequestsTicket(null)}
       />
 
+      <PendingTicketProofModal
+        open={!!pendingProofTicket}
+        ticket={pendingProofTicket}
+        userId={user?.id ?? null}
+        onClose={() => setPendingProofTicket(null)}
+      />
+
       {forumPromptOpen && user && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
-          aria-label="BTS questions"
-          onClick={() => setForumPromptOpen(false)}
+          aria-label="ARMY check form"
         >
           <div
             className="w-full max-w-md rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-display text-xl font-bold text-army-purple">Quick BTS Questions</h2>
+            <h2 className="font-display text-xl font-bold text-army-purple">ARMY check form</h2>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              Please answer the BTS questions to help keep the community safe. You can do it now or later.
+              Please answer this form to help keep the community safe.
             </p>
             <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="btn-army-outline"
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(`forum_prompt_dismissed_${user.id}`, "1");
-                  }
-                  setForumPromptOpen(false);
-                }}
-              >
-                Later
-              </button>
               <Link
                 href={`/forum?next=${encodeURIComponent("/tickets")}`}
                 className="btn-army"
                 onClick={() => setForumPromptOpen(false)}
               >
-                Answer now
+                Open form
               </Link>
             </div>
           </div>
@@ -865,6 +855,8 @@ function TicketCard({
   const priceStr = ticket.price != null && ticket.price > 0 ? formatPrice(ticket.price, ticket.currency ?? "USD") : "—";
   const meta = [ticket.city, ticket.day].filter(Boolean).join(" · ") || "—";
   const details = [ticket.section, ticket.row, ticket.seat, ticket.type].filter(Boolean).join(" · ") || "—";
+  const { user } = useAuth();
+  const [proofOpen, setProofOpen] = useState(false);
 
   return (
     <div
@@ -972,6 +964,23 @@ function TicketCard({
           )
         ) : (
           <>
+            {!sold && ticket.listingStatus === "pending_review" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setProofOpen(true)}
+                  className="rounded-lg border-2 border-army-purple/40 bg-army-purple/5 px-3 py-2 text-sm font-semibold text-army-purple transition-colors hover:bg-army-purple/10 dark:border-army-400/60 dark:bg-army-purple/10 dark:text-army-300 dark:hover:bg-army-purple/20"
+                >
+                  Seller proof
+                </button>
+                <PendingTicketProofModal
+                  open={proofOpen}
+                  onClose={() => setProofOpen(false)}
+                  ticket={ticket}
+                  userId={user?.id ?? null}
+                />
+              </>
+            )}
             {!sold && (
               <Link
                 href={openChatsCount > 0 ? `/chats?ticket=${ticket.id}` : "/chats"}

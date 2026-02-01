@@ -19,6 +19,11 @@ const NAV = [
   { href: "/user-manual", label: "User manual" },
 ];
 
+function isTruthyEnv(value: string | undefined) {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
@@ -30,6 +35,7 @@ export default function Header() {
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
 
   useEffect(() => {
     setMounted(true);
@@ -85,7 +91,7 @@ export default function Header() {
             <span>
               We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
               <span className="hidden sm:inline">
-                {" "}If you’re a seller, please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
+                {" "}If you’re a seller with a pending ticket, please submit your seller proof form — you’ll find it under <strong>My tickets</strong>. We will temporarily keep the seller proof form only for pending tickets, but for all new tickets it’s merged into the Sell Ticket form.
               </span>
             </span>
             <button
@@ -113,6 +119,7 @@ export default function Header() {
             <span>
               Admins will never ask for ticket transfer, order numbers, or payment info.
               <span className="hidden sm:inline">
+                {" "}Hajar (achatibihajar@gmail.com) and Tom (tomkoods2020@gmail.com) are the only admins right now. We haven't sent any emails to any of the users, and we are not sending anything now. Please don't reply to scammers.
                 {" "}If someone claims they’re an admin, check for the blue verified <strong>Admin</strong> badge. If there’s no badge (or the message feels suspicious), use the <strong>Report</strong> button inside the chat.
               </span>
             </span>
@@ -205,6 +212,15 @@ export default function Header() {
           <NotificationBell />
 
           <div className="flex items-center gap-2">
+            {supportEnabled && (
+              <Link
+                href="/support"
+                className="hidden rounded-lg border border-army-purple/30 bg-army-purple/10 px-3 py-2 text-sm font-semibold text-army-purple hover:bg-army-purple/15 dark:border-army-purple/40 dark:bg-army-purple/20 dark:text-army-300 sm:inline-flex"
+                aria-label="Support us"
+              >
+                Support us 💜
+              </Link>
+            )}
             {isLoggedIn && user ? (
               <>
                 <div className="hidden max-w-[180px] truncate text-right sm:block">
@@ -324,13 +340,16 @@ export default function Header() {
                   We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
                 </p>
                 <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                  <span className="font-semibold">Sellers:</span> please check your Chats—admins will message you to review your ticket so we can re-list it. Reply within 24h or your listing will be removed (you can resubmit after).
+                  <span className="font-semibold">Sellers with pending tickets:</span> please submit your seller proof form — you’ll find it under <span className="font-semibold">My tickets</span>. We will temporarily keep the seller proof form only for pending tickets, but for all new tickets it’s merged into the Sell Ticket form.
                 </p>
               </div>
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Scam alert</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
                   Admins will never ask for ticket transfer, order numbers, or payment info.
+                </p>
+                <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                  <span className="font-semibold">Only admins:</span> Hajar (achatibihajar@gmail.com) and Tom (tomkoods2020@gmail.com). We haven't sent any emails to any of the users, and we are not sending anything now. Please don't reply to scammers.
                 </p>
                 <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
                   If someone claims they’re an admin, check for the blue verified <span className="font-semibold">Admin</span> badge. If there’s no badge (or the message feels suspicious), tap <span className="font-semibold">Report</span> inside the chat.

@@ -8,7 +8,7 @@ import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
 import type { Ticket } from "@/lib/data/tickets";
 import { updateTicket } from "@/lib/supabase/tickets";
 import Link from "next/link";
-import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
+import { uploadTicketProofAttachment } from "@/lib/supabase/uploadTicketProofAttachment";
 
 type SellTicketModalProps = {
   open: boolean;
@@ -39,17 +39,12 @@ export default function SellTicketModal({
   const [currency, setCurrency] = useState("USD");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [sellerProofOk, setSellerProofOk] = useState<boolean | null>(null);
+  const [proofTicketPage, setProofTicketPage] = useState<File | null>(null);
+  const [proofScreenRecording, setProofScreenRecording] = useState<File | null>(null);
+  const [proofEmailScreenshot, setProofEmailScreenshot] = useState<File | null>(null);
+  const [priceNote, setPriceNote] = useState("");
 
   const isEdit = !!editTicket;
-
-  useEffect(() => {
-    if (!open || !user || isEdit) return;
-    setSellerProofOk(null);
-    fetchMySellerProofStatus()
-      .then(({ data }) => setSellerProofOk(data.hasApproved))
-      .catch(() => setSellerProofOk(false));
-  }, [open, user, isEdit]);
 
   useEffect(() => {
     if (!open) return;
@@ -78,6 +73,10 @@ export default function SellTicketModal({
       setQuantity("1");
       setPrice("");
       setCurrency("USD");
+      setProofTicketPage(null);
+      setProofScreenRecording(null);
+      setProofEmailScreenshot(null);
+      setPriceNote("");
     }
   }, [open, editTicket]);
 
@@ -95,6 +94,10 @@ export default function SellTicketModal({
     setQuantity("1");
     setPrice("");
     setCurrency("USD");
+    setProofTicketPage(null);
+    setProofScreenRecording(null);
+    setProofEmailScreenshot(null);
+    setPriceNote("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,8 +113,8 @@ export default function SellTicketModal({
     }
 
     if (!isEdit) {
-      if (sellerProofOk === false) {
-        setFormError("Seller proof is required before submitting new tickets.");
+      if (!proofTicketPage || !proofScreenRecording || !proofEmailScreenshot) {
+        setFormError("Please upload all 3 proof files before submitting.");
         return;
       }
       void submitNewTicket();
@@ -159,8 +162,35 @@ export default function SellTicketModal({
       setFormError("Please enter a valid price (face value per ticket).");
       return;
     }
+    if (!proofTicketPage || !proofScreenRecording || !proofEmailScreenshot) {
+      setFormError("Please upload all 3 proof files before submitting.");
+      return;
+    }
     setSubmitting(true);
     try {
+      const groupId = crypto.randomUUID();
+      const up1 = await uploadTicketProofAttachment({
+        userId: user.id,
+        groupId,
+        kind: "tm_ticket_page",
+        file: proofTicketPage,
+      });
+      if ("error" in up1) throw new Error(up1.error);
+      const up2 = await uploadTicketProofAttachment({
+        userId: user.id,
+        groupId,
+        kind: "tm_screen_recording",
+        file: proofScreenRecording,
+      });
+      if ("error" in up2) throw new Error(up2.error);
+      const up3 = await uploadTicketProofAttachment({
+        userId: user.id,
+        groupId,
+        kind: "tm_email_screenshot",
+        file: proofEmailScreenshot,
+      });
+      if ("error" in up3) throw new Error(up3.error);
+
       const res = await fetch("/api/tickets/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,6 +206,10 @@ export default function SellTicketModal({
           type: seatType,
           price: priceNum,
           currency,
+          proofTmTicketPagePath: up1.path,
+          proofTmScreenRecordingPath: up2.path,
+          proofTmEmailScreenshotPath: up3.path,
+          proofPriceNote: priceNote.trim() || null,
         }),
       });
       const j = (await res.json().catch(() => null)) as { data?: any; error?: string } | null;
@@ -231,13 +265,17 @@ export default function SellTicketModal({
         <h2 id="sell-ticket-modal-title" className="font-display text-xl font-bold text-army-purple">
           {isEdit ? "Edit ticket" : "Sell ticket"}
         </h2>
-        {!isEdit && sellerProofOk === false && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-            Seller proof is required before submitting new tickets.{" "}
-            <Link href="/seller-proof" className="font-semibold underline">
-              Apply here
-            </Link>
-            .
+        {!isEdit && (
+          <div className="mt-4 rounded-2xl border border-army-purple/15 bg-white/80 p-4 text-sm text-neutral-700 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-300">
+            <p className="font-semibold text-army-purple">Required proofs (Ticketmaster)</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Screenshot of TM ticket page (with today’s date + your name handwritten)</li>
+              <li>Screen recording scrolling the TM app</li>
+              <li>Screenshot of TM email (hide sensitive info) to prove face value</li>
+            </ul>
+            <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+              If your listed price is higher due to fees, add a note below explaining why.
+            </p>
           </div>
         )}
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
@@ -416,6 +454,79 @@ export default function SellTicketModal({
               />
             </div>
           </div>
+
+          {!isEdit && (
+            <>
+              <div className="rounded-2xl border border-army-purple/15 bg-white/70 p-4 dark:border-army-purple/25 dark:bg-neutral-900/60">
+                <p className="text-sm font-semibold text-army-purple">Upload proofs</p>
+                <div className="mt-3 space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-army-purple">
+                      TM ticket page screenshot (required)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="mt-2 block w-full text-sm text-neutral-700 file:mr-3 file:rounded-lg file:border-0 file:bg-army-purple file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-army-700 dark:text-neutral-300"
+                      onChange={(e) => setProofTicketPage(e.target.files?.[0] ?? null)}
+                    />
+                    {proofTicketPage && (
+                      <button type="button" className="mt-2 btn-army-outline" onClick={() => setProofTicketPage(null)}>
+                        Remove file
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-army-purple">
+                      TM app screen recording (required)
+                    </label>
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      className="mt-2 block w-full text-sm text-neutral-700 file:mr-3 file:rounded-lg file:border-0 file:bg-army-purple file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-army-700 dark:text-neutral-300"
+                      onChange={(e) => setProofScreenRecording(e.target.files?.[0] ?? null)}
+                    />
+                    {proofScreenRecording && (
+                      <button type="button" className="mt-2 btn-army-outline" onClick={() => setProofScreenRecording(null)}>
+                        Remove file
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-army-purple">
+                      TM email screenshot (required)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="mt-2 block w-full text-sm text-neutral-700 file:mr-3 file:rounded-lg file:border-0 file:bg-army-purple file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-army-700 dark:text-neutral-300"
+                      onChange={(e) => setProofEmailScreenshot(e.target.files?.[0] ?? null)}
+                    />
+                    {proofEmailScreenshot && (
+                      <button type="button" className="mt-2 btn-army-outline" onClick={() => setProofEmailScreenshot(null)}>
+                        Remove file
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-army-purple">
+                      Note if not face value (fees) <span className="font-normal text-neutral-500">(optional)</span>
+                    </label>
+                    <textarea
+                      className="input-army mt-2 resize-none"
+                      rows={3}
+                      value={priceNote}
+                      onChange={(e) => setPriceNote(e.target.value)}
+                      placeholder="If your listed price is higher because of fees, explain here (hide sensitive info)."
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
           {formError && (
             <p className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
               {formError}

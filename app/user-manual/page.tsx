@@ -17,6 +17,9 @@ export default function UserManualPage() {
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               You can <strong>browse tickets</strong> without an account. To buy, sell, chat, or report, tap <strong>Get started</strong> in the header and <strong>Continue with Google</strong> to sign in with your Gmail. One account, no password. Use <strong>Sign out</strong> in the header to switch accounts.
             </p>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              After your first login, you’ll be asked to complete the <strong>ARMY check form</strong>.
+            </p>
           </div>
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
@@ -37,13 +40,16 @@ export default function UserManualPage() {
             </p>
             <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
               <li><strong>Filters:</strong> Event, status, city, day, VIP, section, row, seat type, quantity.</li>
-              <li><strong>Contact:</strong> Opens a chat with the seller and notifies them. You can chat right away.</li>
-              <li><strong>Chat:</strong> Enabled only after you’ve bought (or once a chat exists). Use it to coordinate payment and delivery.</li>
+              <li><strong>Contact:</strong> Sends a request to the seller. The seller can accept or reject.</li>
+              <li><strong>Chat:</strong> Opens after the seller accepts your request. Use it to coordinate payment and delivery.</li>
               <li><strong>Report:</strong> Report suspicious or non–face-value listings. The seller gets an in-app notice; we review reports.</li>
-              <li><strong>Sell Ticket:</strong> Add a listing (event, city, day, price, quantity, section, row, seat, type, etc.). You must be signed in.</li>
+              <li><strong>Sell Ticket:</strong> Add a listing and upload required Ticketmaster proofs for admin review. You must be signed in.</li>
             </ul>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               In <strong>My tickets</strong>, you can <strong>Edit</strong>, <strong>Delete</strong>, or <strong>Mark sold</strong>. Use <strong>Chats</strong> to talk to buyers, and <strong>Chat</strong> when someone has contacted you. Sold tickets move to the end of the list; Contact, Chat, and Report are disabled for them.
+            </p>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              <strong>Pending tickets:</strong> If your listing is <strong>Pending review</strong>, you may see a <strong>Seller proof</strong> button under <strong>My tickets</strong>. This is temporary for pending tickets only; all new tickets include proofs inside the Sell Ticket form.
             </p>
           </div>
 
@@ -71,6 +77,16 @@ export default function UserManualPage() {
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               We only connect ARMY. We don’t verify users or tickets and aren’t responsible for scams. Read the <strong>Disclaimers</strong> page for buyer tips, PayPal guidance, and face-value rules.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
+            <h2 className="font-display text-xl font-bold text-army-purple">
+              Privacy &amp; Terms
+            </h2>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              Please read our <a href="/privacy-policy" className="font-semibold text-army-purple underline">Privacy Policy</a> and{" "}
+              <a href="/terms" className="font-semibold text-army-purple underline">Terms and Conditions</a>.
             </p>
           </div>
         </section>

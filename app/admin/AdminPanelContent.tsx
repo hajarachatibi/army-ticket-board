@@ -18,7 +18,6 @@ import {
 } from "@/lib/supabase/forum";
 import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
 import { createAdminRecommendation, deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
-import { adminFetchSellerProofApplications, adminSetSellerProofStatus, type SellerProofApplication } from "@/lib/supabase/sellerProof";
 import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
 import {
   adminApproveTicket,
@@ -60,7 +59,6 @@ type Tab =
   | "forumSubmissions"
   | "stories"
   | "recommendations"
-  | "sellerProof"
   | "banned";
 
 function formatDate(s: string | null) {
@@ -117,10 +115,14 @@ export default function AdminPanelContent() {
   const [recTitle, setRecTitle] = useState("");
   const [recBody, setRecBody] = useState("");
 
-  const [sellerProofApps, setSellerProofApps] = useState<SellerProofApplication[]>([]);
-  const [proofImageUrls, setProofImageUrls] = useState<Record<string, string>>({});
   const [userReportProofUrls, setUserReportProofUrls] = useState<Record<string, string>>({});
   const [userReportProofOpen, setUserReportProofOpen] = useState<{ url: string; title: string } | null>(null);
+  const [ticketProofUrls, setTicketProofUrls] = useState<{
+    ticketId: string;
+    tmTicketPage?: string;
+    tmScreenRecording?: string;
+    tmEmailScreenshot?: string;
+  } | null>(null);
 
   const [selectedSellers, setSelectedSellers] = useState<Set<string>>(new Set());
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
@@ -287,24 +289,6 @@ export default function AdminPanelContent() {
     else setAdminRecs(data);
   }, []);
 
-  const loadSellerProof = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error: e } = await adminFetchSellerProofApplications();
-    setLoading(false);
-    if (e) setError(e);
-    else {
-      setSellerProofApps(data);
-      // Best-effort signed URLs for admin view (private bucket).
-      const entries: Array<[string, string]> = [];
-      for (const a of data) {
-        const r = await createSignedProofUrl(a.screenshotPath);
-        if ("url" in r) entries.push([a.id, r.url]);
-      }
-      setProofImageUrls(Object.fromEntries(entries));
-    }
-  }, []);
-
   const loadDashboardStats = useCallback(async () => {
     const { data, error: e } = await fetchAdminDashboardStats();
     if (e) setError(e);
@@ -333,9 +317,8 @@ export default function AdminPanelContent() {
     else if (tab === "forumSubmissions") loadForumSubmissions();
     else if (tab === "stories") loadPendingStories();
     else if (tab === "recommendations") loadRecommendations();
-    else if (tab === "sellerProof") loadSellerProof();
     else if (tab === "banned") loadBanned();
-  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadForumQuestions, loadForumSubmissions, loadPendingStories, loadRecommendations, loadSellerProof, loadBanned]);
+  }, [user?.id, isAdmin, tab, loadDashboardStats, loadReports, loadUserReports, loadPending, loadTicketsFiltered, loadSellers, loadBuyers, loadAllUsers, loadForumQuestions, loadForumSubmissions, loadPendingStories, loadRecommendations, loadBanned]);
 
   useEffect(() => {
     if (tab === "sellers") loadSellers();
@@ -493,21 +476,6 @@ export default function AdminPanelContent() {
     [loadRecommendations]
   );
 
-  const handleSellerProofDecision = useCallback(
-    async (id: string, status: "approved" | "rejected") => {
-      setLoading(true);
-      setError(null);
-      const { error: e } = await adminSetSellerProofStatus({ id, status });
-      setLoading(false);
-      if (e) setError(e);
-      else {
-        setActionFeedback(`Seller proof ${status}.`);
-        loadSellerProof();
-      }
-    },
-    [loadSellerProof]
-  );
-
   const handleBanAndDelete = useCallback(
     async (email: string) => {
       if (!email) return;
@@ -634,7 +602,6 @@ export default function AdminPanelContent() {
     { id: "forumSubmissions", label: "Forum submissions" },
     { id: "stories", label: "ARMY Stories" },
     { id: "recommendations", label: "Recommendations" },
-    { id: "sellerProof", label: "Seller proof" },
     { id: "banned", label: "Banned users" },
   ];
 
@@ -1944,71 +1911,7 @@ export default function AdminPanelContent() {
             </section>
           )}
 
-          {tab === "sellerProof" && (
-            <section>
-              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Seller proof applications</h2>
-              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-                Review seller proof submissions before approving new ticket listings.
-              </p>
-
-              {loading ? (
-                <p className="text-neutral-500">Loading…</p>
-              ) : sellerProofApps.length === 0 ? (
-                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
-                  No applications yet.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {sellerProofApps.map((a) => (
-                    <div
-                      key={a.id}
-                      className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{a.status}</p>
-                          <p className="mt-1 text-sm font-semibold text-army-purple">{a.fullName}</p>
-                          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                            {a.country} · {a.platform} · {formatDate(a.createdAt)}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSellerProofDecision(a.id, "approved")}
-                            className="rounded bg-army-purple px-3 py-2 text-sm font-semibold text-white hover:bg-army-700"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSellerProofDecision(a.id, "rejected")}
-                            className="rounded bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-
-                      <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
-                        {a.proofDetails}
-                      </p>
-
-                      <div className="mt-3 overflow-hidden rounded-2xl border border-army-purple/15 dark:border-army-purple/25">
-                        {proofImageUrls[a.id] ? (
-                          <img src={proofImageUrls[a.id]} alt="Seller proof screenshot" className="h-auto w-full" />
-                        ) : (
-                          <div className="px-4 py-6 text-center text-sm text-neutral-600 dark:text-neutral-400">
-                            Unable to load proof image (signed URL).
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
+          {/* Seller proof is now merged into per-ticket proofs (see Pending tickets). */}
         </div>
       </div>
 
@@ -2043,6 +1946,9 @@ export default function AdminPanelContent() {
               <p><span className="font-semibold">Claimed by:</span> {ticketDetailsOpen.claimedByEmail ?? "—"}</p>
               <p><span className="font-semibold">Price:</span> {ticketDetailsOpen.price > 0 ? formatPrice(ticketDetailsOpen.price, ticketDetailsOpen.currency ?? "USD") : "—"}</p>
             </div>
+
+            <TicketProofSection ticket={ticketDetailsOpen} ticketProofUrls={ticketProofUrls} setTicketProofUrls={setTicketProofUrls} />
+
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               {ticketDetailsOpen.ownerId && (
                 <button
@@ -2271,5 +2177,94 @@ export default function AdminPanelContent() {
         </div>
       )}
     </main>
+  );
+}
+
+function TicketProofSection({
+  ticket,
+  ticketProofUrls,
+  setTicketProofUrls,
+}: {
+  ticket: import("@/lib/supabase/admin").AdminTicket;
+  ticketProofUrls: { ticketId: string; tmTicketPage?: string; tmScreenRecording?: string; tmEmailScreenshot?: string } | null;
+  setTicketProofUrls: React.Dispatch<
+    React.SetStateAction<{ ticketId: string; tmTicketPage?: string; tmScreenRecording?: string; tmEmailScreenshot?: string } | null>
+  >;
+}) {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ticketId = ticket.id;
+      if (ticketProofUrls?.ticketId === ticketId && (ticketProofUrls.tmTicketPage || ticketProofUrls.tmScreenRecording || ticketProofUrls.tmEmailScreenshot)) {
+        return;
+      }
+      const out: { ticketId: string; tmTicketPage?: string; tmScreenRecording?: string; tmEmailScreenshot?: string } = { ticketId };
+      if (ticket.proofTmTicketPagePath) {
+        const s = await createSignedProofUrl(ticket.proofTmTicketPagePath);
+        if ("url" in s) out.tmTicketPage = s.url;
+      }
+      if (ticket.proofTmScreenRecordingPath) {
+        const s = await createSignedProofUrl(ticket.proofTmScreenRecordingPath);
+        if ("url" in s) out.tmScreenRecording = s.url;
+      }
+      if (ticket.proofTmEmailScreenshotPath) {
+        const s = await createSignedProofUrl(ticket.proofTmEmailScreenshotPath);
+        if ("url" in s) out.tmEmailScreenshot = s.url;
+      }
+      if (!cancelled) setTicketProofUrls(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket.id]);
+
+  const urls = ticketProofUrls?.ticketId === ticket.id ? ticketProofUrls : null;
+  const hasAny =
+    !!ticket.proofTmTicketPagePath || !!ticket.proofTmScreenRecordingPath || !!ticket.proofTmEmailScreenshotPath || !!ticket.proofPriceNote;
+  if (!hasAny) return null;
+
+  return (
+    <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white/70 p-4 dark:border-army-purple/25 dark:bg-neutral-900/60">
+      <p className="text-sm font-semibold text-army-purple">Seller proofs (Ticketmaster)</p>
+      {ticket.proofPriceNote && (
+        <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+          <span className="font-semibold">Note:</span> {ticket.proofPriceNote}
+        </p>
+      )}
+
+      <div className="mt-4 grid gap-4">
+        <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
+          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">TM ticket page screenshot</p>
+          {urls?.tmTicketPage ? (
+            <a href={urls.tmTicketPage} target="_blank" rel="noopener noreferrer">
+              <img src={urls.tmTicketPage} alt="TM ticket page proof" className="mt-2 h-auto w-full rounded-lg" />
+            </a>
+          ) : (
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
+          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">TM app screen recording</p>
+          {urls?.tmScreenRecording ? (
+            <video className="mt-2 w-full rounded-lg" controls preload="metadata" src={urls.tmScreenRecording} />
+          ) : (
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
+          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">TM email screenshot</p>
+          {urls?.tmEmailScreenshot ? (
+            <a href={urls.tmEmailScreenshot} target="_blank" rel="noopener noreferrer">
+              <img src={urls.tmEmailScreenshot} alt="TM email proof" className="mt-2 h-auto w-full rounded-lg" />
+            </a>
+          ) : (
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

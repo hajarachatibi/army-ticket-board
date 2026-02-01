@@ -57,6 +57,10 @@ export type AdminTicket = {
   claimedBy: string | null;
   claimedByEmail: string | null;
   claimedAt: string | null;
+  proofTmTicketPagePath?: string | null;
+  proofTmScreenRecordingPath?: string | null;
+  proofTmEmailScreenshotPath?: string | null;
+  proofPriceNote?: string | null;
 };
 
 export type AdminUser = {
@@ -212,6 +216,10 @@ export async function fetchAdminTickets(params: {
       claimedBy: d.claimed_by != null ? String(d.claimed_by) : null,
       claimedByEmail: d.claimed_by_email != null ? String(d.claimed_by_email) : null,
       claimedAt: d.claimed_at != null ? String(d.claimed_at) : null,
+      proofTmTicketPagePath: d.proof_tm_ticket_page_path != null ? String(d.proof_tm_ticket_page_path) : null,
+      proofTmScreenRecordingPath: d.proof_tm_screen_recording_path != null ? String(d.proof_tm_screen_recording_path) : null,
+      proofTmEmailScreenshotPath: d.proof_tm_email_screenshot_path != null ? String(d.proof_tm_email_screenshot_path) : null,
+      proofPriceNote: d.proof_price_note != null ? String(d.proof_price_note) : null,
     }));
     return { data: out, total, error: null };
   } catch (e) {
@@ -268,6 +276,10 @@ export async function fetchAdminTicketsFiltered(params: {
       claimedBy: d.claimed_by != null ? String(d.claimed_by) : null,
       claimedByEmail: d.claimed_by_email != null ? String(d.claimed_by_email) : null,
       claimedAt: d.claimed_at != null ? String(d.claimed_at) : null,
+      proofTmTicketPagePath: d.proof_tm_ticket_page_path != null ? String(d.proof_tm_ticket_page_path) : null,
+      proofTmScreenRecordingPath: d.proof_tm_screen_recording_path != null ? String(d.proof_tm_screen_recording_path) : null,
+      proofTmEmailScreenshotPath: d.proof_tm_email_screenshot_path != null ? String(d.proof_tm_email_screenshot_path) : null,
+      proofPriceNote: d.proof_price_note != null ? String(d.proof_price_note) : null,
     }));
     return { data: out, total, error: null };
   } catch (e) {
@@ -309,6 +321,10 @@ export async function fetchAdminPendingTickets(): Promise<{
       claimedBy: d.claimed_by != null ? String(d.claimed_by) : null,
       claimedByEmail: d.claimed_by_email != null ? String(d.claimed_by_email) : null,
       claimedAt: d.claimed_at != null ? String(d.claimed_at) : null,
+      proofTmTicketPagePath: d.proof_tm_ticket_page_path != null ? String(d.proof_tm_ticket_page_path) : null,
+      proofTmScreenRecordingPath: d.proof_tm_screen_recording_path != null ? String(d.proof_tm_screen_recording_path) : null,
+      proofTmEmailScreenshotPath: d.proof_tm_email_screenshot_path != null ? String(d.proof_tm_email_screenshot_path) : null,
+      proofPriceNote: d.proof_price_note != null ? String(d.proof_price_note) : null,
     }));
     return { data: out, error: null };
   } catch (e) {

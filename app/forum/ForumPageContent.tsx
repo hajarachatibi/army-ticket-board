@@ -91,7 +91,7 @@ export default function ForumPageContent() {
     return (
       <main className="min-h-screen bg-gradient-army-subtle px-4 py-12">
         <div className="mx-auto max-w-2xl rounded-2xl border border-army-purple/15 bg-white p-6 text-center shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
-          <h1 className="font-display text-2xl font-bold text-army-purple">Forum</h1>
+          <h1 className="font-display text-2xl font-bold text-army-purple">ARMY check form</h1>
           <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
             Please sign in to continue.
           </p>
@@ -108,22 +108,17 @@ export default function ForumPageContent() {
       <div className="mx-auto max-w-2xl">
         <div className="rounded-2xl border border-army-purple/15 bg-white p-6 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
           <h1 className="font-display text-2xl font-bold text-army-purple">
-            BTS Questions
+            ARMY check form
           </h1>
           <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-            Please answer these questions to help keep the community safe. You can skip for now, but you’ll be asked again later.
+            Please answer these questions to help keep the community safe.
           </p>
 
           {loading ? (
             <p className="mt-6 text-neutral-500 dark:text-neutral-400">Loading questions…</p>
           ) : questions.length === 0 ? (
             <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-              No questions are currently active. You can proceed.
-              <div className="mt-3">
-                <Link href={next} className="btn-army inline-flex">
-                  Continue
-                </Link>
-              </div>
+              No questions are currently active. Please try again later.
             </div>
           ) : alreadySubmitted ? (
             <div className="mt-6 rounded-xl border border-army-purple/15 bg-army-purple/5 px-4 py-3 text-sm text-army-purple dark:bg-army-purple/10">
@@ -160,9 +155,6 @@ export default function ForumPageContent() {
               )}
 
               <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-                <Link href={next} className="btn-army-outline">
-                  Skip for now
-                </Link>
                 <button
                   type="button"
                   className="btn-army"

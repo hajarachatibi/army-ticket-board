@@ -6,6 +6,7 @@ try {
   initBotId({
     protect: [
       { path: "/api/tickets/create", method: "POST" },
+      { path: "/api/tickets/proofs", method: "POST" },
       { path: "/api/requests/create", method: "POST" },
       { path: "/api/reports/ticket", method: "POST" },
       { path: "/api/reports/user", method: "POST" },
