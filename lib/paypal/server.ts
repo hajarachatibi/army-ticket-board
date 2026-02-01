@@ -14,7 +14,7 @@ export type DonationConfig = {
   // Optional: if set, we lock the payee to this merchant id.
   merchantId: string | null;
   // Optional wallet funding sources (availability depends on country/device/account eligibility).
-  enableFunding: string | null; // e.g. "applepay,googlepay"
+  enableFunding: string | null; // e.g. "venmo,paylater"
 };
 
 function normalizeEnv(value: string | undefined): "sandbox" | "live" {
@@ -28,6 +28,24 @@ function normalizeDonationMode(value: string | undefined): "tiers" | "custom" | 
   if (v === "tiers") return "tiers";
   if (v === "custom") return "custom";
   return null;
+}
+
+function normalizeEnableFunding(value: string | undefined): string | null {
+  // IMPORTANT:
+  // PayPal's `enable-funding` is for PayPal funding sources (e.g. venmo, paylater).
+  // Apple Pay / Google Pay are NOT enabled via `enable-funding` in the standard Smart Buttons flow
+  // and passing them here can cause the PayPal JS SDK script to fail to load.
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+
+  const allowed = new Set(["venmo", "paylater"]);
+  const items = raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .filter((s) => allowed.has(s));
+
+  return items.length ? items.join(",") : null;
 }
 
 export function getDonationConfig(): DonationConfig {
@@ -56,7 +74,7 @@ export function getDonationConfig(): DonationConfig {
   const merchantId = (process.env.PAYPAL_MERCHANT_ID || "").trim() || null;
 
   // Optional wallets. Must also be enabled in your PayPal account (and only works where eligible).
-  const enableFunding = (process.env.NEXT_PUBLIC_PAYPAL_ENABLE_FUNDING || "").trim() || null;
+  const enableFunding = normalizeEnableFunding(process.env.NEXT_PUBLIC_PAYPAL_ENABLE_FUNDING);
 
   // Donations are "enabled" only when server credentials exist.
   const hasSecret = !!(process.env.PAYPAL_CLIENT_SECRET || "").trim();
@@ -217,9 +235,35 @@ export async function createDonationOrder(opts?: { currency?: string; amount?: s
     cache: "no-store",
   });
 
-  const j = (await res.json().catch(() => null)) as { id?: string; status?: string; message?: string } | null;
+  const j = (await res.json().catch(() => null)) as any;
   if (!res.ok || !j?.id) {
-    throw new Error(`Failed to create PayPal order (HTTP ${res.status}).`);
+    // PayPal typically returns: { name, message, details: [{ issue, description }], debug_id }
+    const name = typeof j?.name === "string" ? j.name : null;
+    const message = typeof j?.message === "string" ? j.message : null;
+    const debugId = typeof j?.debug_id === "string" ? j.debug_id : null;
+    const firstDetail = Array.isArray(j?.details) ? j.details[0] : null;
+    const issue = typeof firstDetail?.issue === "string" ? firstDetail.issue : null;
+    const description = typeof firstDetail?.description === "string" ? firstDetail.description : null;
+
+    const parts = [
+      `Failed to create PayPal order (HTTP ${res.status}).`,
+      name ? `name=${name}` : null,
+      issue ? `issue=${issue}` : null,
+      message ? `message=${message}` : null,
+      description ? `detail=${description}` : null,
+      debugId ? `debug_id=${debugId}` : null,
+      config.merchantId
+        ? "Hint: if you set PAYPAL_MERCHANT_ID, it must match the *sandbox* business merchant id when PAYPAL_ENV=sandbox."
+        : null,
+    ].filter(Boolean);
+
+    // Log full payload for local debugging (avoid in production logs).
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("PayPal create order error payload:", j);
+    }
+
+    throw new Error(parts.join(" "));
   }
 
   return { orderId: j.id, currency, amount };
@@ -242,8 +286,28 @@ export async function captureAndVerifyDonationOrder(orderId: string) {
 
   const j = (await res.json().catch(() => null)) as any;
   if (!res.ok) {
-    const msg = typeof j?.message === "string" ? j.message : `HTTP ${res.status}`;
-    throw new Error(`PayPal capture failed: ${msg}`);
+    const name = typeof j?.name === "string" ? j.name : null;
+    const message = typeof j?.message === "string" ? j.message : null;
+    const debugId = typeof j?.debug_id === "string" ? j.debug_id : null;
+    const firstDetail = Array.isArray(j?.details) ? j.details[0] : null;
+    const issue = typeof firstDetail?.issue === "string" ? firstDetail.issue : null;
+    const description = typeof firstDetail?.description === "string" ? firstDetail.description : null;
+
+    const parts = [
+      `PayPal capture failed (HTTP ${res.status}).`,
+      name ? `name=${name}` : null,
+      issue ? `issue=${issue}` : null,
+      message ? `message=${message}` : null,
+      description ? `detail=${description}` : null,
+      debugId ? `debug_id=${debugId}` : null,
+    ].filter(Boolean);
+
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("PayPal capture error payload:", j);
+    }
+
+    throw new Error(parts.join(" "));
   }
 
   // Minimal verification: ensure the order completed and matches server-configured donation amount.

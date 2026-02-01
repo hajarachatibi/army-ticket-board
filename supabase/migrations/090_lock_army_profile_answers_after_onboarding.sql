@@ -1,6 +1,10 @@
 -- Prevent users from changing ARMY profile answers after onboarding is completed.
 -- (They can still update socials like instagram/facebook/tiktok/snapchat.)
 
+-- If this migration is re-run, the trigger may already exist and depends on the function.
+-- Drop the trigger first to avoid "other objects depend on it" errors.
+DROP TRIGGER IF EXISTS user_profiles_lock_army_answers ON public.user_profiles;
+
 DROP FUNCTION IF EXISTS public.prevent_army_answers_update_after_onboarding();
 CREATE OR REPLACE FUNCTION public.prevent_army_answers_update_after_onboarding()
 RETURNS trigger
@@ -29,7 +33,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS user_profiles_lock_army_answers ON public.user_profiles;
 CREATE TRIGGER user_profiles_lock_army_answers
   BEFORE UPDATE OF army_bias_answer, army_years_army, army_favorite_album ON public.user_profiles
   FOR EACH ROW

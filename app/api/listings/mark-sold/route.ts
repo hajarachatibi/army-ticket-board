@@ -46,14 +46,22 @@ export async function POST(request: NextRequest) {
     .single();
   if (lErr || !listing) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
 
-  const service = createServiceClient();
+  let service;
+  try {
+    service = createServiceClient();
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server misconfigured (service role)" },
+      { status: 500 }
+    );
+  }
 
   // Mark sold: end ALL active connections/requests for this listing.
   const { data: conns } = await service
     .from("connections")
     .select("id, chat_id")
     .eq("listing_id", listingId)
-    .in("stage", ["pending_seller", "bonding", "preview", "social", "agreement", "chat_open"]);
+    .in("stage", ["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
 
   for (const c of (conns ?? []) as any[]) {
     if (c.chat_id) {

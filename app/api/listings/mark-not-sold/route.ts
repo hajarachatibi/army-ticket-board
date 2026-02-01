@@ -46,7 +46,15 @@ export async function POST(request: NextRequest) {
     .single();
   if (lErr || !listing) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
 
-  const service = createServiceClient();
+  let service;
+  try {
+    service = createServiceClient();
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server misconfigured (service role)" },
+      { status: 500 }
+    );
+  }
 
   // Release/unlock: end ONLY the currently locked connection (keep other pending requests).
   const lockedBy = (listing as any).locked_by ? String((listing as any).locked_by) : null;
@@ -56,7 +64,7 @@ export async function POST(request: NextRequest) {
       .select("id, chat_id")
       .eq("listing_id", listingId)
       .eq("buyer_id", lockedBy)
-      .in("stage", ["bonding", "preview", "social", "agreement", "chat_open"]);
+      .in("stage", ["bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
 
     for (const c of (conns ?? []) as any[]) {
       if (c.chat_id) {

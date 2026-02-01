@@ -52,9 +52,10 @@ DONATION_AMOUNT=5.00
 DONATION_MIN_AMOUNT=1.00
 DONATION_MAX_AMOUNT=500.00
 
-# Optional wallets (eligibility varies)
-# Examples: "applepay" or "applepay,googlepay"
-NEXT_PUBLIC_PAYPAL_ENABLE_FUNDING=applepay,googlepay
+# Optional PayPal funding sources (eligibility varies)
+# Valid examples: "venmo" or "venmo,paylater"
+# NOTE: Apple Pay / Google Pay are not enabled via `enable-funding` in the standard Smart Buttons SDK.
+NEXT_PUBLIC_PAYPAL_ENABLE_FUNDING=venmo,paylater
 ```
 
 ## 3) How this prevents “button hijacking”
@@ -76,5 +77,5 @@ Even if a malicious user tampers with the client JavaScript, your server still c
 ## 4) Notes on cards / Apple Pay / Google Pay
 
 - **Cards**: The modal renders both a PayPal button and a Card button. Card eligibility varies by country/account settings.
-- **Apple Pay / Google Pay**: Only appears when enabled in PayPal and when the donor/device is eligible. You can toggle additional wallets with `NEXT_PUBLIC_PAYPAL_ENABLE_FUNDING`.
+- **Apple Pay / Google Pay**: These require PayPal’s separate wallet/APM integration (not `enable-funding`). If you need them, we can add the dedicated PayPal Apple Pay / Google Pay components and update CSP accordingly.
 
