@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     | {
         ticketId?: string;
         proofTmTicketPagePath?: string;
-        proofTmScreenRecordingPath?: string;
+        proofTmScreenRecordingPath?: string | null;
         proofTmEmailScreenshotPath?: string;
         proofPriceNote?: string | null;
       }
@@ -55,18 +55,20 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
   const proofTicketPage = String(body?.proofTmTicketPagePath ?? "").trim();
-  const proofScreenRecording = String(body?.proofTmScreenRecordingPath ?? "").trim();
+  const proofScreenRecordingRaw = body?.proofTmScreenRecordingPath;
+  const proofScreenRecording =
+    proofScreenRecordingRaw == null ? null : String(proofScreenRecordingRaw).trim();
   const proofEmailScreenshot = String(body?.proofTmEmailScreenshotPath ?? "").trim();
   const proofPriceNote = body?.proofPriceNote != null ? String(body.proofPriceNote) : null;
 
   if (!isValidTicketProofPath(proofTicketPage, user.id, "image")) {
-    return NextResponse.json({ error: "Missing/invalid TM ticket page screenshot proof." }, { status: 400 });
+    return NextResponse.json({ error: "Missing/invalid ticket page screenshot proof." }, { status: 400 });
   }
   if (!isValidTicketProofPath(proofEmailScreenshot, user.id, "image")) {
-    return NextResponse.json({ error: "Missing/invalid TM email screenshot proof." }, { status: 400 });
+    return NextResponse.json({ error: "Missing/invalid email screenshot proof." }, { status: 400 });
   }
-  if (!isValidTicketProofPath(proofScreenRecording, user.id, "video")) {
-    return NextResponse.json({ error: "Missing/invalid TM screen recording proof." }, { status: 400 });
+  if (proofScreenRecording && !isValidTicketProofPath(proofScreenRecording, user.id, "video")) {
+    return NextResponse.json({ error: "Invalid screen recording proof." }, { status: 400 });
   }
 
   // Only allow sellers to attach proofs to their own pending tickets.
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
     .from("tickets")
     .update({
       proof_tm_ticket_page_path: proofTicketPage,
-      proof_tm_screen_recording_path: proofScreenRecording,
+      proof_tm_screen_recording_path: proofScreenRecording || null,
       proof_tm_email_screenshot_path: proofEmailScreenshot,
       proof_price_note: proofPriceNote,
     })

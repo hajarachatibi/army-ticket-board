@@ -23,6 +23,7 @@ export default function ForumPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,9 +49,10 @@ export default function ForumPageContent() {
   const canSubmit = useMemo(() => {
     if (!user || submitting) return false;
     if (questions.length === 0) return false;
+    if (!agreeTerms) return false;
     // Require a non-empty answer for all active questions.
     return questions.every((q) => (answers[q.id] ?? "").trim().length > 0);
-  }, [answers, questions, submitting, user]);
+  }, [agreeTerms, answers, questions, submitting, user]);
 
   const onSubmit = async () => {
     if (!user || !canSubmit) return;
@@ -148,6 +150,25 @@ export default function ForumPageContent() {
                 ))}
               </div>
 
+              <div className="mt-6 rounded-xl border border-army-purple/15 bg-white/80 p-4 text-sm text-neutral-700 dark:border-army-purple/25 dark:bg-neutral-900/60 dark:text-neutral-300">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-army-purple/30 text-army-purple focus:ring-army-purple"
+                    checked={agreeTerms}
+                    onChange={(e) => setAgreeTerms(e.target.checked)}
+                    disabled={submitting}
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <a href="/terms" className="font-semibold text-army-purple underline" target="_blank" rel="noreferrer">
+                      Terms and Conditions
+                    </a>
+                    .
+                  </span>
+                </label>
+              </div>
+
               {error && (
                 <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
                   {error}
@@ -160,7 +181,7 @@ export default function ForumPageContent() {
                   className="btn-army"
                   onClick={onSubmit}
                   disabled={!canSubmit}
-                  title={!canSubmit ? "Please answer all questions" : "Submit"}
+                  title={!canSubmit ? "Please answer all questions and agree to the Terms" : "Submit"}
                 >
                   {submitting ? "Submitting…" : "Submit"}
                 </button>

@@ -46,6 +46,14 @@ export default function TermsPage() {
             </section>
 
             <section>
+              <h2 className="font-display text-lg font-bold text-army-purple">Donations (optional)</h2>
+              <p className="mt-2">
+                If we enable an optional Support/Donations feature, donations are not required to use the app. Donations are
+                voluntary and processed by a third-party provider. The app may show a Support link only to signed-in users.
+              </p>
+            </section>
+
+            <section>
               <h2 className="font-display text-lg font-bold text-army-purple">No warranty</h2>
               <p className="mt-2">
                 The app is provided “as is” and “as available”. We do not guarantee uninterrupted access or that every scam attempt

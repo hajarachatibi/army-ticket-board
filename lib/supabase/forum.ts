@@ -15,24 +15,52 @@ export type ForumStatus = {
 };
 
 export async function fetchActiveForumQuestions(): Promise<{ data: ForumQuestion[] | null; error: string | null }> {
+  // User form behavior:
+  // - all active static questions
+  // - + 3 random active dynamic questions
+  const rpc = await supabase.rpc("get_forum_questions_for_user", { p_dynamic_count: 3 });
+  if (!rpc.error) {
+    return {
+      data: (rpc.data ?? []).map((r: any) => ({
+        id: String(r.id),
+        prompt: String(r.prompt ?? ""),
+        kind: (String(r.kind ?? "dynamic") as "static" | "dynamic"),
+        position: Number(r.position ?? 0),
+        active: Boolean(r.active),
+      })),
+      error: null,
+    };
+  }
+
+  // Fallback for older DBs where the RPC isn't deployed yet.
   const { data, error } = await supabase
     .from("forum_questions")
-    .select("id, prompt, kind, position, active")
-    .eq("active", true)
-    .order("position", { ascending: true })
-    .order("created_at", { ascending: true });
-
+    .select("id, prompt, kind, position, active, created_at")
+    .eq("active", true);
   if (error) return { data: null, error: error.message };
-  return {
-    data: (data ?? []).map((r) => ({
-      id: String(r.id),
-      prompt: String(r.prompt ?? ""),
-      kind: (String(r.kind ?? "dynamic") as "static" | "dynamic"),
-      position: Number(r.position ?? 0),
-      active: Boolean(r.active),
-    })),
-    error: null,
-  };
+
+  const rows = (data ?? []).map((r: any) => ({
+    id: String(r.id),
+    prompt: String(r.prompt ?? ""),
+    kind: (String(r.kind ?? "dynamic") as "static" | "dynamic"),
+    position: Number(r.position ?? 0),
+    active: Boolean(r.active),
+    createdAt: String((r as any).created_at ?? ""),
+  }));
+
+  const statics = rows
+    .filter((r) => r.kind === "static")
+    .sort((a, b) => (a.position - b.position) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+
+  const dynamics = rows.filter((r) => r.kind === "dynamic");
+  const chosen: typeof dynamics = [];
+  const pool = [...dynamics];
+  while (chosen.length < 3 && pool.length > 0) {
+    const idx = Math.floor(Math.random() * pool.length);
+    chosen.push(pool.splice(idx, 1)[0]!);
+  }
+
+  return { data: [...statics, ...chosen].map(({ createdAt: _c, ...q }) => q), error: null };
 }
 
 export async function fetchMyForumStatus(): Promise<{ data: ForumStatus | null; error: string | null }> {
@@ -81,17 +109,26 @@ export async function adminFetchAllForumQuestions(): Promise<{ data: ForumQuesti
   };
 }
 
-export async function adminAddDynamicForumQuestion(params: {
+export async function adminAddForumQuestion(params: {
   prompt: string;
-  position?: number;
+  kind?: "static" | "dynamic";
+  active?: boolean;
 }): Promise<{ error: string | null }> {
   const { error } = await supabase.from("forum_questions").insert({
     prompt: params.prompt,
-    kind: "dynamic",
-    position: params.position ?? 1000,
-    active: true,
+    kind: params.kind ?? "dynamic",
+    // Admin UI no longer exposes "position"; keep new questions after defaults.
+    position: 1000,
+    active: params.active ?? true,
   });
   return { error: error?.message ?? null };
+}
+
+// Backward compatible wrapper.
+export async function adminAddDynamicForumQuestion(params: {
+  prompt: string;
+}): Promise<{ error: string | null }> {
+  return adminAddForumQuestion({ prompt: params.prompt, kind: "dynamic" });
 }
 
 export async function adminSetForumQuestionActive(params: {
@@ -99,6 +136,18 @@ export async function adminSetForumQuestionActive(params: {
   active: boolean;
 }): Promise<{ error: string | null }> {
   const { error } = await supabase.from("forum_questions").update({ active: params.active }).eq("id", params.id);
+  return { error: error?.message ?? null };
+}
+
+export async function adminUpdateForumQuestion(params: {
+  id: string;
+  prompt?: string;
+  kind?: "static" | "dynamic";
+}): Promise<{ error: string | null }> {
+  const update: Record<string, any> = {};
+  if (params.prompt != null) update.prompt = params.prompt;
+  if (params.kind != null) update.kind = params.kind;
+  const { error } = await supabase.from("forum_questions").update(update).eq("id", params.id);
   return { error: error?.message ?? null };
 }
 

@@ -15,6 +15,7 @@ import {
 import { displayName } from "@/lib/displayName";
 import type { AdminChatListItem } from "@/lib/supabase/adminChats";
 import type { Chat } from "@/lib/ChatContext";
+import { fetchAdminContacts } from "@/lib/supabase/liteProfile";
 
 function PinIcon({ filled }: { filled: boolean }) {
   return (
@@ -53,10 +54,27 @@ export default function ChatsPageContent() {
   const openedForTicketRef = useRef<string | null>(null);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [activeAdminChat, setActiveAdminChat] = useState<AdminChatListItem | null>(null);
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (user) void fetchChatsForUser(user.id);
   }, [user?.id, fetchChatsForUser]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await fetchAdminContacts();
+      if (cancelled) return;
+      if (error || !data) {
+        setAdminIds(new Set());
+        return;
+      }
+      setAdminIds(new Set(data.map((a) => a.id)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (user?.id && typeof window !== "undefined") {
@@ -203,13 +221,15 @@ export default function ChatsPageContent() {
                 const c = row.chat;
                 const other =
                   c.buyerId === user.id ? c.sellerUsername : c.buyerUsername;
-                const otherLabel = safeName(other, false);
+                const otherId = c.buyerId === user.id ? c.sellerId : c.buyerId;
+                const otherIsAdmin = !!otherId && adminIds.has(otherId);
+                const otherLabel = safeName(other, otherIsAdmin);
                 const last = lastMessage(c.id);
                 const unread = getUnreadCount(c.id);
                 const lastSenderLabel = last
                   ? last.senderId === user.id
                     ? "You"
-                    : otherLabel
+                    : safeName(last.senderUsername, adminIds.has(last.senderId))
                   : null;
                 return (
                   <li key={c.id}>

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { displayName } from "@/lib/displayName";
 import { fetchApprovedStories, submitStory, type ArmyStory } from "@/lib/supabase/stories";
+import { submitRecommendation } from "@/lib/supabase/recommendations";
 
 export default function StoriesPageContent() {
   const { user, isLoggedIn, isLoading, isAdmin } = useAuth();
@@ -18,6 +19,11 @@ export default function StoriesPageContent() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [recOpen, setRecOpen] = useState(false);
+  const [recTitle, setRecTitle] = useState("");
+  const [recBody, setRecBody] = useState("");
+  const [recSubmitting, setRecSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -36,6 +42,11 @@ export default function StoriesPageContent() {
   const openSubmit = () => {
     if (!isLoggedIn) return;
     setSubmitOpen(true);
+  };
+
+  const openRec = () => {
+    if (!isLoggedIn) return;
+    setRecOpen(true);
   };
 
   const canSubmit = useMemo(() => {
@@ -66,6 +77,30 @@ export default function StoriesPageContent() {
     void load();
   };
 
+  const canSubmitRec = useMemo(() => {
+    return !!user && recTitle.trim().length >= 4 && recBody.trim().length >= 10;
+  }, [user, recTitle, recBody]);
+
+  const doSubmitRec = async () => {
+    if (!user || !canSubmitRec) return;
+    setRecSubmitting(true);
+    setError(null);
+    const { error: e } = await submitRecommendation({
+      authorId: user.id,
+      title: recTitle.trim(),
+      body: recBody.trim(),
+    });
+    setRecSubmitting(false);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setRecOpen(false);
+    setRecTitle("");
+    setRecBody("");
+    setError("Thanks! Your recommendation was sent to the admins.");
+  };
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-gradient-army-subtle px-4 py-12">
@@ -80,12 +115,17 @@ export default function StoriesPageContent() {
     <main className="min-h-screen bg-gradient-army-subtle px-4 py-8">
       <div className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-3xl font-bold text-army-purple">ARMY Stories</h1>
+          <h1 className="font-display text-3xl font-bold text-army-purple">ARMY Stories & Feedback</h1>
           <div className="flex gap-2">
             {isLoggedIn ? (
-              <button type="button" className="btn-army" onClick={openSubmit}>
-                Share your story
-              </button>
+              <>
+                <button type="button" className="btn-army-outline" onClick={openRec}>
+                  Send a recommendation
+                </button>
+                <button type="button" className="btn-army" onClick={openSubmit}>
+                  Share your story / feedback
+                </button>
+              </>
             ) : (
               <Link href="/login" className="btn-army">
                 Sign in to post
@@ -98,7 +138,7 @@ export default function StoriesPageContent() {
         </div>
 
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Community feedback and experiences. Stories are moderated. Links are not allowed.
+          Community stories and feedback. Posts are moderated. Ticket resale links are not allowed.
         </p>
 
         {error && (
@@ -146,7 +186,7 @@ export default function StoriesPageContent() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="story-submit-title" className="font-display text-xl font-bold text-army-purple">
-                Share your story
+                Share your story or feedback
               </h2>
               <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
                 No ticket resale links. Submissions are moderated.
@@ -170,13 +210,13 @@ export default function StoriesPageContent() {
                   <input className="input-army mt-1" value={title} onChange={(e) => setTitle(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-army-purple">Story</label>
+                  <label className="block text-sm font-semibold text-army-purple">Story / Feedback</label>
                   <textarea
                     className="input-army mt-1 resize-none"
                     rows={6}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
-                    placeholder="Write your experience…"
+                    placeholder="Share your experience or feedback…"
                   />
                   <p className="mt-1 text-xs text-neutral-500">Minimum ~20 characters.</p>
                 </div>
@@ -188,6 +228,55 @@ export default function StoriesPageContent() {
                 </button>
                 <button type="button" className="btn-army" disabled={!canSubmit || submitting} onClick={doSubmit}>
                   {submitting ? "Submitting…" : "Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {recOpen && (
+          <div
+            className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rec-submit-title"
+            onClick={() => setRecOpen(false)}
+          >
+            <div
+              className="w-full max-w-xl cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="rec-submit-title" className="font-display text-xl font-bold text-army-purple">
+                Send a recommendation
+              </h2>
+              <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                This is not public — it goes to admins only.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-semibold text-army-purple">Title</label>
+                  <input className="input-army mt-1" value={recTitle} onChange={(e) => setRecTitle(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-army-purple">Recommendation</label>
+                  <textarea
+                    className="input-army mt-1 resize-none"
+                    rows={5}
+                    value={recBody}
+                    onChange={(e) => setRecBody(e.target.value)}
+                    placeholder="What should we improve or add?"
+                  />
+                  <p className="mt-1 text-xs text-neutral-500">Minimum ~10 characters.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button type="button" className="btn-army-outline" onClick={() => setRecOpen(false)} disabled={recSubmitting}>
+                  Cancel
+                </button>
+                <button type="button" className="btn-army" disabled={!canSubmitRec || recSubmitting} onClick={doSubmitRec}>
+                  {recSubmitting ? "Sending…" : "Send"}
                 </button>
               </div>
             </div>

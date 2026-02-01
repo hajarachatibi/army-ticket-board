@@ -9,15 +9,17 @@ import { useAuth } from "@/lib/AuthContext";
 import AdminChatModal from "@/components/AdminChatModal";
 import {
   adminAddDynamicForumQuestion,
+  adminAddForumQuestion,
   adminDeleteForumQuestion,
   adminFetchAllForumQuestions,
   adminFetchForumSubmissions,
   adminSetForumQuestionActive,
+  adminUpdateForumQuestion,
   type ForumQuestion,
   type AdminForumSubmission,
 } from "@/lib/supabase/forum";
 import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
-import { createAdminRecommendation, deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
+import { deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
 import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
 import {
   adminApproveTicket,
@@ -108,12 +110,14 @@ export default function AdminPanelContent() {
 
   const [forumQuestions, setForumQuestions] = useState<ForumQuestion[]>([]);
   const [newForumPrompt, setNewForumPrompt] = useState("");
+  const [newForumKind, setNewForumKind] = useState<"static" | "dynamic">("dynamic");
+  const [editingForumQuestionId, setEditingForumQuestionId] = useState<string | null>(null);
+  const [editForumPrompt, setEditForumPrompt] = useState("");
+  const [editForumKind, setEditForumKind] = useState<"static" | "dynamic">("dynamic");
   const [forumSubmissions, setForumSubmissions] = useState<AdminForumSubmission[]>([]);
 
   const [pendingStories, setPendingStories] = useState<ArmyStory[]>([]);
   const [adminRecs, setAdminRecs] = useState<AdminRecommendation[]>([]);
-  const [recTitle, setRecTitle] = useState("");
-  const [recBody, setRecBody] = useState("");
 
   const [userReportProofUrls, setUserReportProofUrls] = useState<Record<string, string>>({});
   const [userReportProofOpen, setUserReportProofOpen] = useState<{ url: string; title: string } | null>(null);
@@ -265,10 +269,15 @@ export default function AdminPanelContent() {
   const loadForumSubmissions = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: e } = await adminFetchForumSubmissions();
+    const [{ data, error: e }, { data: qs, error: qErr }] = await Promise.all([
+      adminFetchForumSubmissions(),
+      adminFetchAllForumQuestions(),
+    ]);
     setLoading(false);
     if (e) setError(e);
     else setForumSubmissions(data);
+    if (qErr) setError(qErr);
+    else if (qs) setForumQuestions(qs);
   }, []);
 
   const loadPendingStories = useCallback(async () => {
@@ -369,16 +378,52 @@ export default function AdminPanelContent() {
     if (!prompt) return;
     setLoading(true);
     setError(null);
-    const { error: e } = await adminAddDynamicForumQuestion({ prompt });
+    const { error: e } = await adminAddForumQuestion({ prompt, kind: newForumKind });
     setLoading(false);
     if (e) {
       setError(e);
       return;
     }
     setNewForumPrompt("");
+    setNewForumKind("dynamic");
     setActionFeedback("Forum question added.");
     loadForumQuestions();
-  }, [newForumPrompt, loadForumQuestions]);
+  }, [newForumPrompt, newForumKind, loadForumQuestions]);
+
+  const startEditForumQuestion = useCallback((q: ForumQuestion) => {
+    setEditingForumQuestionId(q.id);
+    setEditForumPrompt(q.prompt);
+    setEditForumKind(q.kind);
+  }, []);
+
+  const cancelEditForumQuestion = useCallback(() => {
+    setEditingForumQuestionId(null);
+    setEditForumPrompt("");
+    setEditForumKind("dynamic");
+  }, []);
+
+  const saveEditForumQuestion = useCallback(async () => {
+    if (!editingForumQuestionId) return;
+    const prompt = editForumPrompt.trim();
+    if (!prompt) {
+      setError("Question prompt cannot be empty.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { error: e } = await adminUpdateForumQuestion({
+      id: editingForumQuestionId,
+      prompt,
+      kind: editForumKind,
+    });
+    setLoading(false);
+    if (e) setError(e);
+    else {
+      setActionFeedback("Question updated.");
+      cancelEditForumQuestion();
+      loadForumQuestions();
+    }
+  }, [editingForumQuestionId, editForumPrompt, editForumKind, cancelEditForumQuestion, loadForumQuestions]);
 
   const handleToggleForumQuestion = useCallback(
     async (id: string, active: boolean) => {
@@ -441,24 +486,6 @@ export default function AdminPanelContent() {
     },
     [loadPendingStories]
   );
-
-  const handleCreateRec = useCallback(async () => {
-    if (!user?.id) return;
-    const t = recTitle.trim();
-    const b = recBody.trim();
-    if (!t || !b) return;
-    setLoading(true);
-    setError(null);
-    const { error: e } = await createAdminRecommendation({ authorId: user.id, title: t, body: b });
-    setLoading(false);
-    if (e) setError(e);
-    else {
-      setRecTitle("");
-      setRecBody("");
-      setActionFeedback("Recommendation added.");
-      loadRecommendations();
-    }
-  }, [user?.id, recTitle, recBody, loadRecommendations]);
 
   const handleDeleteRec = useCallback(
     async (id: string) => {
@@ -1636,12 +1663,12 @@ export default function AdminPanelContent() {
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Forum questions</h2>
               <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-                Static questions are seeded and should usually stay. Dynamic questions can be added/disabled any time.
-                When questions change, users will be asked to re-submit the forum.
+                Admins can add, edit, deactivate, or delete any question (static or dynamic).
+                When static questions change, users will be asked to re-submit the ARMY check form.
               </p>
 
               <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
-                <label className="block text-sm font-semibold text-army-purple">Add a new dynamic question</label>
+                <label className="block text-sm font-semibold text-army-purple">Add a new question</label>
                 <textarea
                   value={newForumPrompt}
                   onChange={(e) => setNewForumPrompt(e.target.value)}
@@ -1649,7 +1676,21 @@ export default function AdminPanelContent() {
                   className="input-army mt-2 resize-none"
                   placeholder="Type the question…"
                 />
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="text-sm font-semibold text-army-purple">
+                      Type
+                      <select
+                        className="input-army ml-2 w-auto py-1.5 text-sm"
+                        value={newForumKind}
+                        onChange={(e) => setNewForumKind(e.target.value as "static" | "dynamic")}
+                        disabled={loading}
+                      >
+                        <option value="dynamic">Dynamic</option>
+                        <option value="static">Static</option>
+                      </select>
+                    </label>
+                  </div>
                   <button
                     type="button"
                     className="btn-army"
@@ -1705,7 +1746,35 @@ export default function AdminPanelContent() {
                                 {q.active ? "Yes" : "No"}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{q.prompt}</td>
+                            <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
+                              {editingForumQuestionId === q.id ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={editForumPrompt}
+                                    onChange={(e) => setEditForumPrompt(e.target.value)}
+                                    rows={2}
+                                    className="input-army resize-none"
+                                    disabled={loading}
+                                  />
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <label className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
+                                      Type
+                                      <select
+                                        className="input-army ml-2 w-auto py-1.5 text-sm"
+                                        value={editForumKind}
+                                        onChange={(e) => setEditForumKind(e.target.value as "static" | "dynamic")}
+                                        disabled={loading}
+                                      >
+                                        <option value="dynamic">Dynamic</option>
+                                        <option value="static">Static</option>
+                                      </select>
+                                    </label>
+                                  </div>
+                                </div>
+                              ) : (
+                                q.prompt
+                              )}
+                            </td>
                             <td className="whitespace-nowrap px-4 py-3">
                               <div className="flex flex-wrap gap-2">
                                 <button
@@ -1715,15 +1784,43 @@ export default function AdminPanelContent() {
                                 >
                                   {q.active ? "Deactivate" : "Activate"}
                                 </button>
-                                {q.kind === "dynamic" && (
+                                {editingForumQuestionId === q.id ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={saveEditForumQuestion}
+                                      className="rounded bg-army-purple px-2 py-1 text-xs font-medium text-white hover:bg-army-700"
+                                      disabled={loading}
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEditForumQuestion}
+                                      className="rounded bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600"
+                                      disabled={loading}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteForumQuestion(q.id)}
-                                    className="rounded bg-red-500/15 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-500/25 dark:bg-red-500/20 dark:text-red-300 dark:hover:bg-red-500/30"
+                                    onClick={() => startEditForumQuestion(q)}
+                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                    disabled={loading}
                                   >
-                                    Delete
+                                    Edit
                                   </button>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteForumQuestion(q.id)}
+                                  className="rounded bg-red-500/15 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-500/25 dark:bg-red-500/20 dark:text-red-300 dark:hover:bg-red-500/30"
+                                  disabled={loading}
+                                >
+                                  Delete
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1740,7 +1837,7 @@ export default function AdminPanelContent() {
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Forum submissions</h2>
               <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-                Latest BTS answers per user (manual review). If answers look suspicious, you can ban the user from the user popup.
+                Latest ARMY check answers per user (manual review). If answers look suspicious, you can ban the user from the user popup.
               </p>
 
               {loading ? (
@@ -1775,12 +1872,29 @@ export default function AdminPanelContent() {
                         {Object.entries(s.answers ?? {}).length === 0 ? (
                           <p className="text-neutral-500 dark:text-neutral-400">No answers.</p>
                         ) : (
-                          Object.entries(s.answers).map(([qid, ans]) => (
-                            <div key={qid} className="rounded-xl border border-army-purple/10 bg-army-purple/5 p-3 dark:border-army-purple/20 dark:bg-army-purple/10">
-                              <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">QID {qid}</p>
-                              <p className="mt-1 whitespace-pre-wrap break-words">{String(ans ?? "")}</p>
-                            </div>
-                          ))
+                          Object.entries(s.answers)
+                            .map(([qid, ans]) => {
+                              const q = forumQuestions.find((x) => x.id === qid);
+                              return { qid, ans: String(ans ?? ""), q };
+                            })
+                            .sort((a, b) => {
+                              const aKind = a.q?.kind ?? "dynamic";
+                              const bKind = b.q?.kind ?? "dynamic";
+                              const aGroup = aKind === "static" ? 0 : 1;
+                              const bGroup = bKind === "static" ? 0 : 1;
+                              if (aGroup !== bGroup) return aGroup - bGroup;
+                              const aLabel = a.q?.prompt?.trim() ? a.q.prompt : a.qid;
+                              const bLabel = b.q?.prompt?.trim() ? b.q.prompt : b.qid;
+                              return aLabel.localeCompare(bLabel);
+                            })
+                            .map(({ qid, ans, q }) => (
+                              <div key={qid} className="rounded-xl border border-army-purple/10 bg-army-purple/5 p-3 dark:border-army-purple/20 dark:bg-army-purple/10">
+                                <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
+                                  {q?.prompt?.trim() ? q.prompt : "Question (deleted)"}
+                                </p>
+                                <p className="mt-1 whitespace-pre-wrap break-words">{ans}</p>
+                              </div>
+                            ))
                         )}
                       </div>
                     </div>
@@ -1857,28 +1971,10 @@ export default function AdminPanelContent() {
 
           {tab === "recommendations" && (
             <section>
-              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">ARMY Recommendations (admin-only)</h2>
-              <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
-                <p className="text-sm font-semibold text-army-purple">Add recommendation</p>
-                <input
-                  className="input-army mt-2"
-                  placeholder="Title"
-                  value={recTitle}
-                  onChange={(e) => setRecTitle(e.target.value)}
-                />
-                <textarea
-                  className="input-army mt-2 resize-none"
-                  rows={4}
-                  placeholder="Write recommendation…"
-                  value={recBody}
-                  onChange={(e) => setRecBody(e.target.value)}
-                />
-                <div className="mt-3 flex justify-end">
-                  <button type="button" className="btn-army" onClick={handleCreateRec} disabled={loading || !recTitle.trim() || !recBody.trim()}>
-                    Add
-                  </button>
-                </div>
-              </div>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">ARMY Recommendations (admin view)</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Users can submit recommendations from the Stories page. Admins can review them here.
+              </p>
 
               <div className="mt-4 space-y-3">
                 {loading ? (
@@ -1932,7 +2028,7 @@ export default function AdminPanelContent() {
           onClick={() => setTicketDetailsOpen(null)}
         >
           <div
-            className="w-full max-w-xl rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-xl font-bold text-army-purple">Ticket details</h2>
@@ -2226,19 +2322,19 @@ function TicketProofSection({
 
   return (
     <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white/70 p-4 dark:border-army-purple/25 dark:bg-neutral-900/60">
-      <p className="text-sm font-semibold text-army-purple">Seller proofs (Ticketmaster)</p>
+      <p className="text-sm font-semibold text-army-purple">Seller proofs (TM/SG)</p>
       {ticket.proofPriceNote && (
         <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
           <span className="font-semibold">Note:</span> {ticket.proofPriceNote}
         </p>
       )}
 
-      <div className="mt-4 grid gap-4">
+      <div className="mt-4 grid max-h-[45vh] gap-4 overflow-y-auto pr-1">
         <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
-          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">TM ticket page screenshot</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Ticket page screenshot</p>
           {urls?.tmTicketPage ? (
             <a href={urls.tmTicketPage} target="_blank" rel="noopener noreferrer">
-              <img src={urls.tmTicketPage} alt="TM ticket page proof" className="mt-2 h-auto w-full rounded-lg" />
+              <img src={urls.tmTicketPage} alt="Ticket page proof" className="mt-2 h-auto w-full rounded-lg" />
             </a>
           ) : (
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>
@@ -2246,19 +2342,21 @@ function TicketProofSection({
         </div>
 
         <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
-          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">TM app screen recording</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">App screen recording (optional)</p>
           {urls?.tmScreenRecording ? (
             <video className="mt-2 w-full rounded-lg" controls preload="metadata" src={urls.tmScreenRecording} />
           ) : (
-            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              {ticket.proofTmScreenRecordingPath ? "Loading…" : "Not provided."}
+            </p>
           )}
         </div>
 
         <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
-          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">TM email screenshot</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Email screenshot (face value proof)</p>
           {urls?.tmEmailScreenshot ? (
             <a href={urls.tmEmailScreenshot} target="_blank" rel="noopener noreferrer">
-              <img src={urls.tmEmailScreenshot} alt="TM email proof" className="mt-2 h-auto w-full rounded-lg" />
+              <img src={urls.tmEmailScreenshot} alt="Email proof" className="mt-2 h-auto w-full rounded-lg" />
             </a>
           ) : (
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>

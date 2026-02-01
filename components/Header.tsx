@@ -89,9 +89,10 @@ export default function Header() {
           </span>
           <div className="flex items-center gap-2 text-white/95">
             <span>
-              We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
+              We’re temporarily hiding all available tickets while admins review them. Approved tickets will be re-listed soon.
               <span className="hidden sm:inline">
-                {" "}If you’re a seller with a pending ticket, please submit your seller proof form — you’ll find it under <strong>My tickets</strong>. We will temporarily keep the seller proof form only for pending tickets, but for all new tickets it’s merged into the Sell Ticket form.
+                {" "}If you’re a seller with a <strong>pending</strong> ticket, please submit the <strong>Seller proof</strong> form under <strong>My tickets</strong>.
+                {" "}This is temporary for existing pending tickets only — all new tickets already include proofs in the <strong>Sell ticket</strong> form.
               </span>
             </span>
             <button
@@ -184,15 +185,6 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div
-            className="hidden h-10 w-16 overflow-hidden rounded-lg border border-army-purple/20 bg-gradient-to-br from-army-200 to-army-400 sm:block"
-            title="Arirang World Tour poster placeholder"
-          >
-            <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-army-900">
-              ARIRANG
-            </div>
-          </div>
-
           <button
             type="button"
             onClick={toggle}
@@ -212,7 +204,7 @@ export default function Header() {
           <NotificationBell />
 
           <div className="flex items-center gap-2">
-            {supportEnabled && (
+            {supportEnabled && isLoggedIn && (
               <Link
                 href="/support"
                 className="hidden rounded-lg border border-army-purple/30 bg-army-purple/10 px-3 py-2 text-sm font-semibold text-army-purple hover:bg-army-purple/15 dark:border-army-purple/40 dark:bg-army-purple/20 dark:text-army-300 sm:inline-flex"
@@ -337,10 +329,10 @@ export default function Header() {
               <div className="rounded-xl border border-army-purple/15 bg-army-purple/5 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-army-purple">Safety update</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-                  We’re temporarily taking down all available tickets while admins review them. Approved tickets will be re-listed soon.
+                  We’re temporarily hiding all available tickets while admins review them. Approved tickets will be re-listed soon.
                 </p>
                 <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                  <span className="font-semibold">Sellers with pending tickets:</span> please submit your seller proof form — you’ll find it under <span className="font-semibold">My tickets</span>. We will temporarily keep the seller proof form only for pending tickets, but for all new tickets it’s merged into the Sell Ticket form.
+                  <span className="font-semibold">Sellers with pending tickets:</span> please submit the <span className="font-semibold">Seller proof</span> form under <span className="font-semibold">My tickets</span>. This is temporary for existing pending tickets only — all new tickets already include proofs in the <span className="font-semibold">Sell ticket</span> form.
                 </p>
               </div>
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">

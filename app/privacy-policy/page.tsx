@@ -71,6 +71,14 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section>
+              <h2 className="font-display text-lg font-bold text-army-purple">Donations (optional)</h2>
+              <p className="mt-2">
+                If we enable the optional Support/Donations feature, payments will be processed by a third-party provider (for
+                example, PayPal). We do not store your full payment details on our servers.
+              </p>
+            </section>
+
+            <section>
               <h2 className="font-display text-lg font-bold text-army-purple">Contact</h2>
               <p className="mt-2">
                 If you have privacy questions, contact the admins via the Official Admin Channel or the in-app report feature.

@@ -27,7 +27,7 @@ export async function fetchAdminRecommendations(): Promise<{ data: AdminRecommen
   };
 }
 
-export async function createAdminRecommendation(params: {
+export async function submitRecommendation(params: {
   authorId: string;
   title: string;
   body: string;

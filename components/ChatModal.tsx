@@ -7,12 +7,12 @@ import { useAuth } from "@/lib/AuthContext";
 import { useChat } from "@/lib/ChatContext";
 import { pushPendingForUser } from "@/lib/notificationsStorage";
 import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
-import { supabase } from "@/lib/supabaseClient";
 import { uploadChatImage } from "@/lib/supabase/uploadChatImage";
 import { useRequest } from "@/lib/RequestContext";
 import UserReportModal from "@/components/UserReportModal";
 import { displayName } from "@/lib/displayName";
 import LiteProfileModal from "@/components/LiteProfileModal";
+import { fetchAdminContacts } from "@/lib/supabase/liteProfile";
 
 export default function ChatModal() {
   const { user, isAdmin } = useAuth();
@@ -55,29 +55,22 @@ export default function ChatModal() {
 
   useEffect(() => {
     if (!chat) return;
-    const ids = [chat.buyerId, chat.sellerId].filter(Boolean);
-    if (ids.length === 0) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("id, role")
-        .in("id", ids);
+      const { data, error } = await fetchAdminContacts();
       if (cancelled) return;
       if (error || !data) {
         setAdminIds(new Set());
         return;
       }
       const next = new Set<string>();
-      for (const row of data as Array<{ id: string; role: string }>) {
-        if (row.role === "admin") next.add(row.id);
-      }
+      for (const row of data) next.add(row.id);
       setAdminIds(next);
     })();
     return () => {
       cancelled = true;
     };
-  }, [chat?.buyerId, chat?.sellerId, chat?.id]);
+  }, [chat?.id]);
 
   useEffect(() => {
     if (activeChatId) fetchMessagesForChat(activeChatId);

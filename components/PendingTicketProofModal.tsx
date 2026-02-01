@@ -35,7 +35,6 @@ export default function PendingTicketProofModal({
     !!userId &&
     !submitting &&
     !!proofTicketPage &&
-    !!proofScreenRecording &&
     !!proofEmailScreenshot;
 
   const submit = async () => {
@@ -56,17 +55,6 @@ export default function PendingTicketProofModal({
         return;
       }
 
-      const b = await uploadTicketProofAttachment({
-        userId,
-        groupId,
-        kind: "tm_screen_recording",
-        file: proofScreenRecording!,
-      });
-      if ("error" in b) {
-        setError(b.error);
-        return;
-      }
-
       const c = await uploadTicketProofAttachment({
         userId,
         groupId,
@@ -78,13 +66,28 @@ export default function PendingTicketProofModal({
         return;
       }
 
+      let b: { path: string } | null = null;
+      if (proofScreenRecording) {
+        const r = await uploadTicketProofAttachment({
+          userId,
+          groupId,
+          kind: "tm_screen_recording",
+          file: proofScreenRecording,
+        });
+        if ("error" in r) {
+          setError(r.error);
+          return;
+        }
+        b = r;
+      }
+
       const res = await fetch("/api/tickets/proofs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticketId: ticket.id,
           proofTmTicketPagePath: a.path,
-          proofTmScreenRecordingPath: b.path,
+          proofTmScreenRecordingPath: b?.path ?? null,
           proofTmEmailScreenshotPath: c.path,
           proofPriceNote: priceNote.trim() ? priceNote.trim() : null,
         }),
@@ -114,7 +117,10 @@ export default function PendingTicketProofModal({
       role="dialog"
       aria-modal="true"
       aria-label="Seller proof form"
-      onClick={onClose}
+      onClick={() => {
+        if (submitting) return;
+        onClose();
+      }}
     >
       <div
         className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
@@ -124,7 +130,7 @@ export default function PendingTicketProofModal({
           <div className="min-w-0">
             <h2 className="truncate font-display text-xl font-bold text-army-purple">{title}</h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Required for pending tickets. Upload Ticketmaster proofs.
+              Required for pending tickets. Upload Ticketmaster (TM) or SeatGeek (SG) proofs.
             </p>
           </div>
           <button type="button" className="btn-army-outline" onClick={onClose} disabled={submitting}>
@@ -135,7 +141,7 @@ export default function PendingTicketProofModal({
         <div className="mt-5 space-y-4">
           <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
             <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
-              1) Screenshot of TM ticket page (today’s date + your name handwritten)
+              1) Screenshot of TM/SG ticket page (with today’s date and your name handwritten)
             </p>
             <input
               type="file"
@@ -148,7 +154,7 @@ export default function PendingTicketProofModal({
 
           <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
             <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
-              2) Screen recording scrolling TM app
+              2) Screen recording scrolling TM/SG app (Optional but will make review faster)
             </p>
             <input
               type="file"
@@ -161,7 +167,7 @@ export default function PendingTicketProofModal({
 
           <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
             <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
-              3) Screenshot of TM email (hide sensitive info) to prove face value
+              3) Screenshot of TM/SG email (sensitive info hidden) to prove face value
             </p>
             <input
               type="file"
@@ -174,7 +180,7 @@ export default function PendingTicketProofModal({
 
           <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
             <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">
-              Optional note (if price is not face value, explain fees)
+              Optional note (if it’s not face value, explain why — fees, etc.)
             </label>
             <textarea
               rows={3}

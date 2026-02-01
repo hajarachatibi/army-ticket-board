@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/lib/AuthContext";
 
 function isTruthyEnv(value: string | undefined) {
   if (!value) return false;
@@ -9,6 +10,7 @@ function isTruthyEnv(value: string | undefined) {
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const { isLoggedIn } = useAuth();
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
   return (
     <footer className="mt-auto border-t border-army-purple/10 bg-white/80 py-6 dark:bg-[#0f0f0f]/80">
@@ -22,7 +24,7 @@ export default function Footer() {
             <Link href="/terms" className="text-army-purple hover:underline dark:text-army-300">
               Terms
             </Link>
-            {supportEnabled && (
+            {supportEnabled && isLoggedIn && (
               <Link href="/support" className="text-army-purple hover:underline dark:text-army-300">
                 Support us 💜
               </Link>
