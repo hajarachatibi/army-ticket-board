@@ -54,11 +54,10 @@ export async function submitForumAnswers(params: {
   userId: string;
   answers: Record<string, string>;
 }): Promise<{ error: string | null }> {
-  const { error } = await supabase.from("forum_submissions").insert({
-    user_id: params.userId,
-    answers: params.answers,
-  });
-  return { error: error?.message ?? null };
+  // This client helper is intentionally unused after moving submissions
+  // to a BotID-protected server route. Keep for backward compatibility.
+  void params;
+  return { error: "Forum submission is handled by the server." };
 }
 
 // Admin helpers (RLS-protected by is_admin()).

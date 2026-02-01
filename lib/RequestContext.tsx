@@ -89,14 +89,15 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       seatPreference?: string | null,
       options?: { status?: "accepted"; acceptedBy?: string }
     ): Promise<Request | null> => {
+      // Requests are inserted via server route for BotID protection.
+      // requesterId/requesterUsername are still used for UI state, but server verifies identity.
+      void requesterId;
+      void requesterUsername;
+      void options;
       const { data, error } = await insertRequest({
         ticketId,
-        requesterId,
-        requesterUsername,
         event: event ?? "—",
         seatPreference: seatPreference ?? "—",
-        status: options?.status,
-        acceptedBy: options?.acceptedBy,
       });
       if (error) {
         if (process.env.NODE_ENV === "development") console.error("[RequestContext] addRequest:", error);

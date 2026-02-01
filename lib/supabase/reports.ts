@@ -31,14 +31,21 @@ export async function insertReport(params: {
   details?: string | null;
 }): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase.from("reports").insert({
-      ticket_id: params.ticketId,
-      reporter_id: params.reporterId,
-      reported_by_username: params.reportedByUsername,
-      reason: params.reason,
-      details: params.details ?? null,
+    // Submit via server route for BotID protection.
+    void params.reporterId;
+    void params.reportedByUsername;
+    const res = await fetch("/api/reports/ticket", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticketId: params.ticketId,
+        reason: params.reason,
+        details: params.details ?? null,
+      }),
     });
-    return { error: error?.message ?? null };
+    const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+    if (!res.ok) return { error: j?.error ?? `HTTP ${res.status}` };
+    return { error: null };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to save report" };
   }

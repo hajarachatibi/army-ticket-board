@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/AuthContext";
 import {
   fetchActiveForumQuestions,
   fetchMyForumStatus,
-  submitForumAnswers,
   type ForumQuestion,
 } from "@/lib/supabase/forum";
 
@@ -60,9 +59,14 @@ export default function ForumPageContent() {
     try {
       const payload: Record<string, string> = {};
       for (const q of questions) payload[q.id] = (answers[q.id] ?? "").trim();
-      const { error: err } = await submitForumAnswers({ userId: user.id, answers: payload });
-      if (err) {
-        setError(err);
+      const res = await fetch("/api/forum/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: payload }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      if (!res.ok || !j?.ok) {
+        setError(j?.error || `HTTP ${res.status}`);
         return;
       }
       router.replace(next);

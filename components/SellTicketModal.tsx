@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { ARIRANG_CITIES, ARIRANG_EVENTS } from "@/lib/data/arirang";
 import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
 import type { Ticket } from "@/lib/data/tickets";
-import { insertTicket, updateTicket } from "@/lib/supabase/tickets";
+import { updateTicket } from "@/lib/supabase/tickets";
 import Link from "next/link";
 import { fetchMySellerProofStatus } from "@/lib/supabase/sellerProof";
 
@@ -161,23 +161,45 @@ export default function SellTicketModal({
     }
     setSubmitting(true);
     try {
-      const { data, error } = await insertTicket({
-        event,
-        city,
-        day,
-        vip,
-        quantity: qty,
-        section,
-        row,
-        seat: seatVal,
-        type: seatType,
-        ownerId: user.id,
-        price: priceNum,
-        currency,
+      const res = await fetch("/api/tickets/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event,
+          city,
+          day,
+          vip,
+          quantity: qty,
+          section,
+          row,
+          seat: seatVal,
+          type: seatType,
+          price: priceNum,
+          currency,
+        }),
       });
-      if (error) throw new Error(error);
-      if (!data) throw new Error("No ticket returned");
-      onTicketAdded?.(data);
+      const j = (await res.json().catch(() => null)) as { data?: any; error?: string } | null;
+      if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
+      const raw = j?.data;
+      if (!raw) throw new Error("No ticket returned");
+
+      onTicketAdded?.({
+        id: String(raw.id),
+        event: String(raw.event),
+        city: String(raw.city),
+        day: String(raw.day),
+        vip: Boolean(raw.vip),
+        quantity: Number(raw.quantity),
+        section: String(raw.section),
+        row: String(raw.seat_row),
+        seat: String(raw.seat),
+        type: String(raw.type) as Ticket["type"],
+        status: String(raw.status) as Ticket["status"],
+        ownerId: raw.owner_id ?? null,
+        price: Number(raw.price ?? 0),
+        currency: String(raw.currency ?? "USD"),
+        listingStatus: raw.listing_status ?? undefined,
+      } as Ticket);
       resetForm();
       onClose();
     } catch (err) {
