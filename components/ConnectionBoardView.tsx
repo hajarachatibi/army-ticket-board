@@ -251,7 +251,7 @@ export default function ConnectionBoardView() {
             My Connections
             {unreadConnectionNotificationCount > 0 && (
               <span
-                className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-red-500"
+                className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-army-purple"
                 aria-label="Unread connection updates"
               />
             )}
@@ -303,7 +303,7 @@ export default function ConnectionBoardView() {
                     <div className="relative">
                       {unreadConnectionIds.has(c.id) && (
                         <span
-                          className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500"
+                          className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-army-purple"
                           aria-label="Unread updates for this connection"
                         />
                       )}

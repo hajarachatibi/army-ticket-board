@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       selling_reason: sellingReason,
       price_explanation: priceExplanation || null,
       status: "processing",
-      processing_until: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      processing_until: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
     })
     .select("id")
     .single();
