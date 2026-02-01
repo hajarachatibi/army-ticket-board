@@ -20,6 +20,20 @@ function formatPrice(amount: number, currency: string): string {
   }
 }
 
+function browseStatusPill(status: string): { label: string; cls: string } {
+  const s = String(status || "").toLowerCase();
+  if (s === "sold") {
+    return { label: "Sold", cls: "bg-neutral-200 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-100" };
+  }
+  if (s === "locked") {
+    return { label: "Locked", cls: "bg-amber-500/15 text-amber-900 dark:text-amber-200" };
+  }
+  if (s === "processing") {
+    return { label: "Processing", cls: "bg-army-purple/10 text-army-purple dark:text-army-300" };
+  }
+  return { label: "Active", cls: "bg-army-200/60 text-army-900 dark:bg-army-300/25 dark:text-army-200" };
+}
+
 function listingStatusLabel(l: MyListing): { label: string; color: string } {
   if (l.status === "removed") return { label: "Removed", color: "bg-red-500/15 text-red-700 dark:text-red-300" };
   if (l.status === "sold") return { label: "Sold", color: "bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200" };
@@ -212,59 +226,74 @@ export default function ConnectionBoardView() {
 
   return (
     <RequireAuth>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-army-purple">ARMY Connection Board</h1>
-          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            Connect with ARMYs through tickets at face value. This is not a marketplace.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {isAdmin && (
-            <Link href="/admin" className="btn-army-outline">
-              Admin
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="font-display text-3xl font-bold text-army-purple sm:text-4xl">
+              ARMY Connection Board
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-neutral-600 dark:text-neutral-400">
+              Connect with ARMYs through tickets at face value. This is <span className="font-semibold">not</span> a marketplace.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {isAdmin && (
+              <Link href="/admin" className="btn-army-outline">
+                Admin
+              </Link>
+            )}
+            <Link href="/channel" className="btn-army-outline">
+              Admin Channel
             </Link>
-          )}
-          <Link href="/channel" className="btn-army-outline">
-            Admin Channel
-          </Link>
-          <button type="button" className="btn-army" onClick={() => setPostOpen(true)} disabled={activeListingsCount >= 5}>
-            Post Ticket
-          </button>
+            <button
+              type="button"
+              className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => setPostOpen(true)}
+              disabled={activeListingsCount >= 5}
+              title={activeListingsCount >= 5 ? "Max 5 active listings" : "Post a listing"}
+            >
+              Post Listing
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={tab === "all" ? "btn-army" : "btn-army-outline"}
-          onClick={() => setTab("all")}
-        >
-          All Listings
-        </button>
-        <button
-          type="button"
-          className={tab === "connections" ? "btn-army" : "btn-army-outline"}
-          onClick={() => setTab("connections")}
-        >
-          <span className="relative inline-flex items-center">
+        <div className="mt-6 inline-flex w-full max-w-xl rounded-2xl border border-army-purple/15 bg-white p-1 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
+          <button
+            type="button"
+            className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+              tab === "all" ? "bg-army-purple text-white" : "text-army-purple hover:bg-army-purple/10"
+            }`}
+            onClick={() => setTab("all")}
+          >
+            All Listings
+          </button>
+          <button
+            type="button"
+            className={`relative flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+              tab === "connections" ? "bg-army-purple text-white" : "text-army-purple hover:bg-army-purple/10"
+            }`}
+            onClick={() => setTab("connections")}
+          >
             My Connections
             {unreadConnectionNotificationCount > 0 && (
               <span
-                className="absolute -right-2 -top-1 h-2.5 w-2.5 rounded-full bg-army-purple"
+                className={`absolute right-2 top-2 h-2.5 w-2.5 rounded-full ${
+                  tab === "connections" ? "bg-white" : "bg-army-purple"
+                }`}
                 aria-label="Unread connection updates"
               />
             )}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={tab === "my" ? "btn-army" : "btn-army-outline"}
-          onClick={() => setTab("my")}
-        >
-          My Listings
-        </button>
-      </div>
+          </button>
+          <button
+            type="button"
+            className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+              tab === "my" ? "bg-army-purple text-white" : "text-army-purple hover:bg-army-purple/10"
+            }`}
+            onClick={() => setTab("my")}
+          >
+            My Listings
+          </button>
+        </div>
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
@@ -289,7 +318,10 @@ export default function ConnectionBoardView() {
           ) : (
             <div className="space-y-3">
               {connections.map((c) => (
-                <div key={c.id} className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
+                <div
+                  key={c.id}
+                  className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-army-purple/25 dark:bg-neutral-900"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Stage</p>
@@ -334,7 +366,7 @@ export default function ConnectionBoardView() {
             <>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <button type="button" className="btn-army-outline" onClick={() => setFiltersOpen((v) => !v)}>
-                  {filtersOpen ? "Hide filters" : "Show filters"}
+                  {filtersOpen ? "Hide filters" : "Filters"}
                 </button>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
                   Showing <span className="font-semibold">{filteredBrowse.length}</span> of {browse.length}
@@ -420,19 +452,23 @@ export default function ConnectionBoardView() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredBrowse.map((l) => (
-                    <div key={l.listingId} className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
-                      <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <p className="font-display text-lg font-bold text-army-purple">{l.concertDate}</p>
-                        {String(l.status) === "sold" ? (
-                          <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
-                            Sold
-                          </span>
-                        ) : String(l.status) === "locked" ? (
-                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-200">
-                            Locked
-                          </span>
-                        ) : null}
+                    <div
+                      key={l.listingId}
+                      className="group rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-army-purple/25 dark:bg-neutral-900"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
+                          <p className="mt-1 font-display text-lg font-bold text-army-purple">{l.concertDate}</p>
+                        </div>
+                        {(() => {
+                          const pill = browseStatusPill(String(l.status));
+                          return (
+                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${pill.cls}`}>
+                              {pill.label}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <span className="font-semibold">Seat:</span> {l.section} · {l.seatRow} · {l.seat}
@@ -455,7 +491,7 @@ export default function ConnectionBoardView() {
                         </button>
                         <button
                           type="button"
-                          className="btn-army"
+                          className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
                           onClick={() => connect(l.listingId)}
                           disabled={connectingId === l.listingId || String(l.status) === "sold" || String(l.status) === "locked"}
                         >
@@ -580,6 +616,7 @@ export default function ConnectionBoardView() {
           setTab("my");
         }}
       />
+      </div>
     </RequireAuth>
   );
 }
