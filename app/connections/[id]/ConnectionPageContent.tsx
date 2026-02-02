@@ -94,7 +94,6 @@ export default function ConnectionPageContent() {
       return;
     }
     setConn(data as any);
-    setLoading(false);
     setStatusPopupClosed(false);
     setBondingIntroOpen(false);
 
@@ -138,6 +137,8 @@ export default function ConnectionPageContent() {
     } else {
       setPreview(null);
     }
+
+    setLoading(false);
 
     // Seller-only: show an "Accepted" intro once when moving into Bonding,
     // so it's clear the seller should answer the bonding questions next.
@@ -245,9 +246,13 @@ export default function ConnectionPageContent() {
     setError(null);
     setNotice("Saved: you confirmed.");
     const { error: e } = await acceptConnectionAgreement(conn.id);
+    if (e) {
+      setSubmitting(false);
+      setError(e);
+      return;
+    }
+    await load();
     setSubmitting(false);
-    if (e) setError(e);
-    else void load();
   };
 
   const doEndConnection = async () => {

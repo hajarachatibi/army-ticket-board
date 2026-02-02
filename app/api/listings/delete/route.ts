@@ -50,27 +50,53 @@ export async function POST(request: NextRequest) {
     .single();
   if (lErr || !listing) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
 
-  const service = createServiceClient();
-
-  // End connection + close chat (if any).
-  const { data: conn } = await service
-    .from("connections")
-    .select("id, chat_id")
-    .eq("listing_id", listingId)
-    .maybeSingle();
-
-  if (conn?.chat_id) {
-    await service.from("chats").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", conn.chat_id);
-  }
-  if (conn?.id) {
-    await service.from("connections").update({ stage: "ended", stage_expires_at: new Date().toISOString() }).eq("id", conn.id);
+  let service: ReturnType<typeof createServiceClient> | null = null;
+  try {
+    service = createServiceClient();
+  } catch {
+    // Fallback when service role is not configured: use user's session.
   }
 
-  const { error: upErr } = await service
-    .from("listings")
-    .update({ status: "removed", locked_by: null, locked_at: null, lock_expires_at: null })
-    .eq("id", listingId);
-  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+  if (service) {
+    // End all connections for this listing (there may be multiple, e.g. one accepted + others in waiting list).
+    const { data: conns } = await service
+      .from("connections")
+      .select("id, chat_id")
+      .eq("listing_id", listingId);
+
+    for (const conn of conns ?? []) {
+      const c = conn as { id: string; chat_id?: string | null };
+      if (c.chat_id) {
+        await service.from("chats").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", c.chat_id);
+      }
+      await service.from("connections").update({ stage: "ended", stage_expires_at: new Date().toISOString() }).eq("id", c.id);
+    }
+
+    const { error: upErr } = await service
+      .from("listings")
+      .update({ status: "removed", locked_by: null, locked_at: null, lock_expires_at: null })
+      .eq("id", listingId);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+  } else {
+    // No service role: end connections via RPC (as seller), then soft-delete listing with user client.
+    const { data: conns } = await supabase
+      .from("connections")
+      .select("id")
+      .eq("listing_id", listingId)
+      .eq("seller_id", user.id)
+      .in("stage", ["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
+
+    for (const c of (conns ?? []) as { id: string }[]) {
+      await supabase.rpc("end_connection", { p_connection_id: c.id });
+    }
+
+    const { error: upErr } = await supabase
+      .from("listings")
+      .update({ status: "removed", locked_by: null, locked_at: null, lock_expires_at: null })
+      .eq("id", listingId)
+      .eq("seller_id", user.id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+  }
 
   return response;
 }
