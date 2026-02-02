@@ -50,10 +50,28 @@ export async function POST(request: NextRequest) {
   try {
     service = createServiceClient();
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Server misconfigured (service role)" },
-      { status: 500 }
-    );
+    // Fallback for environments without service role:
+    // - Seller can update their own listing via RLS.
+    // - End any active connections via the SECURITY DEFINER end_connection() RPC (as the seller).
+    const { error: upErr } = await supabase
+      .from("listings")
+      .update({ status: "sold", locked_by: null, locked_at: null, lock_expires_at: null })
+      .eq("id", listingId)
+      .eq("seller_id", user.id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+
+    const { data: conns } = await supabase
+      .from("connections")
+      .select("id")
+      .eq("listing_id", listingId)
+      .eq("seller_id", user.id)
+      .in("stage", ["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
+
+    for (const c of (conns ?? []) as any[]) {
+      await supabase.rpc("end_connection", { p_connection_id: c.id });
+    }
+
+    return response;
   }
 
   // Mark sold: end ALL active connections/requests for this listing.

@@ -50,10 +50,30 @@ export async function POST(request: NextRequest) {
   try {
     service = createServiceClient();
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Server misconfigured (service role)" },
-      { status: 500 }
-    );
+    // Fallback for environments without service role:
+    // End the currently locked connection (if any) via end_connection() which also unlocks the listing.
+    const lockedBy = (listing as any).locked_by ? String((listing as any).locked_by) : null;
+    if (lockedBy) {
+      const { data: conns } = await supabase
+        .from("connections")
+        .select("id")
+        .eq("listing_id", listingId)
+        .eq("seller_id", user.id)
+        .eq("buyer_id", lockedBy)
+        .in("stage", ["bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
+      for (const c of (conns ?? []) as any[]) {
+        await supabase.rpc("end_connection", { p_connection_id: c.id });
+      }
+    }
+
+    const { error: upErr } = await supabase
+      .from("listings")
+      .update({ status: "active", locked_by: null, locked_at: null, lock_expires_at: null })
+      .eq("id", listingId)
+      .eq("seller_id", user.id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+
+    return response;
   }
 
   // Release/unlock: end ONLY the currently locked connection (keep other pending requests).
