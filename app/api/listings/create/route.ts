@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { checkBotId } from "botid/server";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { sameOriginError } from "@/lib/security/sameOrigin";
+
 type SeatInput = {
   section?: string;
   row?: string;
@@ -10,7 +12,13 @@ type SeatInput = {
   currency?: string;
 };
 
+// Uses server-only dependencies (BotID). Keep in Node.js runtime.
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
+  const so = sameOriginError(request);
+  if (so) return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+
   const verification = await checkBotId();
   if (verification.isBot) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });

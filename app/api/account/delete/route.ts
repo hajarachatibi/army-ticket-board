@@ -2,8 +2,15 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createServiceClient } from "@/lib/supabase/serviceClient";
+import { sameOriginError } from "@/lib/security/sameOrigin";
+
+// Uses Supabase service role (server-only). Keep in Node.js runtime.
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const so = sameOriginError(request);
+  if (so) return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
+
   const response = NextResponse.json({ ok: true });
 
   const supabase = createServerClient(
