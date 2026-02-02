@@ -10,6 +10,8 @@ type SeatDraft = {
   currency: string;
 };
 
+const COMMON_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "KRW"] as const;
+
 const ARIRANG_TOUR_CITIES = [
   "Goyang",
   "Tokyo",
@@ -286,13 +288,18 @@ export default function PostListingModal({
                     </div>
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">Currency</label>
-                      <input
+                      <select
                         className="input-army mt-1"
                         value={s.currency}
-                        onChange={(e) =>
-                          setSeats((prev) => prev.map((x, i) => (i === idx ? { ...x, currency: e.target.value } : x)))
-                        }
-                      />
+                        onChange={(e) => setSeats((prev) => prev.map((x, i) => (i === idx ? { ...x, currency: e.target.value } : x)))}
+                        disabled={submitting}
+                      >
+                        {COMMON_CURRENCIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
