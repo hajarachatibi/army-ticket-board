@@ -69,7 +69,6 @@ export async function middleware(request: NextRequest) {
 
   const requiresAuth =
     pathname.startsWith("/chats") ||
-    pathname.startsWith("/admin-chats") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/channel");
