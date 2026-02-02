@@ -46,6 +46,7 @@ export default function ConnectionPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [statusPopupClosed, setStatusPopupClosed] = useState(false);
   const [conn, setConn] = useState<ConnectionRow | null>(null);
 
   const [bondingQuestions, setBondingQuestions] = useState<Array<{ id: string; prompt: string }>>([]);
@@ -92,6 +93,7 @@ export default function ConnectionPageContent() {
     }
     setConn(data as any);
     setLoading(false);
+    setStatusPopupClosed(false);
 
     // Seller-only: can only accept one active connection at a time.
     // If seller already has an active connection (not this one), disable Accept in pending_seller and show a note.
@@ -224,7 +226,7 @@ export default function ConnectionPageContent() {
     if (!conn) return;
     setSubmitting(true);
     setError(null);
-    setNotice("Saved: you confirmed. We'll notify you once the other ARMY confirms too.");
+    setNotice("Saved: you confirmed.");
     const { error: e } = await acceptConnectionAgreement(conn.id);
     setSubmitting(false);
     if (e) setError(e);
@@ -252,11 +254,28 @@ export default function ConnectionPageContent() {
     return isBuyer ? Boolean(conn.buyer_agreed) : Boolean(conn.seller_agreed);
   }, [conn, isBuyer, isSeller]);
 
+  const otherRoleLabel = useMemo(() => {
+    if (isBuyer) return "ARMY seller";
+    if (isSeller) return "ARMY buyer";
+    return "ARMY";
+  }, [isBuyer, isSeller]);
+
+  const meRoleLabel = useMemo(() => {
+    if (isBuyer) return "ARMY buyer";
+    if (isSeller) return "ARMY seller";
+    return "ARMY";
+  }, [isBuyer, isSeller]);
+
+  const bothChoseShareSocials = useMemo(() => {
+    if (!conn) return false;
+    return Boolean(conn.buyer_social_share) && Boolean(conn.seller_social_share);
+  }, [conn]);
+
   const socials = useMemo(() => {
     const b = (preview as any)?.buyer ?? null;
     const s = (preview as any)?.seller ?? null;
     if (!b || !s) return null;
-    const show = Boolean((preview as any)?.showSocials);
+    const show = Boolean((preview as any)?.showSocials) || (bothChoseShareSocials && myAgreed);
     if (!show) return { show: false as const };
     return {
       show: true as const,
@@ -273,7 +292,7 @@ export default function ConnectionPageContent() {
         snapchat: s.snapchat ? String(s.snapchat) : null,
       },
     };
-  }, [preview]);
+  }, [bothChoseShareSocials, myAgreed, preview]);
 
   const waitingBanner = useMemo(() => {
     if (!conn) return null;
@@ -281,40 +300,46 @@ export default function ConnectionPageContent() {
     if (!isBuyer && !isSeller) return null;
 
     if (conn.stage === "pending_seller") {
-      if (isBuyer) return "Waiting for the seller’s response. You’ll be notified as soon as they accept or decline.";
+      if (isBuyer) return `Request sent. Waiting for the ${otherRoleLabel} response.`;
       return null;
     }
 
     if (conn.stage === "bonding") {
       const mySubmitted = isBuyer ? !!conn.buyer_bonding_submitted_at : !!conn.seller_bonding_submitted_at;
       const otherSubmitted = isBuyer ? !!conn.seller_bonding_submitted_at : !!conn.buyer_bonding_submitted_at;
-      if (mySubmitted && !otherSubmitted) return "Waiting for the other ARMY to submit bonding answers. You’ll be notified.";
+      if (mySubmitted && !otherSubmitted) return `Saved. Waiting for the ${otherRoleLabel} to submit bonding answers.`;
       return null;
     }
 
     if (conn.stage === "preview") {
       const my = isBuyer ? conn.buyer_comfort : conn.seller_comfort;
       const other = isBuyer ? conn.seller_comfort : conn.buyer_comfort;
-      if (my !== null && other === null) return "Waiting for the other ARMY’s comfort answer. You’ll be notified.";
+      if (my !== null && other === null) return `Saved. Waiting for the ${otherRoleLabel} comfort answer.`;
       return null;
     }
 
     if (conn.stage === "social") {
       const my = isBuyer ? conn.buyer_social_share : conn.seller_social_share;
       const other = isBuyer ? conn.seller_social_share : conn.buyer_social_share;
-      if (my !== null && other === null) return "Waiting for the other ARMY’s social-sharing choice. You’ll be notified.";
+      if (my !== null && other === null) return `Saved. Waiting for the ${otherRoleLabel} social-sharing choice.`;
       return null;
     }
 
     if (conn.stage === "agreement") {
-      const my = isBuyer ? conn.buyer_agreed : conn.seller_agreed;
-      const other = isBuyer ? conn.seller_agreed : conn.buyer_agreed;
-      if (my && !other) return "Waiting for the other ARMY to confirm the match message. You’ll be notified.";
+      // Do not show a waiting banner here; once the user confirms we will show socials immediately.
       return null;
     }
 
     return null;
-  }, [conn, isBuyer, isSeller, user]);
+  }, [conn, isBuyer, isSeller, otherRoleLabel, user]);
+
+  const statusPopup = useMemo(() => {
+    if (!conn) return null;
+    if (!user) return null;
+    if (!isBuyer && !isSeller) return null;
+    // Reuse the same logic as waitingBanner, but shown in a dedicated popup.
+    return waitingBanner;
+  }, [conn, isBuyer, isSeller, user, waitingBanner]);
 
   const myComfort = useMemo(() => {
     if (!conn) return null;
@@ -444,11 +469,7 @@ export default function ConnectionPageContent() {
               {notice}
             </div>
           )}
-          {waitingBanner && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-              {waitingBanner}
-            </div>
-          )}
+          {/* Replaced by a persistent "Saved" popup below for clarity. */}
 
           <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -800,16 +821,11 @@ export default function ConnectionPageContent() {
                   {error}
                 </div>
               )}
-              {!bothAgreed ? (
+              {!myAgreed ? (
                 <>
-                  {myAgreed && (
-                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                      You confirmed. Waiting for the other ARMY to confirm.
-                    </div>
-                  )}
                   <p className="font-semibold text-army-purple">💜 Before You Continue</p>
                   <p className="mt-2">
-                    You are about to connect with another ARMY outside this platform. Please read carefully.
+                    You are about to connect with an {otherRoleLabel} outside this platform. Please read carefully.
                     <br />
                     This platform is only here to help ARMYs connect. We do not verify tickets, identities, or payments. Once you move to social media or private communication, you do so at your own discretion.
                   </p>
@@ -842,6 +858,7 @@ export default function ConnectionPageContent() {
                     <li>Video call is strongly recommended before any payment</li>
                     <li>Double-check ticket details before sending money</li>
                     <li>Be cautious of fake ticket and email screenshots</li>
+                    <li>If escrow is mentioned, verify it yourself before sending money</li>
                   </ul>
                   <p className="mt-3 font-semibold">For Sellers</p>
                   <ul className="mt-1 list-disc pl-5 space-y-1">
@@ -869,9 +886,11 @@ export default function ConnectionPageContent() {
                 </>
               ) : (
                 <>
-                  <p className="font-semibold text-army-purple">💜 You’re Connected, ARMY</p>
-                  <p className="mt-2">Here is your match’s social media:</p>
-                  {socials?.show ? (
+                  <p className="font-semibold text-army-purple">💜 You’re Connected</p>
+                  <p className="mt-2">
+                    {bothChoseShareSocials ? "Here is your match’s social media:" : "You both chose not to share socials."}
+                  </p>
+                  {bothChoseShareSocials && socials?.show ? (
                     <div className="mt-3 space-y-3">
                       <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
                         <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Buyer</p>
@@ -890,7 +909,7 @@ export default function ConnectionPageContent() {
                     </div>
                   ) : (
                     <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                      Socials will appear here once both users choose to share socials and both confirm.
+                      Socials will appear here once both users choose to share socials.
                     </p>
                   )}
                   <hr className="my-4 border-army-purple/15 dark:border-army-purple/25" />
@@ -898,7 +917,7 @@ export default function ConnectionPageContent() {
                   <ul className="mt-2 list-disc pl-5 space-y-1">
                     <li>Make sure your social media message settings allow new messages</li>
                     <li>Check your message requests or spam folder</li>
-                    <li>Be patient — the other ARMY might be in a different timezone</li>
+                    <li>Be patient — the {otherRoleLabel} might be in a different timezone</li>
                   </ul>
                   <p className="mt-3">
                     This listing stays <span className="font-semibold">locked</span> while you connect. If it doesn’t work out, the seller can come back and tap <span className="font-semibold">Release / end</span> to unlock it and receive other requests.
@@ -909,14 +928,12 @@ export default function ConnectionPageContent() {
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              {!bothAgreed ? (
+              {!myAgreed ? (
                 <div className="flex flex-col items-end gap-2">
-                  {(conn.stage !== "agreement" || myAgreed || !matchAck1 || !matchAck2) && (
+                  {(conn.stage !== "agreement" || !matchAck1 || !matchAck2) && (
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">
                       {conn.stage !== "agreement"
                         ? "You can confirm once the connection is in the Agreement step."
-                        : myAgreed
-                          ? "Waiting for the other ARMY to confirm."
                         : !matchAck1 || !matchAck2
                           ? "Please check both boxes to confirm."
                           : null}
@@ -926,9 +943,9 @@ export default function ConnectionPageContent() {
                     type="button"
                     className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
                     onClick={doAgreement}
-                    disabled={submitting || conn.stage !== "agreement" || myAgreed || !matchAck1 || !matchAck2}
+                    disabled={submitting || conn.stage !== "agreement" || !matchAck1 || !matchAck2}
                   >
-                    {submitting ? "Confirming…" : myAgreed ? "Waiting…" : "CONFIRM"}
+                    {submitting ? "Confirming…" : "CONFIRM"}
                   </button>
                 </div>
               ) : (
@@ -936,6 +953,43 @@ export default function ConnectionPageContent() {
                   Done
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statusPopup && !statusPopupClosed && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="status-popup-title"
+          onClick={() => setStatusPopupClosed(true)}
+        >
+          <div
+            className="w-full max-w-lg cursor-default rounded-2xl border border-army-purple/25 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="status-popup-title" className="font-display text-xl font-bold text-army-purple">
+                  💜 Saved
+                </h2>
+                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{meRoleLabel} update</p>
+              </div>
+              <button type="button" className="btn-army-outline" onClick={() => setStatusPopupClosed(true)}>
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 px-4 py-3 text-sm text-neutral-800 dark:border-army-purple/25 dark:bg-army-purple/10 dark:text-neutral-200">
+              {statusPopup}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button type="button" className="btn-army" onClick={() => setStatusPopupClosed(true)}>
+                Got it
+              </button>
             </div>
           </div>
         </div>

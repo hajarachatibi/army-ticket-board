@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import EditListingModal from "@/components/EditListingModal";
 import RequireAuth from "@/components/RequireAuth";
+import ConnectionTicketDetailsModal from "@/components/ConnectionTicketDetailsModal";
 import ListingReportModal from "@/components/ListingReportModal";
 import PostListingModal from "@/components/PostListingModal";
 import { useAuth } from "@/lib/AuthContext";
@@ -71,6 +72,7 @@ export default function ConnectionBoardView() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
   const [limitOpen, setLimitOpen] = useState<{ title: string; body: string } | null>(null);
+  const [ticketDetailsOpen, setTicketDetailsOpen] = useState<{ connectionId: string } | null>(null);
   const [lockedExplain, setLockedExplain] = useState<{ summary: string; lockExpiresAt: string | null } | null>(null);
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
@@ -258,6 +260,17 @@ export default function ConnectionBoardView() {
       if (c.buyerId !== user.id) continue;
       if (!activeConnectionStages.has(String(c.stage))) continue;
       // Most recent wins (connections are ordered desc).
+      if (!map.has(c.listingId)) map.set(c.listingId, { id: c.id, stage: c.stage });
+    }
+    return map;
+  }, [activeConnectionStages, connections, user]);
+
+  const myActiveSellerConnectionByListingId = useMemo(() => {
+    if (!user) return new Map<string, { id: string; stage: string }>();
+    const map = new Map<string, { id: string; stage: string }>();
+    for (const c of connections) {
+      if (c.sellerId !== user.id) continue;
+      if (!activeConnectionStages.has(String(c.stage))) continue;
       if (!map.has(c.listingId)) map.set(c.listingId, { id: c.id, stage: c.stage });
     }
     return map;
@@ -455,18 +468,27 @@ export default function ConnectionBoardView() {
                           {(unreadConnectionCountById.get(c.id) ?? 1) > 99 ? "99+" : (unreadConnectionCountById.get(c.id) ?? 1)}
                         </span>
                       )}
-                      <Link
-                        href={`/connections/${encodeURIComponent(c.id)}`}
-                        className="btn-army"
-                        onClick={() => {
-                          // Mark related notifications read so the red dot clears once the user opens the connection.
-                          notifications
-                            .filter((n) => !n.read && n.connectionId === c.id)
-                            .forEach((n) => markRead(n.id));
-                        }}
-                      >
-                        Open
-                      </Link>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          className="btn-army-outline"
+                          onClick={() => setTicketDetailsOpen({ connectionId: c.id })}
+                        >
+                          Ticket details
+                        </button>
+                        <Link
+                          href={`/connections/${encodeURIComponent(c.id)}`}
+                          className="btn-army"
+                          onClick={() => {
+                            // Mark related notifications read so the red dot clears once the user opens the connection.
+                            notifications
+                              .filter((n) => !n.read && n.connectionId === c.id)
+                              .forEach((n) => markRead(n.id));
+                          }}
+                        >
+                          Open
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -696,6 +718,19 @@ export default function ConnectionBoardView() {
                           Edit
                         </button>
                       )}
+                      {String(l.status) === "locked" && myActiveSellerConnectionByListingId.get(l.id) && (
+                        <button
+                          type="button"
+                          className="btn-army-outline"
+                          onClick={() => {
+                            const c = myActiveSellerConnectionByListingId.get(l.id);
+                            if (!c) return;
+                            window.location.href = `/connections/${encodeURIComponent(c.id)}`;
+                          }}
+                        >
+                          View active connection
+                        </button>
+                      )}
                       {l.status !== "removed" && l.status !== "sold" && (
                         <button type="button" className="btn-army" onClick={() => markSold(l.id)} disabled={mutatingId === l.id}>
                           Mark sold
@@ -905,6 +940,14 @@ export default function ConnectionBoardView() {
             </div>
           </div>
         </div>
+      )}
+
+      {ticketDetailsOpen && (
+        <ConnectionTicketDetailsModal
+          open={true}
+          onClose={() => setTicketDetailsOpen(null)}
+          connectionId={ticketDetailsOpen.connectionId}
+        />
       )}
 
       <PostListingModal
