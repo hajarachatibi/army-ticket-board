@@ -6,7 +6,7 @@ export default function DisclaimersPage() {
           Disclaimers &amp; safe-trading tips
         </h1>
         <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-          Please read before buying or selling tickets.
+          Please read before buying or selling.
         </p>
 
         <section className="mt-10 space-y-8">
@@ -22,13 +22,13 @@ export default function DisclaimersPage() {
                 <strong>We do not take responsibility</strong> for scams, fraud, chargebacks, lost money, or ticket issues.
               </li>
               <li>
-                If a ticket is <strong>not face value</strong>, please <strong>report the ticket</strong>.
+                If a listing is <strong>not face value</strong>, please <strong>report the listing</strong>.
               </li>
               <li>
                 If someone is a <strong>scammer</strong>, please <strong>report the user</strong>.
               </li>
               <li>
-                After multiple reports from different users, tickets can be removed and users can be banned.
+                After multiple reports from different users, listings can be removed and users can be banned.
               </li>
             </ul>
           </div>

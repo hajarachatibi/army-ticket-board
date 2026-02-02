@@ -22,7 +22,7 @@ export default function TermsPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">User responsibilities</h2>
               <ul className="mt-2 list-disc pl-5 space-y-1">
-                <li>Provide accurate information when listing or messaging.</li>
+                <li>Provide accurate information when listing or connecting.</li>
                 <li>Do not impersonate admins or other users.</li>
                 <li>Do not post scams, phishing attempts, or requests for sensitive information.</li>
                 <li>Follow safe trading practices (see Disclaimers and Safety updates).</li>
