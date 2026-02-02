@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import AccountMenu from "@/components/AccountMenu";
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthContext";
+import { fetchAdminChannelPosts } from "@/lib/supabase/adminChannel";
+import { supabase } from "@/lib/supabaseClient";
 import { useTheme } from "@/lib/ThemeContext";
 
 const NAV = [
@@ -30,6 +32,9 @@ export default function Header() {
   const { dark, toggle } = useTheme();
   const { user, isLoggedIn, isAdmin, signOut } = useAuth();
   const showAdmin = isLoggedIn && isAdmin;
+  const [adminChannelUnreadCount, setAdminChannelUnreadCount] = useState(0);
+  const adminChannelLastSeenRef = useRef(0);
+  const onAdminChannelPageRef = useRef(false);
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -43,6 +48,73 @@ export default function Header() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isLoggedIn || !user?.id) return;
+
+    const key = `army_admin_channel_last_seen_${user.id}`;
+    const onChannel = pathname === "/channel" || pathname.startsWith("/channel/");
+    onAdminChannelPageRef.current = onChannel;
+
+    // When the user visits the Admin Channel, mark everything as read.
+    if (onChannel) {
+      const now = Date.now();
+      adminChannelLastSeenRef.current = now;
+      window.localStorage.setItem(key, String(now));
+      setAdminChannelUnreadCount(0);
+    }
+  }, [isLoggedIn, pathname, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isLoggedIn || !user?.id) return;
+    let cancelled = false;
+
+    const key = `army_admin_channel_last_seen_${user.id}`;
+    const raw = window.localStorage.getItem(key);
+    const lastSeen = raw ? Number(raw) : 0;
+    adminChannelLastSeenRef.current = Number.isFinite(lastSeen) ? lastSeen : 0;
+
+    // Initial unread count: look at recent posts and count those newer than last seen.
+    (async () => {
+      const { data } = await fetchAdminChannelPosts({ limit: 50, offset: 0 });
+      if (cancelled) return;
+      const count = data.filter((p) => Date.parse(p.createdAt) > adminChannelLastSeenRef.current).length;
+      setAdminChannelUnreadCount(count);
+    })();
+
+    const channel = supabase
+      .channel(`admin_channel_posts_unread_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "admin_channel_posts" },
+        (payload) => {
+          if (cancelled) return;
+          const createdAt = Date.parse(String((payload as any)?.new?.created_at ?? ""));
+          if (!Number.isFinite(createdAt)) return;
+
+          // If the user is currently on /channel, treat it as read.
+          if (onAdminChannelPageRef.current) {
+            const now = Date.now();
+            adminChannelLastSeenRef.current = Math.max(adminChannelLastSeenRef.current, now, createdAt);
+            window.localStorage.setItem(key, String(adminChannelLastSeenRef.current));
+            setAdminChannelUnreadCount(0);
+            return;
+          }
+
+          if (createdAt > adminChannelLastSeenRef.current) {
+            setAdminChannelUnreadCount((n) => Math.min(99, n + 1));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
+  }, [isLoggedIn, user?.id]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -75,6 +147,23 @@ export default function Header() {
     const allowed = new Set(topMobileLinks.map((x) => x.href));
     return navLinks.filter((x) => !allowed.has(x.href));
   }, [navLinks, topMobileLinks]);
+
+  const renderNavLabel = (href: string, label: string) => {
+    if (href !== "/channel") return label;
+    return (
+      <span className="relative inline-flex items-center">
+        {label}
+        {adminChannelUnreadCount > 0 && (
+          <span
+            className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+            aria-label={`${adminChannelUnreadCount} new admin channel posts`}
+          >
+            {adminChannelUnreadCount > 99 ? "99+" : adminChannelUnreadCount}
+          </span>
+        )}
+      </span>
+    );
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-army-purple/10 bg-white/95 shadow-header backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-army-purple/20 dark:bg-[#0f0f0f]/95 dark:supports-[backdrop-filter]:bg-[#0f0f0f]/80">
@@ -156,7 +245,7 @@ export default function Header() {
                       : "text-neutral-600 hover:bg-army-purple/5 hover:text-army-purple dark:text-neutral-400 dark:hover:bg-army-purple/10 dark:hover:text-army-300"
                   }`}
                 >
-                  {label}
+                  {renderNavLabel(href, label)}
                 </Link>
               );
             })}
@@ -243,7 +332,7 @@ export default function Header() {
                   isActive ? "bg-army-purple/10 text-army-purple" : "text-neutral-600 hover:bg-army-purple/5"
                 }`}
               >
-                {label}
+                {renderNavLabel(href, label)}
               </Link>
             );
           })}

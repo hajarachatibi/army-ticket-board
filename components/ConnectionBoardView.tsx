@@ -28,9 +28,9 @@ function browseStatusPill(status: string): { label: string; cls: string } {
   if (s === "locked") {
     return { label: "Locked", cls: "bg-amber-500/15 text-amber-900 dark:text-amber-200" };
   }
-  if (s === "processing") {
-    return { label: "Processing", cls: "bg-army-purple/10 text-army-purple dark:text-army-300" };
-  }
+  // Note: "All Listings" only shows listings where processing_until has passed,
+  // but some rows may still have status="processing" in DB (we don't auto-flip it).
+  // Treat those as Active in the browse UI to avoid confusion.
   return { label: "Active", cls: "bg-army-200/60 text-army-900 dark:bg-army-300/25 dark:text-army-200" };
 }
 
@@ -252,9 +252,6 @@ export default function ConnectionBoardView() {
                 Admin
               </Link>
             )}
-            <Link href="/channel" className="btn-army-outline">
-              Admin Channel
-            </Link>
             <button
               type="button"
               className="btn-army disabled:cursor-not-allowed disabled:opacity-60"

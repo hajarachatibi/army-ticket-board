@@ -51,11 +51,12 @@ export default function AccountMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="btn-army-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+        className="btn-army-ghost inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
       >
+        <span className="font-semibold sm:hidden">Account</span>
         <span className="hidden max-w-[180px] truncate sm:inline" title={email}>
           {email}
         </span>
