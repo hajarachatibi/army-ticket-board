@@ -16,6 +16,7 @@ const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Listings" },
   { href: "/channel", label: "Admin Channel" },
+  { href: "/admin-chats", label: "Admin chats" },
   { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
   { href: "/user-manual", label: "User manual" },
@@ -41,8 +42,11 @@ export default function Header() {
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
 
   const navLinks = useMemo(() => {
-    // Hide Admin Channel for logged-out users (route is still protected by middleware).
-    return NAV.filter((x) => x.href !== "/channel" || isLoggedIn);
+    // Hide admin-only areas for logged-out users (routes are still protected by middleware).
+    return NAV.filter((x) => {
+      if (!isLoggedIn && (x.href === "/channel" || x.href === "/admin-chats")) return false;
+      return true;
+    });
   }, [isLoggedIn]);
 
   useEffect(() => {
@@ -135,7 +139,10 @@ export default function Header() {
     const base = [
       { href: "/tickets", label: "Listings" },
     ];
-    if (isLoggedIn) base.push({ href: "/channel", label: "Admin Channel" });
+    if (isLoggedIn) {
+      base.push({ href: "/channel", label: "Admin Channel" });
+      base.push({ href: "/admin-chats", label: "Admin chats" });
+    }
     if (showAdmin) {
       base.push({ href: "/chats", label: "Chats" });
       base.push({ href: "/admin", label: "Admin" });

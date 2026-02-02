@@ -230,6 +230,12 @@ export default function ConnectionPageContent() {
     return Boolean(conn?.buyer_agreed) && Boolean(conn?.seller_agreed);
   }, [conn?.buyer_agreed, conn?.seller_agreed]);
 
+  const myAgreed = useMemo(() => {
+    if (!conn) return false;
+    if (!isBuyer && !isSeller) return false;
+    return isBuyer ? Boolean(conn.buyer_agreed) : Boolean(conn.seller_agreed);
+  }, [conn, isBuyer, isSeller]);
+
   const socials = useMemo(() => {
     const b = (preview as any)?.buyer ?? null;
     const s = (preview as any)?.seller ?? null;
@@ -769,6 +775,11 @@ export default function ConnectionPageContent() {
               )}
               {!bothAgreed ? (
                 <>
+                  {myAgreed && (
+                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                      You confirmed. Waiting for the other ARMY to confirm.
+                    </div>
+                  )}
                   <p className="font-semibold text-army-purple">💜 Before You Continue</p>
                   <p className="mt-2">
                     You are about to connect with another ARMY outside this platform. Please read carefully.
@@ -873,10 +884,12 @@ export default function ConnectionPageContent() {
             <div className="mt-4 flex justify-end gap-2">
               {!bothAgreed ? (
                 <div className="flex flex-col items-end gap-2">
-                  {(conn.stage !== "agreement" || !matchAck1 || !matchAck2) && (
+                  {(conn.stage !== "agreement" || myAgreed || !matchAck1 || !matchAck2) && (
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">
                       {conn.stage !== "agreement"
                         ? "You can confirm once the connection is in the Agreement step."
+                        : myAgreed
+                          ? "Waiting for the other ARMY to confirm."
                         : !matchAck1 || !matchAck2
                           ? "Please check both boxes to confirm."
                           : null}
@@ -886,9 +899,9 @@ export default function ConnectionPageContent() {
                     type="button"
                     className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
                     onClick={doAgreement}
-                    disabled={submitting || conn.stage !== "agreement" || !matchAck1 || !matchAck2}
+                    disabled={submitting || conn.stage !== "agreement" || myAgreed || !matchAck1 || !matchAck2}
                   >
-                    {submitting ? "Confirming…" : "CONFIRM"}
+                    {submitting ? "Confirming…" : myAgreed ? "Waiting…" : "CONFIRM"}
                   </button>
                 </div>
               ) : (
