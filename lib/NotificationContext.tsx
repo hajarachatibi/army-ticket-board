@@ -28,7 +28,8 @@ export type NotificationType =
   | "connection_agreement_updated"
   | "connection_match_confirmed"
   | "connection_ended"
-  | "connection_expired";
+  | "connection_expired"
+  | "listing_removed_3_reports";
 
 export type Notification = {
   id: string;
@@ -41,6 +42,8 @@ export type Notification = {
   message?: string;
   /** Ticket basic info (e.g. "Event · City · Day") for display instead of ticket ID. */
   ticketSummary?: string;
+  /** Main report reasons when type = listing_removed_3_reports (comma-separated). */
+  reportReasons?: string;
   read: boolean;
   createdAt: number;
 };

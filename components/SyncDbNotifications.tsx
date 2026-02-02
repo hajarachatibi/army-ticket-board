@@ -21,6 +21,7 @@ const SUPPORTED_TYPES = [
   "connection_match_confirmed",
   "connection_ended",
   "connection_expired",
+  "listing_removed_3_reports",
 ] as const satisfies readonly NotificationType[];
 
 type SupportedType = (typeof SUPPORTED_TYPES)[number];
@@ -35,6 +36,7 @@ type DbNotificationRow = {
   listing_summary?: string | null;
   connection_id?: string | null;
   message: string | null;
+  report_reasons?: string | null;
   delivered: boolean;
   created_at: string;
 };
@@ -109,6 +111,7 @@ export default function SyncDbNotifications() {
           listingSummary: r.listing_summary ?? undefined,
           connectionId: r.connection_id ?? undefined,
           message: r.message ?? undefined,
+          reportReasons: r.report_reasons ?? undefined,
         });
         deliveredSet.add(r.id);
       });
@@ -137,6 +140,7 @@ export default function SyncDbNotifications() {
             listingSummary: r.listing_summary ?? undefined,
             connectionId: r.connection_id ?? undefined,
             message: r.message ?? undefined,
+            reportReasons: r.report_reasons ?? undefined,
           });
           deliveredSet.add(r.id);
           persistDeliveredSet(deliveredSet);
