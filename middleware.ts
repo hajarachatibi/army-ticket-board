@@ -17,10 +17,26 @@ function parseAdminEmails(): string[] {
     .filter(Boolean);
 }
 
+function parseMaintenanceBypassEmails(): string[] {
+  const raw = process.env.MAINTENANCE_BYPASS_EMAILS ?? "";
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function isAdminEmail(email: string | null | undefined): boolean {
   const e = (email ?? "").trim().toLowerCase();
   if (!e) return false;
   return parseAdminEmails().includes(e);
+}
+
+function isMaintenanceBypassEmail(email: string | null | undefined): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  if (!e) return false;
+  // Hardcoded allowlist for testing (also supports MAINTENANCE_BYPASS_EMAILS).
+  const hardcoded = new Set(["achatibihajar1@gmail.com", "acwebdev1@gmail.com"]);
+  return hardcoded.has(e) || parseMaintenanceBypassEmails().includes(e);
 }
 
 export async function middleware(request: NextRequest) {
@@ -79,6 +95,26 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // If a user is banned, immediately sign them out and redirect to login.
+  // (Bans are email-based; "social match" bans also insert into banned_users.)
+  if (user?.email) {
+    const { data: bannedRow } = await supabase
+      .from("banned_users")
+      .select("email")
+      .eq("email", user.email.trim().toLowerCase())
+      .maybeSingle();
+
+    if (bannedRow?.email) {
+      await supabase.auth.signOut();
+      const bannedUrl = request.nextUrl.clone();
+      bannedUrl.pathname = "/login";
+      bannedUrl.searchParams.set("banned", "1");
+      const redirect = NextResponse.redirect(bannedUrl);
+      passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
+      return redirect;
+    }
+  }
+
   // Maintenance mode: allow admins through, show maintenance to everyone else.
   if (maintenanceModeEnabled) {
     const allowWithoutAdmin =
@@ -87,19 +123,20 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/auth/") ||
       pathname === "/auth/callback";
 
-    let isAdmin = false;
+    let allowDuringMaintenance = false;
     if (user) {
       const { data } = await supabase.from("user_profiles").select("role").eq("id", user.id).single();
-      isAdmin = data?.role === "admin" || isAdminEmail(user.email);
+      const isAdmin = data?.role === "admin" || isAdminEmail(user.email);
+      allowDuringMaintenance = isAdmin || isMaintenanceBypassEmail(user.email);
     }
 
     // Block non-admin API calls during maintenance.
-    if (!isAdmin && pathname.startsWith("/api")) {
+    if (!allowDuringMaintenance && pathname.startsWith("/api")) {
       return NextResponse.json({ error: "maintenance" }, { status: 503 });
     }
 
     // Rewrite non-admin traffic to maintenance (avoid loops).
-    if (!isAdmin && !allowWithoutAdmin) {
+    if (!allowDuringMaintenance && !allowWithoutAdmin) {
       const maintenanceUrl = request.nextUrl.clone();
       maintenanceUrl.pathname = "/maintenance";
       maintenanceUrl.search = "";

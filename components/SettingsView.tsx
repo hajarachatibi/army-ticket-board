@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
 import { fetchProfile } from "@/lib/data/user_profiles";
@@ -10,8 +10,6 @@ import { useTheme } from "@/lib/ThemeContext";
 export default function SettingsView() {
   const { user } = useAuth();
   const { dark, toggle } = useTheme();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ username: string } | null>(null);
@@ -69,21 +67,6 @@ export default function SettingsView() {
     }
     setSocialsSaved("Saved.");
   }, [facebook, instagram, snapchat, supabase, tiktok, user?.id]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-  };
-
-  const handlePosterClick = () => fileInputRef.current?.click();
-
-  const clearPreview = () => {
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
 
   return (
     <div className="space-y-8">
@@ -173,44 +156,6 @@ export default function SettingsView() {
           <span className="text-sm text-neutral-500 dark:text-neutral-400">
             {dark ? "Dark" : "Light"}
           </span>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-army-purple/15 bg-white p-6 dark:border-army-purple/25 dark:bg-neutral-900">
-        <h2 className="font-display text-lg font-bold text-army-purple">Header poster</h2>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          Upload a BTS poster for the header (UI only, no backend).
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
-          aria-hidden
-        />
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
-          <button
-            type="button"
-            onClick={handlePosterClick}
-            className="flex h-28 w-44 shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-army-purple/30 bg-army-purple/5 text-sm font-medium text-army-purple/70 transition-colors hover:border-army-purple/50 hover:bg-army-purple/10 dark:border-army-purple/40 dark:bg-army-purple/10 dark:text-army-300"
-          >
-            {preview ? (
-              <img src={preview} alt="Poster preview" className="h-full w-full object-cover" />
-            ) : (
-              <>Drop image or click</>
-            )}
-          </button>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={handlePosterClick} className="btn-army-outline">
-              Choose file
-            </button>
-            {preview && (
-              <button type="button" onClick={clearPreview} className="btn-army-ghost">
-                Clear
-              </button>
-            )}
-          </div>
         </div>
       </section>
     </div>

@@ -293,7 +293,18 @@ export default function OnboardingPageContent() {
                   onChange={(e) => setAgreeUserAgreement(e.target.checked)}
                   disabled={submitting}
                 />
-                <span>I agree to the User Agreement. (Text will be provided.)</span>
+                <span>
+                  I agree to the{" "}
+                  <a
+                    href="/user-agreement"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-army-purple underline"
+                  >
+                    User Agreement
+                  </a>
+                  .
+                </span>
               </label>
             </div>
           </div>

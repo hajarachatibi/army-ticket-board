@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+import AccountMenu from "@/components/AccountMenu";
 import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/lib/ThemeContext";
@@ -34,6 +35,11 @@ export default function Header() {
   const [mounted, setMounted] = useState(false);
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
 
+  const navLinks = useMemo(() => {
+    // Hide Admin Channel for logged-out users (route is still protected by middleware).
+    return NAV.filter((x) => x.href !== "/channel" || isLoggedIn);
+  }, [isLoggedIn]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -56,24 +62,19 @@ export default function Header() {
   const topMobileLinks = useMemo(() => {
     const base = [
       { href: "/tickets", label: "Listings" },
-      { href: "/channel", label: "Admin Channel" },
     ];
+    if (isLoggedIn) base.push({ href: "/channel", label: "Admin Channel" });
     if (showAdmin) {
       base.push({ href: "/chats", label: "Chats" });
       base.push({ href: "/admin", label: "Admin" });
     }
     return base;
-  }, [showAdmin]);
+  }, [isLoggedIn, showAdmin]);
 
   const overflowMobileLinks = useMemo(() => {
     const allowed = new Set(topMobileLinks.map((x) => x.href));
-    return NAV.filter((x) => !allowed.has(x.href));
-  }, [topMobileLinks]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/login");
-  };
+    return navLinks.filter((x) => !allowed.has(x.href));
+  }, [navLinks, topMobileLinks]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-army-purple/10 bg-white/95 shadow-header backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-army-purple/20 dark:bg-[#0f0f0f]/95 dark:supports-[backdrop-filter]:bg-[#0f0f0f]/80">
@@ -143,7 +144,7 @@ export default function Header() {
             <span className="sm:hidden">ATB</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
-            {NAV.map(({ href, label }) => {
+            {navLinks.map(({ href, label }) => {
               const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
               return (
                 <Link
@@ -203,7 +204,7 @@ export default function Header() {
               }`}
             />
           </button>
-          <NotificationBell />
+          {isLoggedIn && <NotificationBell />}
 
           <div className="flex items-center gap-2">
             {supportEnabled && isLoggedIn && (
@@ -216,21 +217,7 @@ export default function Header() {
               </Link>
             )}
             {isLoggedIn && user ? (
-              <>
-                <div className="hidden max-w-[180px] truncate text-right sm:block">
-                  <p className="truncate text-sm font-semibold text-army-purple dark:text-army-300" title={user.email || user.username}>
-                    {user.email || user.username}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="btn-army-ghost rounded-lg px-3 py-2 text-sm"
-                  aria-label="Sign out"
-                >
-                  Sign out
-                </button>
-              </>
+              <AccountMenu />
             ) : (
               <Link
                 href="/login"
