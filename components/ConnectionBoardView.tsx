@@ -628,6 +628,12 @@ export default function ConnectionBoardView() {
             </p>
 
             <div className="mt-4 space-y-3 text-sm text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-xl border border-army-purple/25 bg-army-purple/5 p-4">
+                <p className="font-semibold text-army-purple">Security note</p>
+                <p className="mt-1">
+                  For our precious ARMY security, the chat inside the app is no longer available. You will exchange your social media instead when accepted.
+                </p>
+              </div>
               <p>
                 <span className="font-semibold">Limits:</span> you can have up to <span className="font-semibold">3</span>{" "}
                 active connection requests at a time.
@@ -651,7 +657,7 @@ export default function ConnectionBoardView() {
                     <span className="font-semibold">Socials</span>: you both choose whether to share socials (24 hours).
                   </li>
                   <li>
-                    <span className="font-semibold">Agreement</span>: you both confirm the match (24 hours), then chat opens.
+                    <span className="font-semibold">Agreement</span>: you both confirm the match (24 hours). If you both chose to share socials, your socials are revealed here so you can contact each other.
                   </li>
                 </ol>
               </div>

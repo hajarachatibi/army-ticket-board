@@ -77,8 +77,20 @@ export default function NotificationBell() {
   const [reportPopup, setReportPopup] = useState<Notification | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  const handleReportClick = (n: Notification) => {
+  const markRelatedRead = (n: Notification) => {
+    // If the user reads one connection notification, clear all unread for that connection
+    // so the red dots/counts around the app disappear immediately.
+    if (n.connectionId) {
+      notifications
+        .filter((x) => !x.read && x.connectionId === n.connectionId)
+        .forEach((x) => markRead(x.id));
+      return;
+    }
     markRead(n.id);
+  };
+
+  const handleReportClick = (n: Notification) => {
+    markRelatedRead(n);
     setOpen(false);
     setReportPopup(n);
   };
@@ -158,7 +170,7 @@ export default function NotificationBell() {
                         <Link
                           href={notificationHref(n)}
                           onClick={() => {
-                            markRead(n.id);
+                            markRelatedRead(n);
                             setOpen(false);
                           }}
                           className={`block border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
