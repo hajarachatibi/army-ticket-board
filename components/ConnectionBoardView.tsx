@@ -67,6 +67,7 @@ export default function ConnectionBoardView() {
 
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
@@ -503,7 +504,12 @@ export default function ConnectionBoardView() {
                         <button
                           type="button"
                           className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => connect(l.listingId)}
+                          onClick={() =>
+                            setConnectConfirm({
+                              listingId: l.listingId,
+                              summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
+                            })
+                          }
                           disabled={connectingId === l.listingId || String(l.status) === "sold" || String(l.status) === "locked"}
                         >
                           {String(l.status) === "sold"
@@ -601,6 +607,79 @@ export default function ConnectionBoardView() {
           </div>
         )}
       </div>
+
+      {connectConfirm && (
+        <div
+          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="connect-explainer-title"
+          onClick={() => setConnectConfirm(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="connect-explainer-title" className="font-display text-xl font-bold text-army-purple">
+              What “Connect” means
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              You’re about to request a connection for: <span className="font-semibold">{connectConfirm.summary}</span>
+            </p>
+
+            <div className="mt-4 space-y-3 text-sm text-neutral-700 dark:text-neutral-300">
+              <p>
+                <span className="font-semibold">Limits:</span> you can have up to <span className="font-semibold">3</span>{" "}
+                active connection requests at a time.
+              </p>
+              <div>
+                <p className="font-semibold text-army-purple">How it works (high level)</p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>
+                    <span className="font-semibold">Request sent</span>: seller has up to <span className="font-semibold">24 hours</span> to accept or decline.
+                  </li>
+                  <li>
+                    <span className="font-semibold">If accepted</span>: the listing becomes <span className="font-semibold">locked</span> to you while you both proceed.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Bonding</span>: you both answer 3 questions (24 hours).
+                  </li>
+                  <li>
+                    <span className="font-semibold">Preview</span>: you both confirm comfort (24 hours). If either says no, it ends and the listing unlocks.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Socials</span>: you both choose whether to share socials (24 hours).
+                  </li>
+                  <li>
+                    <span className="font-semibold">Agreement</span>: you both confirm the match (24 hours), then chat opens.
+                  </li>
+                </ol>
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                If steps time out, the connection can expire and the listing can unlock.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" className="btn-army-outline" onClick={() => setConnectConfirm(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => {
+                  const id = connectConfirm.listingId;
+                  setConnectConfirm(null);
+                  void connect(id);
+                }}
+                disabled={connectingId === connectConfirm.listingId}
+              >
+                {connectingId === connectConfirm.listingId ? "Connecting…" : "Continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PostListingModal
         open={postOpen}

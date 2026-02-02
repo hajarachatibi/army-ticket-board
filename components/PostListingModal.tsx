@@ -10,6 +10,37 @@ type SeatDraft = {
   currency: string;
 };
 
+const ARIRANG_TOUR_CITIES = [
+  "Goyang",
+  "Tokyo",
+  "Busan",
+  "Kaohsiung",
+  "Bangkok",
+  "Kuala Lumpur",
+  "Tampa",
+  "El Paso",
+  "Stanford",
+  "Las Vegas",
+  "East Rutherford",
+  "Foxborough",
+  "Baltimore",
+  "Arlington",
+  "Toronto",
+  "Chicago",
+  "Los Angeles",
+  "Mexico City",
+  "Bogotá",
+  "Lima",
+  "Santiago",
+  "Buenos Aires",
+  "São Paulo",
+  "Madrid",
+  "Brussels",
+  "London",
+  "Munich",
+  "Paris",
+] as const;
+
 export default function PostListingModal({
   open,
   onClose,
@@ -123,7 +154,7 @@ export default function PostListingModal({
           <div>
             <h2 className="font-display text-xl font-bold text-army-purple">Post Ticket (Listing)</h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Your listing will appear in All Listings after <span className="font-semibold">2 minutes</span>.
+              Your listing will appear in All Listings after <span className="font-semibold">2 minutes</span> of processing.
             </p>
           </div>
           <button type="button" className="btn-army-outline" onClick={close} disabled={submitting}>
@@ -140,7 +171,18 @@ export default function PostListingModal({
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-semibold text-army-purple">Concert city</label>
-            <input className="input-army mt-2" value={concertCity} onChange={(e) => setConcertCity(e.target.value)} />
+            <input
+              className="input-army mt-2"
+              list="arirang-tour-cities"
+              value={concertCity}
+              onChange={(e) => setConcertCity(e.target.value)}
+              placeholder="Start typing or pick from list"
+            />
+            <datalist id="arirang-tour-cities">
+              {ARIRANG_TOUR_CITIES.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">Concert date</label>
