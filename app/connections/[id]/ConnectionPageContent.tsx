@@ -874,7 +874,7 @@ export default function ConnectionPageContent() {
                     <li>Be patient — the other ARMY might be in a different timezone</li>
                   </ul>
                   <p className="mt-3">
-                    This listing is now removed. If the connection doesn’t work out, the seller can add it back later.
+                    This listing stays <span className="font-semibold">locked</span> while you connect. If it doesn’t work out, the seller can come back and tap <span className="font-semibold">Release / end</span> to unlock it and receive other requests.
                   </p>
                   <p className="mt-2">Wishing you a meaningful ARMY connection 💜</p>
                 </>

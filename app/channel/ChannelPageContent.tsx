@@ -7,6 +7,7 @@ import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
 import RequireAuth from "@/components/RequireAuth";
 import { useAuth } from "@/lib/AuthContext";
 import { displayName } from "@/lib/displayName";
+import { supabase } from "@/lib/supabaseClient";
 import { fetchAdminContacts } from "@/lib/supabase/liteProfile";
 import {
   addChannelReply,
@@ -20,6 +21,8 @@ import { uploadChannelImage } from "@/lib/supabase/uploadChannelImage";
 
 type PostWithReplies = AdminChannelPost & {
   replies?: Array<{ id: string; userId: string; text: string; createdAt: string; username: string; role: string }>;
+  /** Whether the current viewer reacted with 💜. */
+  viewerHeart?: boolean;
 };
 
 export default function ChannelPageContent() {
@@ -47,7 +50,21 @@ export default function ChannelPageContent() {
     ]);
     if (pErr) setError(pErr);
     if (aErr) setError(aErr);
-    setPosts(p.map((x) => ({ ...x })));
+    // Also fetch whether the current user already reacted (💜) to each post.
+    const basePosts = p.map((x) => ({ ...x })) as PostWithReplies[];
+    if (user?.id && basePosts.length > 0) {
+      const ids = basePosts.map((x) => x.id);
+      const { data: rx } = await supabase
+        .from("admin_channel_reactions")
+        .select("post_id")
+        .eq("user_id", user.id)
+        .eq("emoji", "💜")
+        .in("post_id", ids);
+      const set = new Set((rx ?? []).map((r: any) => String(r.post_id)));
+      setPosts(basePosts.map((x) => ({ ...x, viewerHeart: set.has(x.id) })));
+    } else {
+      setPosts(basePosts);
+    }
     setAdmins(a ?? []);
     setLoading(false);
   };
@@ -100,9 +117,29 @@ export default function ChannelPageContent() {
 
   const react = async (postId: string, emoji: string) => {
     if (!user) return;
+    // Optimistic UI so it feels responsive and clearly toggles.
+    const prev = posts;
+    setPosts((cur) =>
+      cur.map((p) => {
+        if (p.id !== postId) return p;
+        const currently = !!p.viewerHeart;
+        const next = !currently;
+        return {
+          ...p,
+          viewerHeart: next,
+          reactionsCount: Math.max(0, Number(p.reactionsCount ?? 0) + (next ? 1 : -1)),
+        };
+      })
+    );
+
     const { error: e } = await toggleChannelReaction({ postId, userId: user.id, emoji });
-    if (e) setError(e);
-    else void load();
+    if (e) {
+      setError(e);
+      setPosts(prev);
+      return;
+    }
+    // Re-sync in background to ensure counts are accurate.
+    void load();
   };
 
   const reply = async (postId: string, text: string) => {
@@ -225,11 +262,13 @@ export default function ChannelPageContent() {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        className="rounded-lg border border-white/25 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                        className={`rounded-lg border border-white/25 px-3 py-1.5 text-xs font-semibold transition ${
+                          p.viewerHeart ? "bg-white text-[#3b0a6f]" : "bg-white/5 text-white hover:bg-white/10"
+                        }`}
                         onClick={() => react(p.id, "💜")}
-                        title="React"
+                        title={p.viewerHeart ? "Remove heart" : "Give a heart"}
                       >
-                        💜
+                        💜{p.reactionsCount > 0 ? ` ${p.reactionsCount}` : ""}
                       </button>
                       <button
                         type="button"
