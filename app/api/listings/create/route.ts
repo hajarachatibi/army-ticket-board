@@ -57,6 +57,20 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
+  // Rate limit posting: max 2 listings per 48 hours (friendly pre-check; DB trigger enforces too).
+  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const { count: recentCount } = await supabase
+    .from("listings")
+    .select("id", { count: "exact", head: true })
+    .eq("seller_id", user.id)
+    .gte("created_at", since);
+  if ((recentCount ?? 0) >= 2) {
+    return NextResponse.json(
+      { error: "You can only post 2 listings within 48 hours. Please wait before posting another." },
+      { status: 429 }
+    );
+  }
+
   const concertCity = String(body?.concertCity ?? "").trim();
   const concertDate = String(body?.concertDate ?? "").trim();
   const ticketSource = String(body?.ticketSource ?? "").trim();

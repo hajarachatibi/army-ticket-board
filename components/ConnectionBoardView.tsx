@@ -9,7 +9,7 @@ import ListingReportModal from "@/components/ListingReportModal";
 import PostListingModal from "@/components/PostListingModal";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
-import { connectToListing, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type MyListing } from "@/lib/supabase/listings";
+import { connectToListing, endConnection, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type MyListing } from "@/lib/supabase/listings";
 import { supabase } from "@/lib/supabaseClient";
 
 function formatPrice(amount: number, currency: string): string {
@@ -54,7 +54,9 @@ export default function ConnectionBoardView() {
 
   const [browse, setBrowse] = useState<BrowseListingCard[]>([]);
   const [mine, setMine] = useState<MyListing[]>([]);
-  const [connections, setConnections] = useState<Array<{ id: string; stage: string; stageExpiresAt: string; listingId: string }>>([]);
+  const [connections, setConnections] = useState<
+    Array<{ id: string; stage: string; stageExpiresAt: string; listingId: string; buyerId: string; sellerId: string }>
+  >([]);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterCity, setFilterCity] = useState("");
@@ -68,6 +70,7 @@ export default function ConnectionBoardView() {
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
+  const [limitOpen, setLimitOpen] = useState<{ title: string; body: string } | null>(null);
   const [lockedExplain, setLockedExplain] = useState<{ summary: string; lockExpiresAt: string | null } | null>(null);
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
@@ -82,7 +85,7 @@ export default function ConnectionBoardView() {
       fetchMyListings(user.id),
       supabase
         .from("connections")
-        .select("id, stage, stage_expires_at, listing_id")
+        .select("id, stage, stage_expires_at, listing_id, buyer_id, seller_id")
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .order("created_at", { ascending: false }),
     ]);
@@ -102,6 +105,8 @@ export default function ConnectionBoardView() {
         stage: String(r.stage ?? ""),
         stageExpiresAt: String(r.stage_expires_at ?? ""),
         listingId: String(r.listing_id ?? ""),
+        buyerId: String(r.buyer_id ?? ""),
+        sellerId: String(r.seller_id ?? ""),
       }));
       setConnections(rows);
     }
@@ -120,6 +125,23 @@ export default function ConnectionBoardView() {
   const activeListingsCount = useMemo(() => {
     return mine.filter((l) => l.status === "processing" || l.status === "active" || l.status === "locked").length;
   }, [mine]);
+
+  const postedLast48hCount = useMemo(() => {
+    const since = Date.now() - 48 * 60 * 60 * 1000;
+    return mine.filter((l) => {
+      const t = Date.parse(String(l.createdAt ?? ""));
+      return Number.isFinite(t) && t > since;
+    }).length;
+  }, [mine]);
+
+  const sellerHasActiveConnection = useMemo(() => {
+    if (!user) return false;
+    return connections.some(
+      (c) =>
+        c.sellerId === user.id &&
+        ["bonding", "preview", "comfort", "social", "agreement", "chat_open"].includes(String(c.stage))
+    );
+  }, [connections, user]);
 
   const browseCurrencies = useMemo(() => {
     const set = new Set<string>();
@@ -193,13 +215,48 @@ export default function ConnectionBoardView() {
     const { connectionId, error: e } = await connectToListing(listingId);
     setConnectingId(null);
     if (e) {
-      setError(e);
+      if (e.toLowerCase().includes("3 active")) {
+        setLimitOpen({
+          title: "Connection limit reached",
+          body: "You can only have up to 3 active connection requests at a time. Please end or finish one of your existing connections, then try again.",
+        });
+      } else {
+        setError(e);
+      }
       return;
     }
     if (connectionId) {
       window.location.href = `/connections/${encodeURIComponent(connectionId)}`;
     }
   };
+
+  const cancelRequest = async (connectionId: string) => {
+    setMutatingId(connectionId);
+    setError(null);
+    try {
+      const { error: e } = await endConnection(connectionId);
+      if (e) setError(e);
+      await load();
+    } finally {
+      setMutatingId(null);
+    }
+  };
+
+  const activeConnectionStages = useMemo(() => {
+    return new Set(["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
+  }, []);
+
+  const myActiveBuyerConnectionByListingId = useMemo(() => {
+    if (!user) return new Map<string, { id: string; stage: string }>();
+    const map = new Map<string, { id: string; stage: string }>();
+    for (const c of connections) {
+      if (c.buyerId !== user.id) continue;
+      if (!activeConnectionStages.has(String(c.stage))) continue;
+      // Most recent wins (connections are ordered desc).
+      if (!map.has(c.listingId)) map.set(c.listingId, { id: c.id, stage: c.stage });
+    }
+    return map;
+  }, [activeConnectionStages, connections, user]);
 
   const markSold = async (listingId: string) => {
     setMutatingId(listingId);
@@ -262,9 +319,31 @@ export default function ConnectionBoardView() {
             <button
               type="button"
               className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => setPostOpen(true)}
-              disabled={activeListingsCount >= 5}
-              title={activeListingsCount >= 5 ? "Max 5 active listings" : "Post a listing"}
+              onClick={() => {
+                if (activeListingsCount >= 5) {
+                  setLimitOpen({
+                    title: "Listing limit reached",
+                    body: "You can have a maximum of 5 active listings at a time. Mark one sold, delete it, or wait until it is no longer active.",
+                  });
+                  return;
+                }
+                if (postedLast48hCount >= 2) {
+                  setLimitOpen({
+                    title: "Posting limit reached",
+                    body: "You can only post 2 listings within 48 hours. Please wait before posting another listing.",
+                  });
+                  return;
+                }
+                setPostOpen(true);
+              }}
+              disabled={false}
+              title={
+                postedLast48hCount >= 2
+                  ? "Max 2 listings per 48 hours"
+                  : activeListingsCount >= 5
+                    ? "Max 5 active listings"
+                    : "Post a listing"
+              }
             >
               Post Listing
             </button>
@@ -322,6 +401,11 @@ export default function ConnectionBoardView() {
           You can have a maximum of <span className="font-semibold">5 active listings</span> at a time.
         </div>
       )}
+      {postedLast48hCount >= 2 && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          You can post a maximum of <span className="font-semibold">2 listings within 48 hours</span>. Please wait before posting another.
+        </div>
+      )}
 
       <div className="mt-6">
         {loading ? (
@@ -341,12 +425,21 @@ export default function ConnectionBoardView() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Stage</p>
-                      <p className="mt-1 font-display text-lg font-bold text-army-purple">{c.stage}</p>
+                      <p className="mt-1 font-display text-lg font-bold text-army-purple">
+                        {String(c.stage) === "pending_seller" && user && c.sellerId === user.id && sellerHasActiveConnection
+                          ? "waiting_list"
+                          : c.stage}
+                      </p>
                       {c.stageExpiresAt ? (
                         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                           Expires: {new Date(c.stageExpiresAt).toLocaleString()}
                         </p>
                       ) : null}
+                      {String(c.stage) === "pending_seller" && user && c.sellerId === user.id && sellerHasActiveConnection && (
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                          Waiting list: you can accept this after your active connection ends.
+                        </p>
+                      )}
                     </div>
                     <div className="relative">
                       {unreadConnectionIds.has(c.id) && (
@@ -519,27 +612,52 @@ export default function ConnectionBoardView() {
                         >
                           Report
                         </button>
-                        <button
-                          type="button"
-                          className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => {
-                            const summary = `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`;
-                            if (String(l.status) === "locked") {
-                              setLockedExplain({ summary, lockExpiresAt: l.lockExpiresAt });
-                              return;
-                            }
-                            setConnectConfirm({ listingId: l.listingId, summary });
-                          }}
-                          disabled={connectingId === l.listingId || String(l.status) === "sold"}
-                        >
-                          {String(l.status) === "sold"
-                            ? "SOLD"
-                            : String(l.status) === "locked"
-                              ? "LOCKED"
-                              : connectingId === l.listingId
-                                ? "Connecting…"
-                                : "CONNECT"}
-                        </button>
+                        {(() => {
+                          const myConn = myActiveBuyerConnectionByListingId.get(l.listingId) ?? null;
+                          const isSold = String(l.status) === "sold";
+                          const isLocked = String(l.status) === "locked";
+
+                          if (myConn) {
+                            const isPending = String(myConn.stage) === "pending_seller";
+                            return isPending ? (
+                              <button
+                                type="button"
+                                className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={() => cancelRequest(myConn.id)}
+                                disabled={mutatingId === myConn.id}
+                              >
+                                {mutatingId === myConn.id ? "Cancelling…" : "Cancel request"}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={() => (window.location.href = `/connections/${encodeURIComponent(myConn.id)}`)}
+                                disabled={false}
+                              >
+                                Already connected
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              type="button"
+                              className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
+                              onClick={() => {
+                                const summary = `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`;
+                                if (isLocked) {
+                                  setLockedExplain({ summary, lockExpiresAt: l.lockExpiresAt });
+                                  return;
+                                }
+                                setConnectConfirm({ listingId: l.listingId, summary });
+                              }}
+                              disabled={connectingId === l.listingId || isSold}
+                            >
+                              {isSold ? "SOLD" : isLocked ? "LOCKED" : connectingId === l.listingId ? "Connecting…" : "CONNECT"}
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -753,6 +871,31 @@ export default function ConnectionBoardView() {
                 disabled={connectingId === connectConfirm.listingId}
               >
                 {connectingId === connectConfirm.listingId ? "Connecting…" : "Continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {limitOpen && (
+        <div
+          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="limit-modal-title"
+          onClick={() => setLimitOpen(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="limit-modal-title" className="font-display text-xl font-bold text-army-purple">
+              {limitOpen.title}
+            </h2>
+            <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">{limitOpen.body}</p>
+            <div className="mt-6 flex justify-end">
+              <button type="button" className="btn-army" onClick={() => setLimitOpen(null)}>
+                Got it
               </button>
             </div>
           </div>

@@ -57,6 +57,7 @@ export default function ConnectionPageContent() {
   const [matchOpen, setMatchOpen] = useState(false);
   const [matchAck1, setMatchAck1] = useState(false);
   const [matchAck2, setMatchAck2] = useState(false);
+  const [sellerHasOtherActive, setSellerHasOtherActive] = useState(false);
 
   const isBuyer = useMemo(() => !!user && conn?.buyer_id === user.id, [conn?.buyer_id, user]);
   const isSeller = useMemo(() => !!user && conn?.seller_id === user.id, [conn?.seller_id, user]);
@@ -91,6 +92,21 @@ export default function ConnectionPageContent() {
     }
     setConn(data as any);
     setLoading(false);
+
+    // Seller-only: can only accept one active connection at a time.
+    // If seller already has an active connection (not this one), disable Accept in pending_seller and show a note.
+    if (user && String((data as any)?.seller_id ?? "") === user.id) {
+      const { data: other } = await supabase
+        .from("connections")
+        .select("id")
+        .eq("seller_id", user.id)
+        .in("stage", ["bonding", "preview", "comfort", "social", "agreement", "chat_open"])
+        .neq("id", connectionId)
+        .limit(1);
+      setSellerHasOtherActive(Array.isArray(other) && other.length > 0);
+    } else {
+      setSellerHasOtherActive(false);
+    }
 
     const stage = String((data as any)?.stage ?? "");
     const qIds = ((data as any)?.bonding_question_ids ?? []) as string[];
@@ -522,11 +538,22 @@ export default function ConnectionPageContent() {
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     A buyer wants to connect. You have 24 hours to respond.
                   </p>
+                  <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                    Note: you can <span className="font-semibold">accept only one connection at a time</span>. You can decline others (they will stay as requests), and once the active connection is ended/finished, you can accept another request.
+                  </p>
+                  {sellerHasOtherActive && (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                      You currently have another active connection in progress. To accept this request, first finish or tap <span className="font-semibold">Release / end</span> on your active connection.
+                      <div className="mt-1 text-xs">
+                        This request is in the <span className="font-semibold">waiting list</span> until then.
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-4 flex flex-wrap justify-end gap-2">
                     <button type="button" className="btn-army-outline" onClick={() => doSellerRespond(false)} disabled={submitting}>
                       Decline
                     </button>
-                    <button type="button" className="btn-army" onClick={() => doSellerRespond(true)} disabled={submitting}>
+                    <button type="button" className="btn-army" onClick={() => doSellerRespond(true)} disabled={submitting || sellerHasOtherActive}>
                       Accept
                     </button>
                   </div>
