@@ -164,7 +164,7 @@ export default function ChatModal() {
   const handleMarkSold = async () => {
     if (!isSeller || !isOpen) return;
     if (!chat.listingId) return;
-    if (!confirm("Mark as SOLD and remove listing permanently?")) return;
+    if (!confirm("Mark as SOLD? This will end any active connection requests for this listing.")) return;
     setUploadError(null);
     setUploading(true);
     try {
