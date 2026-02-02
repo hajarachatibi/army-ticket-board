@@ -141,13 +141,16 @@ export default function ConnectionBoardView() {
     }).length;
   }, [mine]);
 
-  const sellerHasActiveConnection = useMemo(() => {
-    if (!user) return false;
-    return connections.some(
-      (c) =>
-        c.sellerId === user.id &&
-        ["bonding", "preview", "comfort", "social", "agreement", "chat_open"].includes(String(c.stage))
-    );
+  const sellerHasActiveAcceptedConnectionByListingId = useMemo(() => {
+    if (!user) return new Map<string, boolean>();
+    const map = new Map<string, boolean>();
+    for (const c of connections) {
+      if (c.sellerId !== user.id) continue;
+      // "Accepted / active" = not pending_seller; these stages mean the seller accepted a request.
+      if (!["bonding", "preview", "comfort", "social", "agreement", "chat_open"].includes(String(c.stage))) continue;
+      map.set(String(c.listingId), true);
+    }
+    return map;
   }, [connections, user]);
 
   const browseCurrencies = useMemo(() => {
@@ -444,18 +447,31 @@ export default function ConnectionBoardView() {
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Stage</p>
                       <p className="mt-1 font-display text-lg font-bold text-army-purple">
-                        {String(c.stage) === "pending_seller" && user && c.sellerId === user.id && sellerHasActiveConnection
-                          ? "waiting_list"
-                          : c.stage}
+                        {(() => {
+                          const s = String(c.stage);
+                          if (
+                            s === "pending_seller" &&
+                            user &&
+                            c.sellerId === user.id &&
+                            sellerHasActiveAcceptedConnectionByListingId.get(String(c.listingId))
+                          ) {
+                            return "waiting_list";
+                          }
+                          if (s === "chat_open") return "connected";
+                          return s;
+                        })()}
                       </p>
                       {c.stageExpiresAt ? (
                         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                           Expires: {new Date(c.stageExpiresAt).toLocaleString()}
                         </p>
                       ) : null}
-                      {String(c.stage) === "pending_seller" && user && c.sellerId === user.id && sellerHasActiveConnection && (
+                      {String(c.stage) === "pending_seller" &&
+                        user &&
+                        c.sellerId === user.id &&
+                        sellerHasActiveAcceptedConnectionByListingId.get(String(c.listingId)) && (
                         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                          Waiting list: you can accept this after your active connection ends.
+                          Waiting list for this listing: you can accept this after the active connection for this listing ends.
                         </p>
                       )}
                     </div>

@@ -95,13 +95,15 @@ export default function ConnectionPageContent() {
     setLoading(false);
     setStatusPopupClosed(false);
 
-    // Seller-only: can only accept one active connection at a time.
-    // If seller already has an active connection (not this one), disable Accept in pending_seller and show a note.
+    // Seller-only: can only accept one active connection at a time PER LISTING.
+    // If this listing already has an active accepted connection (not this one), disable Accept in pending_seller and show a note.
     if (user && String((data as any)?.seller_id ?? "") === user.id) {
+      const listingId = String((data as any)?.listing_id ?? "");
       const { data: other } = await supabase
         .from("connections")
         .select("id")
         .eq("seller_id", user.id)
+        .eq("listing_id", listingId)
         .in("stage", ["bonding", "preview", "comfort", "social", "agreement", "chat_open"])
         .neq("id", connectionId)
         .limit(1);
@@ -560,11 +562,11 @@ export default function ConnectionPageContent() {
                     A buyer wants to connect. You have 24 hours to respond.
                   </p>
                   <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                    Note: you can <span className="font-semibold">accept only one connection at a time</span>. You can decline others (they will stay as requests), and once the active connection is ended/finished, you can accept another request.
+                    Note: for this listing, you can <span className="font-semibold">accept only one connection at a time</span>. You can decline others (they will stay as requests), and once the active connection for this listing is ended/finished, you can accept another request for this listing.
                   </p>
                   {sellerHasOtherActive && (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                      You currently have another active connection in progress. To accept this request, first finish or tap <span className="font-semibold">Release / end</span> on your active connection.
+                      This listing already has an active connection in progress. To accept this request, first finish or tap <span className="font-semibold">Release / end</span> on the active connection for this listing.
                       <div className="mt-1 text-xs">
                         This request is in the <span className="font-semibold">waiting list</span> until then.
                       </div>
