@@ -762,6 +762,11 @@ export default function ConnectionPageContent() {
             </div>
 
             <div className="mt-4 max-h-[70vh] overflow-y-auto rounded-xl border border-army-purple/15 bg-white/80 p-4 text-sm text-neutral-800 dark:border-army-purple/25 dark:bg-neutral-900/60 dark:text-neutral-200">
+              {error && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  {error}
+                </div>
+              )}
               {!bothAgreed ? (
                 <>
                   <p className="font-semibold text-army-purple">💜 Before You Continue</p>
@@ -867,14 +872,25 @@ export default function ConnectionPageContent() {
 
             <div className="mt-4 flex justify-end gap-2">
               {!bothAgreed ? (
-                <button
-                  type="button"
-                  className="btn-army"
-                  onClick={doAgreement}
-                  disabled={submitting || conn.stage !== "agreement" || !matchAck1 || !matchAck2}
-                >
-                  {submitting ? "Confirming…" : "CONFIRM"}
-                </button>
+                <div className="flex flex-col items-end gap-2">
+                  {(conn.stage !== "agreement" || !matchAck1 || !matchAck2) && (
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                      {conn.stage !== "agreement"
+                        ? "You can confirm once the connection is in the Agreement step."
+                        : !matchAck1 || !matchAck2
+                          ? "Please check both boxes to confirm."
+                          : null}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={doAgreement}
+                    disabled={submitting || conn.stage !== "agreement" || !matchAck1 || !matchAck2}
+                  >
+                    {submitting ? "Confirming…" : "CONFIRM"}
+                  </button>
+                </div>
               ) : (
                 <button type="button" className="btn-army" onClick={() => setMatchOpen(false)}>
                   Done

@@ -88,7 +88,12 @@ export default function ConnectionBoardView() {
     ]);
     if (b.error) setError(b.error);
     if (m.error) setError(m.error);
-    setBrowse(b.data);
+    // Keep ordering "Active first", then "Locked", then "Sold" to reduce confusion.
+    // Preserve the relative order within each group (so if a listing is released, it returns to its original place).
+    const activeLike = b.data.filter((x) => String(x.status) !== "locked" && String(x.status) !== "sold");
+    const locked = b.data.filter((x) => String(x.status) === "locked");
+    const sold = b.data.filter((x) => String(x.status) === "sold");
+    setBrowse([...activeLike, ...locked, ...sold]);
     setMine(m.data);
     if ((c as any).error) setError(String((c as any).error.message ?? "Failed to load connections"));
     else {
