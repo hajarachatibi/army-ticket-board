@@ -45,6 +45,28 @@ export default function LiteProfileModal({
     return list.filter((a) => a.prompt.trim().length > 0);
   }, [profile?.forumAnswers]);
 
+  const socials = useMemo(() => {
+    const p = profile;
+    if (!p) return [];
+    const rows: Array<{ label: string; value: string }> = [
+      { label: "Instagram", value: (p.instagram ?? "").trim() },
+      { label: "Facebook", value: (p.facebook ?? "").trim() },
+      { label: "TikTok", value: (p.tiktok ?? "").trim() },
+      { label: "Snapchat", value: (p.snapchat ?? "").trim() },
+    ];
+    return rows;
+  }, [profile]);
+
+  const onboardingAnswers = useMemo(() => {
+    const p = profile;
+    if (!p) return [];
+    return [
+      { label: "Bias", value: (p.armyBiasAnswer ?? "").trim() },
+      { label: "Years ARMY", value: (p.armyYearsArmy ?? "").trim() },
+      { label: "Favorite album", value: (p.armyFavoriteAlbum ?? "").trim() },
+    ];
+  }, [profile]);
+
   if (!open) return null;
 
   return (
@@ -132,6 +154,46 @@ export default function LiteProfileModal({
                   </div>
                 )}
               </div>
+
+              {(socials.some((s) => s.value.length > 0) || onboardingAnswers.some((a) => a.value.length > 0)) && (
+                <div className="mt-6 space-y-5">
+                  {socials.some((s) => s.value.length > 0) && (
+                    <div>
+                      <h3 className="font-display text-lg font-bold text-army-purple">Socials (admin view)</h3>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {socials.map((s) => (
+                          <div
+                            key={s.label}
+                            className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-3 dark:border-army-purple/25 dark:bg-neutral-900/80"
+                          >
+                            <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{s.label}</p>
+                            <p className="mt-1 break-words text-sm text-neutral-700 dark:text-neutral-300">{s.value || "—"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {onboardingAnswers.some((a) => a.value.length > 0) && (
+                    <div>
+                      <h3 className="font-display text-lg font-bold text-army-purple">ARMY Profile answers (admin view)</h3>
+                      <div className="mt-3 space-y-3">
+                        {onboardingAnswers.map((a) => (
+                          <div
+                            key={a.label}
+                            className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-3 dark:border-army-purple/25 dark:bg-neutral-900/80"
+                          >
+                            <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{a.label}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+                              {a.value || "—"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

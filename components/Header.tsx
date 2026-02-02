@@ -142,7 +142,6 @@ export default function Header() {
       base.push({ href: "/channel", label: "Admin Channel" });
     }
     if (showAdmin) {
-      base.push({ href: "/chats", label: "Chats" });
       base.push({ href: "/admin", label: "Admin" });
     }
     return base;
@@ -254,18 +253,6 @@ export default function Header() {
                 </Link>
               );
             })}
-            {showAdmin && (
-              <Link
-                href="/chats"
-                className={`inline-flex rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                  pathname === "/chats" || pathname.startsWith("/chats/")
-                    ? "bg-army-purple/10 text-army-purple dark:bg-army-purple/20"
-                    : "text-neutral-600 hover:bg-army-purple/5 hover:text-army-purple dark:text-neutral-400 dark:hover:bg-army-purple/10 dark:hover:text-army-300"
-                }`}
-              >
-                Chats
-              </Link>
-            )}
             {showAdmin && (
               <Link
                 href="/admin"

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import AdminChatModal from "@/components/AdminChatModal";
+import AdminListingModal from "@/components/AdminListingModal";
+import LiteProfileModal from "@/components/LiteProfileModal";
 import { useAuth } from "@/lib/AuthContext";
 import { formatPrice } from "@/lib/data/currencies";
+import { deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
 import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
+import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
 import { supabase } from "@/lib/supabaseClient";
-import { adminGetOrCreateChat, type AdminChat } from "@/lib/supabase/adminChats";
 import {
   adminBanAndDeleteUser,
   adminDeleteListingReport,
@@ -38,6 +40,8 @@ type Tab =
   | "listings"
   | "armyProfileQuestions"
   | "bondingQuestions"
+  | "stories"
+  | "recommendations"
   | "sellers"
   | "buyers"
   | "users"
@@ -95,11 +99,19 @@ export default function AdminPanelContent() {
 
   const [banned, setBanned] = useState<BannedUser[]>([]);
 
-  const [adminChatOpen, setAdminChatOpen] = useState<{ chat: AdminChat; userEmail: string } | null>(null);
+  const [profileOpen, setProfileOpen] = useState<{ userId: string; title: string } | null>(null);
+  const [listingOpen, setListingOpen] = useState<{ listingId: string } | null>(null);
+
+  const [stories, setStories] = useState<ArmyStory[]>([]);
+  const [recommendations, setRecommendations] = useState<AdminRecommendation[]>([]);
 
   const [armyProfileQuestions, setArmyProfileQuestions] = useState<
     Array<{ key: string; prompt: string; active: boolean; position: number }>
   >([]);
+  const [newArmyProfileKey, setNewArmyProfileKey] = useState("");
+  const [newArmyProfilePrompt, setNewArmyProfilePrompt] = useState("");
+  const [newArmyProfilePosition, setNewArmyProfilePosition] = useState("100");
+  const [newArmyProfileActive, setNewArmyProfileActive] = useState(true);
 
   const [bondingQuestions, setBondingQuestions] = useState<Array<{ id: string; prompt: string; active: boolean; createdAt: string }>>([]);
   const [newBondingPrompt, setNewBondingPrompt] = useState("");
@@ -112,6 +124,8 @@ export default function AdminPanelContent() {
       { id: "listings", label: "Listings" },
       { id: "armyProfileQuestions", label: "ARMY Profile Questions" },
       { id: "bondingQuestions", label: "Connection bonding questions" },
+      { id: "stories", label: "ARMY Stories & Feedback" },
+      { id: "recommendations", label: "Recommendations" },
       { id: "sellers", label: "Sellers" },
       { id: "buyers", label: "Buyers" },
       { id: "users", label: "All users" },
@@ -219,6 +233,24 @@ export default function AdminPanelContent() {
     else setBanned(data);
   }, []);
 
+  const loadStories = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await adminFetchPendingStories();
+    setLoading(false);
+    if (e) setError(e);
+    else setStories(data);
+  }, []);
+
+  const loadRecommendations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminRecommendations();
+    setLoading(false);
+    if (e) setError(e);
+    else setRecommendations(data);
+  }, []);
+
   const loadArmyProfileQuestions = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -259,11 +291,29 @@ export default function AdminPanelContent() {
     if (tab === "listings") void loadListings();
     if (tab === "armyProfileQuestions") void loadArmyProfileQuestions();
     if (tab === "bondingQuestions") void loadBondingQuestions();
+    if (tab === "stories") void loadStories();
+    if (tab === "recommendations") void loadRecommendations();
     if (tab === "sellers") void loadSellers();
     if (tab === "buyers") void loadBuyers();
     if (tab === "users") void loadAllUsers();
     if (tab === "banned") void loadBanned();
-  }, [isAdmin, tab, user?.id, loadAllUsers, loadArmyProfileQuestions, loadBondingQuestions, loadBanned, loadBuyers, loadDashboard, loadListingReports, loadListings, loadSellers, loadUserReports]);
+  }, [
+    isAdmin,
+    tab,
+    user?.id,
+    loadAllUsers,
+    loadArmyProfileQuestions,
+    loadBondingQuestions,
+    loadBanned,
+    loadBuyers,
+    loadDashboard,
+    loadListingReports,
+    loadListings,
+    loadRecommendations,
+    loadSellers,
+    loadStories,
+    loadUserReports,
+  ]);
 
   useEffect(() => {
     if (tab === "listings") void loadListings();
@@ -281,17 +331,12 @@ export default function AdminPanelContent() {
     if (tab === "users") void loadAllUsers();
   }, [allUsersPage, allUsersSearchApplied, tab, loadAllUsers]);
 
-  const openAdminChat = useCallback(async (u: AdminUser) => {
-    setFeedback(null);
-    setError(null);
-    setLoading(true);
-    try {
-      const { data, error: e } = await adminGetOrCreateChat(u.id);
-      if (e) setError(e);
-      else if (data) setAdminChatOpen({ chat: data, userEmail: u.email });
-    } finally {
-      setLoading(false);
-    }
+  const openUserProfile = useCallback((params: { userId: string; title: string }) => {
+    setProfileOpen(params);
+  }, []);
+
+  const openListing = useCallback((listingId: string) => {
+    setListingOpen({ listingId });
   }, []);
 
   const banAndDelete = useCallback(async (email: string) => {
@@ -363,6 +408,93 @@ export default function AdminPanelContent() {
       setLoading(false);
     }
   }, [loadArmyProfileQuestions]);
+
+  const addArmyProfileQuestion = useCallback(async () => {
+    const key = newArmyProfileKey.trim();
+    const prompt = newArmyProfilePrompt.trim();
+    const position = Number(newArmyProfilePosition) || 0;
+    if (!key || !prompt) return;
+    if (!/^[a-z0-9_]+$/.test(key)) {
+      setFeedback("Error: key must be lowercase letters/numbers/underscore only.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await supabase.from("army_profile_questions").insert({
+        key,
+        prompt,
+        active: newArmyProfileActive,
+        position,
+      });
+      if (e) setFeedback(`Error: ${e.message}`);
+      else {
+        setFeedback("Question added.");
+        setNewArmyProfileKey("");
+        setNewArmyProfilePrompt("");
+        setNewArmyProfilePosition(String(Math.max(1, position + 1)));
+        setNewArmyProfileActive(true);
+      }
+      await loadArmyProfileQuestions();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadArmyProfileQuestions, newArmyProfileActive, newArmyProfileKey, newArmyProfilePosition, newArmyProfilePrompt]);
+
+  const deleteArmyProfileQuestion = useCallback(async (key: string) => {
+    if (!confirm(`Delete ARMY profile question "${key}"?`)) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await supabase.from("army_profile_questions").delete().eq("key", key);
+      if (e) setFeedback(`Error: ${e.message}`);
+      else setFeedback("Deleted.");
+      await loadArmyProfileQuestions();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadArmyProfileQuestions]);
+
+  const moderateStory = useCallback(async (id: string, status: "approved" | "rejected") => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await adminModerateStory({ id, status });
+      if (e) setFeedback(`Error: ${e}`);
+      else setFeedback(`Story ${status}.`);
+      await loadStories();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadStories]);
+
+  const removeStory = useCallback(async (id: string) => {
+    if (!confirm("Delete this story?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await adminDeleteStory(id);
+      if (e) setFeedback(`Error: ${e}`);
+      else setFeedback("Story deleted.");
+      await loadStories();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadStories]);
+
+  const removeRecommendation = useCallback(async (id: string) => {
+    if (!confirm("Delete this recommendation?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await deleteAdminRecommendation(id);
+      if (e) setFeedback(`Error: ${e}`);
+      else setFeedback("Recommendation deleted.");
+      await loadRecommendations();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadRecommendations]);
 
   const addBondingQuestion = useCallback(async () => {
     const prompt = newBondingPrompt.trim();
@@ -540,6 +672,37 @@ export default function AdminPanelContent() {
                             </td>
                             <td className="whitespace-nowrap px-3 py-2">
                               <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => openListing(r.listingId)}
+                                >
+                                  View listing
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!r.reporterId}
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => r.reporterId && openUserProfile({ userId: r.reporterId, title: `Reporter: ${r.reporterEmail ?? r.reporterUsername ?? "User"}` })}
+                                >
+                                  Reporter profile
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!r.sellerId}
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => r.sellerId && openUserProfile({ userId: r.sellerId, title: `Seller: ${r.sellerEmail ?? "User"}` })}
+                                >
+                                  Seller profile
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!r.sellerEmail}
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => r.sellerEmail && banAndDelete(r.sellerEmail)}
+                                >
+                                  Ban seller
+                                </button>
                                 <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => removeListing(r.listingId)}>
                                   Remove listing
                                 </button>
@@ -579,6 +742,7 @@ export default function AdminPanelContent() {
                           <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reason</th>
                           <th className="min-w-[200px] max-w-[340px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Details</th>
                           <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Proof</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -601,6 +765,34 @@ export default function AdminPanelContent() {
                               ) : (
                                 <span className="text-xs text-neutral-500">—</span>
                               )}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  disabled={!r.reporterId}
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => r.reporterId && openUserProfile({ userId: r.reporterId, title: `Reporter: ${r.reporterEmail ?? r.reporterUsername ?? "User"}` })}
+                                >
+                                  Reporter profile
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!r.reportedUserId}
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => r.reportedUserId && openUserProfile({ userId: r.reportedUserId, title: `Reported user: ${r.reportedEmail ?? "User"}` })}
+                                >
+                                  Reported profile
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!r.reportedEmail}
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => r.reportedEmail && banAndDelete(r.reportedEmail)}
+                                >
+                                  Ban reported
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -663,9 +855,38 @@ export default function AdminPanelContent() {
                             </td>
                             <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{l.status}</td>
                             <td className="whitespace-nowrap px-3 py-2">
-                              <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => removeListing(l.id)}>
-                                Remove
-                              </button>
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => openListing(l.id)}
+                                >
+                                  View
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!l.sellerId}
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => l.sellerId && openUserProfile({ userId: l.sellerId, title: `Owner: ${l.sellerEmail ?? "User"}` })}
+                                >
+                                  View owner
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!l.sellerEmail}
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => l.sellerEmail && banAndDelete(l.sellerEmail)}
+                                >
+                                  Ban owner
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => removeListing(l.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -697,6 +918,37 @@ export default function AdminPanelContent() {
               <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
                 These are the onboarding questions shown in “Finish setup”.
               </p>
+
+              <div className="mb-4 rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                <p className="text-sm font-semibold text-army-purple">Add a question</p>
+                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                  Note: the app currently collects answers for the built-in keys (bias, years_army, favorite_album). New keys are safe to add, but won’t be collected until the onboarding form is updated.
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-army-purple">Key</label>
+                    <input className="input-army mt-2" value={newArmyProfileKey} onChange={(e) => setNewArmyProfileKey(e.target.value)} placeholder="e.g. bias" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold text-army-purple">Prompt</label>
+                    <input className="input-army mt-2" value={newArmyProfilePrompt} onChange={(e) => setNewArmyProfilePrompt(e.target.value)} placeholder="Type the question…" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-army-purple">Position</label>
+                    <input className="input-army mt-2" value={newArmyProfilePosition} onChange={(e) => setNewArmyProfilePosition(e.target.value)} inputMode="numeric" />
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+                    <input type="checkbox" checked={newArmyProfileActive} onChange={(e) => setNewArmyProfileActive(e.target.checked)} />
+                    Active
+                  </label>
+                  <button type="button" className="btn-army" onClick={addArmyProfileQuestion} disabled={loading || !newArmyProfileKey.trim() || !newArmyProfilePrompt.trim()}>
+                    Add
+                  </button>
+                </div>
+              </div>
+
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
               ) : (
@@ -743,9 +995,14 @@ export default function AdminPanelContent() {
                       </div>
 
                       <div className="mt-3 flex justify-end">
-                        <button type="button" className="btn-army" onClick={() => saveArmyProfileQuestion(q)}>
-                          Save
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" className="btn-army-outline" onClick={() => deleteArmyProfileQuestion(q.key)} disabled={loading}>
+                            Delete
+                          </button>
+                          <button type="button" className="btn-army" onClick={() => saveArmyProfileQuestion(q)} disabled={loading}>
+                            Save
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -823,6 +1080,154 @@ export default function AdminPanelContent() {
             </section>
           )}
 
+          {tab === "stories" && (
+            <section>
+              <h2 className="mb-2 font-display text-xl font-bold text-army-purple">ARMY Stories & Feedback</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">Pending/rejected submissions (approved stories are visible publicly).</p>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : stories.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No pending stories.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[1100px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Status</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Author</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Title</th>
+                          <th className="min-w-[320px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Body</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stories.map((s) => (
+                          <tr key={s.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(s.createdAt)}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-800 dark:text-neutral-200">{s.status}</td>
+                            <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                              {s.anonymous ? "Anonymous" : s.authorUsername}
+                              <div className="mt-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => openUserProfile({ userId: s.authorId, title: `Story author: ${s.authorUsername}` })}
+                                >
+                                  View author
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{s.title}</td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="max-h-28 overflow-y-auto whitespace-pre-wrap rounded border border-army-purple/15 bg-neutral-50/80 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300">
+                                {s.body}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  onClick={() => moderateStory(s.id, "approved")}
+                                  disabled={loading}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-100 dark:hover:bg-neutral-600"
+                                  onClick={() => moderateStory(s.id, "rejected")}
+                                  disabled={loading}
+                                >
+                                  Reject
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => removeStory(s.id)}
+                                  disabled={loading}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "recommendations" && (
+            <section>
+              <h2 className="mb-2 font-display text-xl font-bold text-army-purple">Recommendations</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">Community recommendations sent to admins.</p>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : recommendations.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No recommendations.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[1000px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Title</th>
+                          <th className="min-w-[360px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Body</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recommendations.map((r) => (
+                          <tr key={r.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(r.createdAt)}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{r.title}</td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="max-h-28 overflow-y-auto whitespace-pre-wrap rounded border border-army-purple/15 bg-neutral-50/80 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300">
+                                {r.body}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => openUserProfile({ userId: r.authorId, title: "Recommendation author" })}
+                                >
+                                  View author
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => removeRecommendation(r.id)}
+                                  disabled={loading}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {(tab === "sellers" || tab === "buyers" || tab === "users") && (
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">
@@ -884,8 +1289,12 @@ export default function AdminPanelContent() {
                               <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(u.lastLoginAt)}</td>
                               <td className="whitespace-nowrap px-3 py-2">
                                 <div className="flex flex-wrap gap-1">
-                                  <button type="button" className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40" onClick={() => openAdminChat(u)}>
-                                    Admin chat
+                                  <button
+                                    type="button"
+                                    className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                    onClick={() => openUserProfile({ userId: u.id, title: `User: ${u.email}` })}
+                                  >
+                                    View user
                                   </button>
                                   <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => banAndDelete(u.email)}>
                                     Ban & delete
@@ -989,8 +1398,21 @@ export default function AdminPanelContent() {
         </div>
       </div>
 
-      {adminChatOpen && (
-        <AdminChatModal adminChat={adminChatOpen.chat} userEmail={adminChatOpen.userEmail} onClose={() => setAdminChatOpen(null)} youAreAdmin={true} />
+      {profileOpen && (
+        <LiteProfileModal
+          open={true}
+          onClose={() => setProfileOpen(null)}
+          userId={profileOpen.userId}
+          title={profileOpen.title}
+        />
+      )}
+
+      {listingOpen && (
+        <AdminListingModal
+          open={true}
+          onClose={() => setListingOpen(null)}
+          listingId={listingOpen.listingId}
+        />
       )}
 
       {userReportProofOpen && (

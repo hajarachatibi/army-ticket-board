@@ -15,6 +15,20 @@ export type LiteProfile = {
   /** Only returned when target is admin. */
   email: string;
   sellerApprovedCount: number;
+  /** Admin-only. Empty string for non-admin viewers. */
+  instagram?: string;
+  /** Admin-only. Empty string for non-admin viewers. */
+  facebook?: string;
+  /** Admin-only. Empty string for non-admin viewers. */
+  tiktok?: string;
+  /** Admin-only. Empty string for non-admin viewers. */
+  snapchat?: string;
+  /** Admin-only. Empty string for non-admin viewers. */
+  armyBiasAnswer?: string;
+  /** Admin-only. Empty string for non-admin viewers. */
+  armyYearsArmy?: string;
+  /** Admin-only. Empty string for non-admin viewers. */
+  armyFavoriteAlbum?: string;
   forumAnswers: LiteForumAnswer[];
 };
 
@@ -31,6 +45,13 @@ export async function fetchLiteProfile(userId: string): Promise<{ data: LiteProf
       isAdmin: Boolean(d.is_admin),
       email: String(d.email ?? ""),
       sellerApprovedCount: Number(d.seller_approved_count ?? 0),
+      instagram: d.instagram != null ? String(d.instagram) : "",
+      facebook: d.facebook != null ? String(d.facebook) : "",
+      tiktok: d.tiktok != null ? String(d.tiktok) : "",
+      snapchat: d.snapchat != null ? String(d.snapchat) : "",
+      armyBiasAnswer: d.army_bias_answer != null ? String(d.army_bias_answer) : "",
+      armyYearsArmy: d.army_years_army != null ? String(d.army_years_army) : "",
+      armyFavoriteAlbum: d.army_favorite_album != null ? String(d.army_favorite_album) : "",
       forumAnswers: Array.isArray(d.forum_answers)
         ? d.forum_answers.map((a: any) => ({
             id: String(a.id),

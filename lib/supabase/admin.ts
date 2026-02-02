@@ -47,6 +47,7 @@ export type AdminListingReport = {
 
 export type AdminListing = {
   id: string;
+  sellerId: string | null;
   sellerEmail: string | null;
   concertCity: string;
   concertDate: string;
@@ -248,6 +249,7 @@ export async function fetchAdminListingsFiltered(params: {
     return {
       data: list.map((d) => ({
         id: String(d.id),
+        sellerId: d.seller_id != null ? String(d.seller_id) : null,
         sellerEmail: d.seller_email != null ? String(d.seller_email) : null,
         concertCity: String(d.concert_city ?? ""),
         concertDate: String(d.concert_date ?? ""),
