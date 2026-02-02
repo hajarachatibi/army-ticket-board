@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import RequireAuth from "@/components/RequireAuth";
 import UserReportModal from "@/components/UserReportModal";
@@ -59,6 +59,8 @@ export default function ConnectionPageContent() {
   const [matchAck1, setMatchAck1] = useState(false);
   const [matchAck2, setMatchAck2] = useState(false);
   const [sellerHasOtherActive, setSellerHasOtherActive] = useState(false);
+  const [bondingIntroOpen, setBondingIntroOpen] = useState(false);
+  const bondingSectionRef = useRef<HTMLDivElement | null>(null);
 
   const isBuyer = useMemo(() => !!user && conn?.buyer_id === user.id, [conn?.buyer_id, user]);
   const isSeller = useMemo(() => !!user && conn?.seller_id === user.id, [conn?.seller_id, user]);
@@ -94,6 +96,7 @@ export default function ConnectionPageContent() {
     setConn(data as any);
     setLoading(false);
     setStatusPopupClosed(false);
+    setBondingIntroOpen(false);
 
     // Seller-only: can only accept one active connection at a time PER LISTING.
     // If this listing already has an active accepted connection (not this one), disable Accept in pending_seller and show a note.
@@ -135,6 +138,18 @@ export default function ConnectionPageContent() {
     } else {
       setPreview(null);
     }
+
+    // Seller-only: show an "Accepted" intro once when moving into Bonding,
+    // so it's clear the seller should answer the bonding questions next.
+    if (user && String((data as any)?.seller_id ?? "") === user.id && stage === "bonding") {
+      try {
+        const key = `army_ticket_board_bonding_intro_seen:${connectionId}`;
+        const seen = typeof window !== "undefined" ? window.localStorage.getItem(key) : "1";
+        if (!seen) setBondingIntroOpen(true);
+      } catch {
+        setBondingIntroOpen(true);
+      }
+    }
   };
 
   useEffect(() => {
@@ -162,7 +177,7 @@ export default function ConnectionPageContent() {
     setError(null);
     setNotice(
       accept
-        ? "Saved: you accepted this connection request. We'll notify you when the other ARMY completes the next step."
+        ? "Saved: accepted. Next: answer bonding questions to build trust with the buyer."
         : "Saved: you declined this connection request."
     );
     const { error: e } = await sellerRespondConnection(conn.id, accept);
@@ -590,7 +605,10 @@ export default function ConnectionPageContent() {
           )}
 
           {conn.stage === "bonding" && (
-            <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
+            <div
+              ref={bondingSectionRef}
+              className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900"
+            >
               <p className="text-sm text-neutral-700 dark:text-neutral-300">
                 Answer 3 BTS bonding questions. If either side doesn’t answer within 24 hours, the connection expires.
               </p>
@@ -991,6 +1009,81 @@ export default function ConnectionPageContent() {
             <div className="mt-6 flex justify-end">
               <button type="button" className="btn-army" onClick={() => setStatusPopupClosed(true)}>
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bondingIntroOpen && conn?.stage === "bonding" && isSeller && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bonding-intro-title"
+          onClick={() => {
+            try {
+              window.localStorage.setItem(`army_ticket_board_bonding_intro_seen:${connectionId}`, "1");
+            } catch {
+              /* ignore */
+            }
+            setBondingIntroOpen(false);
+          }}
+        >
+          <div
+            className="w-full max-w-lg cursor-default rounded-2xl border border-army-purple/25 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="bonding-intro-title" className="font-display text-xl font-bold text-army-purple">
+                  💜 Accepted
+                </h2>
+                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Now let’s build trust with the buyer.</p>
+              </div>
+              <button
+                type="button"
+                className="btn-army-outline"
+                onClick={() => {
+                  try {
+                    window.localStorage.setItem(`army_ticket_board_bonding_intro_seen:${connectionId}`, "1");
+                  } catch {
+                    /* ignore */
+                  }
+                  setBondingIntroOpen(false);
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3 rounded-xl border border-army-purple/15 bg-army-purple/5 px-4 py-3 text-sm text-neutral-800 dark:border-army-purple/25 dark:bg-army-purple/10 dark:text-neutral-200">
+              <p>
+                You accepted this request. Next step is <span className="font-semibold text-army-purple">Bonding</span>.
+              </p>
+              <p>
+                Answer <span className="font-semibold">3 bonding questions</span> to help the buyer feel safe and confirm you’re real ARMY.
+              </p>
+              <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                Tip: be genuine and detailed — rushing is a red flag.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => {
+                  try {
+                    window.localStorage.setItem(`army_ticket_board_bonding_intro_seen:${connectionId}`, "1");
+                  } catch {
+                    /* ignore */
+                  }
+                  setBondingIntroOpen(false);
+                  setTimeout(() => bondingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                }}
+              >
+                Show bonding questions
               </button>
             </div>
           </div>
