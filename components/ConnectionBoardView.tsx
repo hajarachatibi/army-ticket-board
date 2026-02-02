@@ -68,6 +68,7 @@ export default function ConnectionBoardView() {
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
+  const [lockedExplain, setLockedExplain] = useState<{ summary: string; lockExpiresAt: string | null } | null>(null);
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
@@ -475,10 +476,22 @@ export default function ConnectionBoardView() {
                         </div>
                         {(() => {
                           const pill = browseStatusPill(String(l.status));
+                          const isLocked = String(l.status) === "locked";
+                          const summary = `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`;
                           return (
-                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${pill.cls}`}>
+                            <button
+                              type="button"
+                              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${pill.cls} ${
+                                isLocked ? "cursor-pointer hover:opacity-90" : "cursor-default"
+                              }`}
+                              onClick={() => {
+                                if (!isLocked) return;
+                                setLockedExplain({ summary, lockExpiresAt: l.lockExpiresAt });
+                              }}
+                              aria-label={isLocked ? "Locked listing info" : undefined}
+                            >
                               {pill.label}
-                            </span>
+                            </button>
                           );
                         })()}
                       </div>
@@ -504,13 +517,15 @@ export default function ConnectionBoardView() {
                         <button
                           type="button"
                           className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() =>
-                            setConnectConfirm({
-                              listingId: l.listingId,
-                              summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
-                            })
-                          }
-                          disabled={connectingId === l.listingId || String(l.status) === "sold" || String(l.status) === "locked"}
+                          onClick={() => {
+                            const summary = `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`;
+                            if (String(l.status) === "locked") {
+                              setLockedExplain({ summary, lockExpiresAt: l.lockExpiresAt });
+                              return;
+                            }
+                            setConnectConfirm({ listingId: l.listingId, summary });
+                          }}
+                          disabled={connectingId === l.listingId || String(l.status) === "sold"}
                         >
                           {String(l.status) === "sold"
                             ? "SOLD"
@@ -607,6 +622,58 @@ export default function ConnectionBoardView() {
           </div>
         )}
       </div>
+
+      {lockedExplain && (
+        <div
+          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="locked-explainer-title"
+          onClick={() => setLockedExplain(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="locked-explainer-title" className="font-display text-xl font-bold text-army-purple">
+              What “Locked” means
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              This listing is currently locked because the seller accepted a connection request for:{" "}
+              <span className="font-semibold">{lockedExplain.summary}</span>
+            </p>
+
+            <div className="mt-4 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+              <p>
+                While locked, other users can’t connect to it.
+              </p>
+              <p>
+                <span className="font-semibold">When will it unlock?</span>{" "}
+                {lockedExplain.lockExpiresAt ? (
+                  <>
+                    Usually around{" "}
+                    <span className="font-semibold">
+                      {new Date(lockedExplain.lockExpiresAt).toLocaleString()}
+                    </span>{" "}
+                    (if the connection isn’t completed).
+                  </>
+                ) : (
+                  <>Usually within about <span className="font-semibold">24 hours</span>, or sooner if the connection is declined/ended.</>
+                )}
+              </p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                If the seller marks the listing sold/removed, it won’t unlock.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button type="button" className="btn-army" onClick={() => setLockedExplain(null)}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {connectConfirm && (
         <div

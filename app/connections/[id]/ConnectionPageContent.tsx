@@ -671,6 +671,9 @@ export default function ConnectionPageContent() {
                 </div>
               )}
 
+              <p className="mt-5 text-sm font-semibold text-army-purple">
+                Are you comfortable speaking with this ARMY?
+              </p>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
                 <button type="button" className="btn-army-outline" onClick={() => doComfort(false)} disabled={submitting || myComfort !== null}>
                   No

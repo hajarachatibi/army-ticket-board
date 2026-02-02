@@ -10,6 +10,7 @@ export type BrowseListingCard = {
   faceValuePrice: number;
   currency: string;
   status: "processing" | "active" | "locked" | "sold" | "removed" | string;
+  lockExpiresAt: string | null;
 };
 
 export type MyListing = {
@@ -50,6 +51,7 @@ export async function fetchBrowseListings(): Promise<{ data: BrowseListingCard[]
       faceValuePrice: Number(r.face_value_price ?? 0),
       currency: String(r.currency ?? "USD"),
       status: String(r.status ?? "active"),
+      lockExpiresAt: r.lock_expires_at != null ? String(r.lock_expires_at) : null,
     })),
     error: null,
   };
