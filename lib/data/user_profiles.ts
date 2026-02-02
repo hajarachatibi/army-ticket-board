@@ -8,6 +8,7 @@ export type UserProfile = {
   facebook?: string | null;
   tiktok?: string | null;
   snapchat?: string | null;
+  socialsLastChangedAt?: string | null;
 };
 
 export async function fetchProfile(
@@ -16,7 +17,7 @@ export async function fetchProfile(
   try {
     const { data, error } = await supabase
       .from("user_profiles")
-      .select("id, username, role, instagram, facebook, tiktok, snapchat")
+      .select("id, username, role, instagram, facebook, tiktok, snapchat, socials_last_changed_at")
       .eq("id", userId)
       .single();
 
@@ -32,6 +33,7 @@ export async function fetchProfile(
         facebook: data.facebook != null ? String(data.facebook) : null,
         tiktok: data.tiktok != null ? String(data.tiktok) : null,
         snapchat: data.snapchat != null ? String(data.snapchat) : null,
+        socialsLastChangedAt: (data as any).socials_last_changed_at != null ? String((data as any).socials_last_changed_at) : null,
       },
       error: null,
     };

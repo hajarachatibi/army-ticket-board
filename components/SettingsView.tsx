@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
 import { fetchProfile } from "@/lib/data/user_profiles";
+import { validateAllSocials } from "@/lib/security/socialValidation";
 import { supabase } from "@/lib/supabaseClient";
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -13,6 +14,7 @@ export default function SettingsView() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ username: string } | null>(null);
+  const [socialsLastChangedAt, setSocialsLastChangedAt] = useState<string | null>(null);
 
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");
@@ -39,6 +41,7 @@ export default function SettingsView() {
       setFacebook(String(data.facebook ?? ""));
       setTiktok(String(data.tiktok ?? ""));
       setSnapchat(String(data.snapchat ?? ""));
+      setSocialsLastChangedAt((data as any).socialsLastChangedAt ?? null);
     } else {
       setProfile({ username: user.username });
     }
@@ -53,6 +56,14 @@ export default function SettingsView() {
     setSocialsSaving(true);
     setSocialsError(null);
     setSocialsSaved(null);
+
+    const validation = validateAllSocials({ instagram, facebook, tiktok, snapchat });
+    if (validation) {
+      setSocialsSaving(false);
+      setSocialsError(validation);
+      return;
+    }
+
     const payload = {
       instagram: instagram.trim() ? instagram.trim() : null,
       facebook: facebook.trim() ? facebook.trim() : null,
@@ -62,10 +73,21 @@ export default function SettingsView() {
     const { error } = await supabase.from("user_profiles").update(payload).eq("id", user.id);
     setSocialsSaving(false);
     if (error) {
-      setSocialsError(error.message);
+      const msg = String(error.message ?? "");
+      if (msg.toLowerCase().includes("once every 30 days")) {
+        setSocialsError(
+          "You can only change your socials once every 30 days. Please make sure your contact socials are correct."
+        );
+      } else if (msg.toLowerCase().includes("social usernames only") || msg.toLowerCase().includes("no whatsapp") || msg.toLowerCase().includes("no phone")) {
+        setSocialsError("Please use social usernames only (no phone numbers, emails, WhatsApp, Telegram, or links).");
+      } else {
+        setSocialsError(msg);
+      }
       return;
     }
     setSocialsSaved("Saved.");
+    // Refresh so we pick up socials_last_changed_at.
+    void loadProfile();
   }, [facebook, instagram, snapchat, supabase, tiktok, user?.id]);
 
   return (
@@ -92,8 +114,14 @@ export default function SettingsView() {
       <section className="rounded-xl border border-army-purple/15 bg-white p-6 dark:border-army-purple/25 dark:bg-neutral-900">
         <h2 className="font-display text-lg font-bold text-army-purple">Socials</h2>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          You can update your social media usernames/links here. Your ARMY profile answers from onboarding can’t be changed.
+          There is no in-app buyer/seller chat. Please put the social you want ARMY to contact you on.
+          You can change your socials only <span className="font-semibold">once every 30 days</span>. Your ARMY profile answers from onboarding can’t be changed.
         </p>
+        {socialsLastChangedAt && (
+          <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+            Last changed: {new Date(socialsLastChangedAt).toLocaleString()}
+          </p>
+        )}
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>

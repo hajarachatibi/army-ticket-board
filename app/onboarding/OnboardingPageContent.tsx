@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/lib/AuthContext";
+import { validateAllSocials } from "@/lib/security/socialValidation";
 import { supabase } from "@/lib/supabaseClient";
 
 type OnboardingStatus = {
@@ -91,6 +92,7 @@ export default function OnboardingPageContent() {
     if (!nonEmpty(country)) return false;
     if (!is18) return false;
     if (!nonEmpty(instagram) && !nonEmpty(facebook) && !nonEmpty(tiktok) && !nonEmpty(snapchat)) return false;
+    if (validateAllSocials({ instagram, facebook, tiktok, snapchat })) return false;
     if (biasAnswer.trim().length < 100) return false;
     if (!nonEmpty(yearsArmy)) return false;
     if (!nonEmpty(favoriteAlbum)) return false;
@@ -98,6 +100,10 @@ export default function OnboardingPageContent() {
     if (!agreeUserAgreement) return false;
     return true;
   }, [agreeTerms, agreeUserAgreement, biasAnswer, country, favoriteAlbum, facebook, firstName, instagram, is18, snapchat, submitting, tiktok, yearsArmy]);
+
+  const socialsValidationError = useMemo(() => {
+    return validateAllSocials({ instagram, facebook, tiktok, snapchat });
+  }, [facebook, instagram, snapchat, tiktok]);
 
   const onSubmit = async () => {
     if (!canSubmit) return;
@@ -214,6 +220,21 @@ export default function OnboardingPageContent() {
 
             <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/60">
               <p className="text-sm font-semibold text-army-purple">Connect at least one social</p>
+              <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                Important: there is <span className="font-semibold">no in-app buyer/seller chat</span>. When you match with an ARMY,
+                you will contact each other through the social you put here. Please choose the correct social.
+              </p>
+              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                To prevent scams and keep things stable, you can change your socials only <span className="font-semibold">once every 30 days</span>.
+              </p>
+              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                Please use <span className="font-semibold">usernames only</span> (no phone numbers, emails, WhatsApp, Telegram, or links).
+              </p>
+              {socialsValidationError && (
+                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  {socialsValidationError}
+                </div>
+              )}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-army-purple">Instagram</label>

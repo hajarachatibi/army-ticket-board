@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
@@ -12,6 +11,7 @@ import { fetchAdminContacts } from "@/lib/supabase/liteProfile";
 import {
   addChannelReply,
   adminCreateChannelPost,
+  adminUpdateChannelPost,
   fetchAdminChannelPosts,
   fetchChannelReplies,
   toggleChannelReaction,
@@ -34,6 +34,8 @@ export default function ChannelPageContent() {
   const [draft, setDraft] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
+  const [editOpen, setEditOpen] = useState<{ postId: string; text: string } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const adminLine = useMemo(() => {
     // Product copy (explicitly requested).
@@ -155,6 +157,25 @@ export default function ChannelPageContent() {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, replies: data } : p)));
   };
 
+  const saveEdit = async () => {
+    if (!isAdmin || !editOpen) return;
+    const text = editOpen.text.trim();
+    if (!text) {
+      setError("Post text can't be empty.");
+      return;
+    }
+    setEditSaving(true);
+    setError(null);
+    const { error: e } = await adminUpdateChannelPost({ postId: editOpen.postId, text });
+    setEditSaving(false);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setPosts((prev) => prev.map((p) => (p.id === editOpen.postId ? { ...p, text } : p)));
+    setEditOpen(null);
+  };
+
   return (
     <RequireAuth>
       <main className="relative min-h-screen bg-[#1a0433] px-4 py-8 text-white">
@@ -176,9 +197,6 @@ export default function ChannelPageContent() {
         <div className="mx-auto max-w-3xl">
           <div className="relative flex flex-wrap items-center justify-between gap-3">
             <h1 className="font-display text-3xl font-bold text-white">Official Admin Channel</h1>
-            <Link href="/chats" className="rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15">
-              Back to Chats
-            </Link>
           </div>
 
           <div className="relative mt-3 rounded-2xl border border-white/25 bg-white/10 p-4 text-sm text-white backdrop-blur">
@@ -260,6 +278,15 @@ export default function ChannelPageContent() {
                       </p>
                     </div>
                     <div className="flex gap-2">
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-white/25 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                          onClick={() => setEditOpen({ postId: p.id, text: p.text })}
+                        >
+                          Edit
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={`rounded-lg border border-white/25 px-3 py-1.5 text-xs font-semibold transition ${
@@ -321,6 +348,62 @@ export default function ChannelPageContent() {
           </div>
         </div>
       </main>
+
+      {editOpen && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-post-title"
+          onClick={() => setEditOpen(null)}
+        >
+          <div
+            className="w-full max-w-2xl cursor-default rounded-2xl border border-white/25 bg-[#1a0433] p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 id="edit-post-title" className="font-display text-xl font-bold text-white">
+                Edit announcement
+              </h2>
+              <button
+                type="button"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15"
+                onClick={() => setEditOpen(null)}
+                disabled={editSaving}
+              >
+                Close
+              </button>
+            </div>
+
+            <textarea
+              className="mt-4 w-full resize-none rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
+              rows={6}
+              value={editOpen.text}
+              onChange={(e) => setEditOpen((prev) => (prev ? { ...prev, text: e.target.value } : prev))}
+              placeholder="Update announcement text…"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15"
+                onClick={() => setEditOpen(null)}
+                disabled={editSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#3b0a6f] hover:bg-white/90 disabled:opacity-60"
+                onClick={saveEdit}
+                disabled={editSaving || !editOpen.text.trim()}
+              >
+                {editSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RequireAuth>
   );
 }

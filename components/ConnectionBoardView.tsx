@@ -108,7 +108,12 @@ export default function ConnectionBoardView() {
         buyerId: String(r.buyer_id ?? ""),
         sellerId: String(r.seller_id ?? ""),
       }));
-      setConnections(rows);
+      // Keep active/in-progress connections at the top, and push ended/expired/declined to the bottom.
+      // Preserve relative order within each group.
+      const finished = new Set(["ended", "expired", "declined"]);
+      const activeLike = rows.filter((x) => !finished.has(String(x.stage)));
+      const endedLike = rows.filter((x) => finished.has(String(x.stage)));
+      setConnections([...activeLike, ...endedLike]);
     }
     setLoading(false);
   };

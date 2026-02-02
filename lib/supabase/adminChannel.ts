@@ -53,6 +53,14 @@ export async function adminCreateChannelPost(params: {
   return { error: error?.message ?? null };
 }
 
+export async function adminUpdateChannelPost(params: {
+  postId: string;
+  text: string;
+}): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("admin_channel_posts").update({ text: params.text }).eq("id", params.postId);
+  return { error: error?.message ?? null };
+}
+
 export async function fetchChannelReplies(postId: string): Promise<{
   data: Array<{ id: string; postId: string; userId: string; text: string; createdAt: string; username: string; role: string }>;
   error: string | null;

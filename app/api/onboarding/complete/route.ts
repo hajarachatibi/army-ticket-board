@@ -3,6 +3,7 @@ import { checkBotId } from "botid/server";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sameOriginError } from "@/lib/security/sameOrigin";
+import { validateAllSocials } from "@/lib/security/socialValidation";
 
 // Uses server-only dependencies (BotID). Keep in Node.js runtime.
 export const runtime = "nodejs";
@@ -69,6 +70,13 @@ export async function POST(request: NextRequest) {
   if (!country) return NextResponse.json({ error: "Missing country" }, { status: 400 });
   if (!is18) return NextResponse.json({ error: "You must confirm 18+" }, { status: 400 });
   if (!instagram && !facebook && !tiktok && !snapchat) return NextResponse.json({ error: "Connect at least one social account" }, { status: 400 });
+  const socialErr = validateAllSocials({
+    instagram: instagram ?? "",
+    facebook: facebook ?? "",
+    tiktok: tiktok ?? "",
+    snapchat: snapchat ?? "",
+  });
+  if (socialErr) return NextResponse.json({ error: socialErr }, { status: 400 });
   if (bias.length < 100) return NextResponse.json({ error: "Bias answer must be at least 100 characters" }, { status: 400 });
   if (!years) return NextResponse.json({ error: "Missing years ARMY" }, { status: 400 });
   if (!album) return NextResponse.json({ error: "Missing favorite album" }, { status: 400 });
