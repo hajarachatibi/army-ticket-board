@@ -15,7 +15,7 @@ export default function UserManualPage() {
               Getting started
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              To use the app, tap <strong>Get started</strong> in the header and <strong>Continue with Google</strong> to sign in with your Gmail. One account, no password. Use <strong>Sign out</strong> in the header to switch accounts.
+              To use the app, tap <strong>Get started</strong> in the header and <strong>Continue with Google</strong> to sign in with your Gmail. One account, no password. Once signed in, use the <strong>Account</strong> menu in the header to view your email, open <strong>Settings</strong>, or <strong>Sign out</strong>.
             </p>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               After your first login, you’ll be asked to complete <strong>Finish setup</strong> (basic profile + at least one social). This is required to use listings and connections.
@@ -39,10 +39,10 @@ export default function UserManualPage() {
               Use <strong>Listings</strong> to browse or manage your posts. You can switch between <strong>All Listings</strong>, <strong>My Listings</strong>, and <strong>My Connections</strong>.
             </p>
             <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
-              <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). New listings appear after a short delay.</li>
-              <li><strong>CONNECT:</strong> Starts a connection with the seller. You’ll go through steps (accept/decline, bonding questions, comfort checks, socials decision, agreement).</li>
+              <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). Your listing appears in <strong>All Listings</strong> after <strong>2 minutes</strong> of processing.</li>
+              <li><strong>CONNECT:</strong> Starts a connection request with the seller. You’ll go through steps (accept/decline, bonding questions, comfort check, socials decision, agreement).</li>
               <li><strong>Connection alerts:</strong> If there’s an update in one of your connections, you’ll see a <strong>red dot</strong> on <strong>My Connections</strong>, and on the specific connection card.</li>
-              <li><strong>No in-app buyer/seller chat:</strong> If you both agree to share socials, you continue on social media.</li>
+              <li><strong>No in-app buyer/seller chat:</strong> For ARMY safety, buyer/seller chat inside the app is not available. If you both choose to share socials and both confirm, your socials will be shown so you can continue on social media.</li>
               <li><strong>Report:</strong> Report suspicious or non–face-value listings. After multiple reports from different users, listings can be removed and users can be banned.</li>
             </ul>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
@@ -57,6 +57,9 @@ export default function UserManualPage() {
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               Use the <strong>Admin Channel</strong> to message the official admins. This is the only in-app messaging channel.
             </p>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              If there are new Admin Channel posts, you may see a <strong>purple badge</strong> on the <strong>Admin Channel</strong> link in the header.
+            </p>
           </div>
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
@@ -64,7 +67,7 @@ export default function UserManualPage() {
               Header &amp; notifications
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              The header has <strong>dark/light mode</strong>, a <strong>notification bell</strong>, and your email or <strong>Get started</strong>. Notifications can include important connection updates (request received/accepted/declined, next steps, and match confirmation).
+              The header has <strong>dark/light mode</strong> and (when signed in) a <strong>notification bell</strong> and an <strong>Account</strong> menu. Notifications can include important connection updates (request received/accepted/declined, next steps, and match confirmation). Opening a notification marks it read.
             </p>
           </div>
 
@@ -84,6 +87,9 @@ export default function UserManualPage() {
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               Please read our <a href="/privacy-policy" className="font-semibold text-army-purple underline">Privacy Policy</a> and{" "}
               <a href="/terms" className="font-semibold text-army-purple underline">Terms and Conditions</a>.
+            </p>
+            <p className="mt-2 text-neutral-700 dark:text-neutral-300">
+              You can also view the <a href="/user-agreement" className="font-semibold text-army-purple underline">User Agreement</a>.
             </p>
           </div>
         </section>

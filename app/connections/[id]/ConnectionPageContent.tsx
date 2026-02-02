@@ -332,21 +332,46 @@ export default function ConnectionPageContent() {
     }
   }, [conn?.stage]);
 
-  const stageStep = useMemo(() => {
+  const progressStep = useMemo(() => {
+    // 1..6 progress for the progress bar (tries to remain sensible even for ended/expired).
+    if (!conn) return 1;
+    const s = String(conn.stage ?? "");
+    if (s === "pending_seller" || s === "declined") return 1;
+    if (s === "bonding") return 2;
+    if (s === "preview") return 3;
+    if (s === "social") return 4;
+    if (s === "agreement") return 5;
+    if (s === "chat_open") return 6;
+    // ended/expired: infer last reached step from fields we have.
+    if (conn.buyer_agreed || conn.seller_agreed) return 5;
+    if (conn.buyer_social_share !== null || conn.seller_social_share !== null) return 4;
+    if (conn.buyer_comfort !== null || conn.seller_comfort !== null) return 3;
+    if (
+      !!conn.buyer_bonding_submitted_at ||
+      !!conn.seller_bonding_submitted_at ||
+      (Array.isArray(conn.bonding_question_ids) && conn.bonding_question_ids.length > 0)
+    )
+      return 2;
+    return 1;
+  }, [conn]);
+
+  const isTerminalStage = useMemo(() => {
     const s = String(conn?.stage ?? "");
-    const map: Record<string, number> = {
-      pending_seller: 1,
-      bonding: 2,
-      preview: 3,
-      social: 4,
-      agreement: 5,
-      chat_open: 6,
-      ended: 6,
-      declined: 6,
-      expired: 6,
-    };
-    return map[s] ?? 1;
+    return s === "declined" || s === "ended" || s === "expired";
   }, [conn?.stage]);
+
+  const PROGRESS_STEPS = useMemo(
+    () =>
+      [
+        { id: 1, label: "Request" },
+        { id: 2, label: "Bonding" },
+        { id: 3, label: "Preview" },
+        { id: 4, label: "Socials" },
+        { id: 5, label: "Agreement" },
+        { id: 6, label: "Connected" },
+      ] as const,
+    []
+  );
 
 
   return (
@@ -358,7 +383,7 @@ export default function ConnectionPageContent() {
             {conn ? (
               <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
                 <span className="font-semibold text-army-purple">{stageLabel}</span>{" "}
-                <span className="text-neutral-500 dark:text-neutral-400">· Step {stageStep} of 6</span>
+                <span className="text-neutral-500 dark:text-neutral-400">· Step {progressStep} of 6</span>
               </p>
             ) : null}
           </div>
@@ -406,6 +431,68 @@ export default function ConnectionPageContent() {
           <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Progress</p>
+                <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
+                  Step <span className="font-semibold">{progressStep}</span> of <span className="font-semibold">6</span>
+                  {isTerminalStage ? (
+                    <>
+                      {" "}· <span className="font-semibold text-army-purple">{stageLabel}</span>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                {isBuyer ? "You are the buyer." : isSeller ? "You are the seller." : "Participant"}
+              </p>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <ol className="flex min-w-[560px] items-center">
+                {PROGRESS_STEPS.map((step, idx) => {
+                  const completed = step.id < progressStep;
+                  const reached = step.id <= progressStep;
+                  const active = step.id === progressStep && !isTerminalStage;
+                  const circleCls = reached
+                    ? "bg-army-purple text-white"
+                    : "bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-200";
+                  const labelCls = reached
+                    ? "text-army-purple dark:text-army-300"
+                    : "text-neutral-500 dark:text-neutral-400";
+                  return (
+                    <li key={step.id} className="flex flex-1 items-center">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${circleCls} ${
+                            active ? "ring-2 ring-army-purple/30 ring-offset-2 ring-offset-white dark:ring-offset-neutral-900" : ""
+                          }`}
+                          aria-label={step.label}
+                        >
+                          {completed ? "✓" : step.id}
+                        </div>
+                        <span className={`mt-1 text-[11px] font-semibold ${labelCls}`}>{step.label}</span>
+                      </div>
+                      {idx < PROGRESS_STEPS.length - 1 && (
+                        <div
+                          className={`mx-2 h-0.5 flex-1 rounded-full ${
+                            completed ? "bg-army-purple" : "bg-army-purple/15 dark:bg-army-purple/25"
+                          }`}
+                          aria-hidden
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+
+            <p className="mt-4 text-xs text-neutral-500 dark:text-neutral-400">
+              No in-app buyer/seller chat: if both choose to share socials and both confirm, socials will appear in the match message.
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Stage</p>
                 <p className="mt-1 font-display text-xl font-bold text-army-purple">{stageLabel}</p>
                 {!!expiresLabel && (
@@ -413,9 +500,6 @@ export default function ConnectionPageContent() {
                     Expires: <span className="font-semibold">{expiresLabel}</span>
                   </p>
                 )}
-              </div>
-              <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                {isBuyer ? "You are the buyer." : isSeller ? "You are the seller." : "Participant"}
               </div>
               {conn.stage !== "ended" && conn.stage !== "expired" && conn.stage !== "declined" && (
                 <button type="button" className="btn-army-outline" onClick={doEndConnection} disabled={submitting}>

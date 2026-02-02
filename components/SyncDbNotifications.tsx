@@ -49,6 +49,37 @@ export default function SyncDbNotifications() {
 
     let cancelled = false;
 
+    const deliveredKey = `army_delivered_db_notifications_${uid}`;
+    const getDeliveredSet = (): Set<string> => {
+      if (typeof window === "undefined") return new Set();
+      try {
+        const raw = window.localStorage.getItem(deliveredKey);
+        const arr = raw ? (JSON.parse(raw) as string[]) : [];
+        return new Set(arr.filter((x) => typeof x === "string" && x.length > 0));
+      } catch {
+        return new Set();
+      }
+    };
+    const persistDeliveredSet = (set: Set<string>) => {
+      if (typeof window === "undefined") return;
+      try {
+        // Cap size so it can't grow forever.
+        const arr = Array.from(set).slice(-500);
+        window.localStorage.setItem(deliveredKey, JSON.stringify(arr));
+      } catch {
+        /* ignore */
+      }
+    };
+    const markDelivered = async (ids: string[]) => {
+      if (ids.length === 0) return;
+      // Best-effort: if this fails, localStorage prevents re-pop on refresh.
+      await supabase
+        .from("user_notifications")
+        .update({ delivered: true })
+        .eq("user_id", uid)
+        .in("id", ids);
+    };
+
     async function fetchUndelivered() {
       const { data, error } = await supabase
         .from("user_notifications")
@@ -62,7 +93,11 @@ export default function SyncDbNotifications() {
       const rows = (data ?? []) as DbNotificationRow[];
       if (rows.length === 0) return;
 
-      rows.forEach((r) => {
+      const deliveredSet = getDeliveredSet();
+      const toShow = rows.filter((r) => !deliveredSet.has(r.id));
+      if (toShow.length === 0) return;
+
+      toShow.forEach((r) => {
         if (!SUPPORTED_SET.has(r.type)) return;
         add({
           // These rows are server-created with a strict CHECK constraint (see migrations),
@@ -75,13 +110,11 @@ export default function SyncDbNotifications() {
           connectionId: r.connection_id ?? undefined,
           message: r.message ?? undefined,
         });
+        deliveredSet.add(r.id);
       });
 
-      // Mark as delivered so we don't re-add on refresh.
-      void supabase.from("user_notifications").update({ delivered: true }).in(
-        "id",
-        rows.map((r) => r.id)
-      );
+      persistDeliveredSet(deliveredSet);
+      await markDelivered(toShow.map((r) => r.id));
     }
 
     fetchUndelivered();
@@ -94,6 +127,8 @@ export default function SyncDbNotifications() {
         (payload) => {
           const r = payload.new as DbNotificationRow;
           if (!SUPPORTED_SET.has(r.type)) return;
+          const deliveredSet = getDeliveredSet();
+          if (deliveredSet.has(r.id)) return;
           add({
             type: r.type as SupportedType,
             ticketId: r.ticket_id ?? undefined,
@@ -103,7 +138,9 @@ export default function SyncDbNotifications() {
             connectionId: r.connection_id ?? undefined,
             message: r.message ?? undefined,
           });
-          void supabase.from("user_notifications").update({ delivered: true }).eq("id", r.id);
+          deliveredSet.add(r.id);
+          persistDeliveredSet(deliveredSet);
+          void markDelivered([r.id]);
         }
       )
       .subscribe();
