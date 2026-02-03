@@ -1,5 +1,12 @@
 import { supabase } from "@/lib/supabaseClient";
 
+export type StoryReply = {
+  id: string;
+  replyType: "admin" | "author";
+  body: string;
+  createdAt: string;
+};
+
 export type ArmyStory = {
   id: string;
   authorId: string;
@@ -9,15 +16,23 @@ export type ArmyStory = {
   body: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
-  /** Admin comment/answer shown under the story when published. Only admins can set. */
-  adminReply?: string | null;
-  adminRepliedAt?: string | null;
-  /** Author's own reply (only story owner can set). */
-  authorReply?: string | null;
-  authorRepliedAt?: string | null;
   /** Server-computed display name (masked for non-admins; only set when fetching via get_approved_stories). */
   authorDisplayName?: string | null;
+  /** Replies (admin and author) in chronological order. Only set when fetching via get_approved_stories. */
+  replies?: StoryReply[];
 };
+
+function parseReplies(json: unknown): StoryReply[] {
+  if (!Array.isArray(json)) return [];
+  return json
+    .filter((r) => r && typeof r === "object" && r.body != null)
+    .map((r: any) => ({
+      id: String(r.id ?? ""),
+      replyType: r.reply_type === "author" ? "author" : "admin",
+      body: String(r.body ?? ""),
+      createdAt: String(r.created_at ?? ""),
+    }));
+}
 
 const mapStoryRow = (r: any): ArmyStory => ({
   id: String(r.id),
@@ -28,14 +43,11 @@ const mapStoryRow = (r: any): ArmyStory => ({
   body: String(r.body ?? ""),
   status: (String(r.status ?? "approved") as ArmyStory["status"]),
   createdAt: String(r.created_at),
-  adminReply: r.admin_reply != null ? String(r.admin_reply) : null,
-  adminRepliedAt: r.admin_replied_at != null ? String(r.admin_replied_at) : null,
-  authorReply: r.author_reply != null ? String(r.author_reply) : null,
-  authorRepliedAt: r.author_replied_at != null ? String(r.author_replied_at) : null,
   authorDisplayName: r.display_author != null ? String(r.display_author) : undefined,
+  replies: r.replies != null ? parseReplies(r.replies) : [],
 });
 
-/** Fetches approved stories with display_author (emails protected; only admins and story owner see full identity). */
+/** Fetches approved stories with display_author and replies (emails protected; only admins and story owner see full identity). */
 export async function fetchApprovedStories(): Promise<{ data: ArmyStory[]; error: string | null }> {
   const { data, error } = await supabase.rpc("get_approved_stories");
   if (error) return { data: [], error: error.message };
@@ -50,21 +62,18 @@ export async function fetchApprovedStories(): Promise<{ data: ArmyStory[]; error
       body: String(r.body ?? ""),
       status: "approved" as const,
       createdAt: String(r.created_at),
-      adminReply: r.admin_reply != null ? String(r.admin_reply) : null,
-      adminRepliedAt: r.admin_replied_at != null ? String(r.admin_replied_at) : null,
-      authorReply: r.author_reply != null ? String(r.author_reply) : null,
-      authorRepliedAt: r.author_replied_at != null ? String(r.author_replied_at) : null,
       authorDisplayName: r.display_author != null ? String(r.display_author) : "ARMY",
+      replies: parseReplies(r.replies),
     })),
     error: null,
   };
 }
 
-/** Story owner can set or clear their reply on their own approved story. */
-export async function setMyStoryReply(storyId: string, reply: string | null): Promise<{ error: string | null }> {
-  const { error } = await supabase.rpc("set_my_story_reply", {
+/** Story owner adds a reply on their own approved story (unlimited). */
+export async function addStoryReplyAuthor(storyId: string, body: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("add_story_reply_author", {
     p_story_id: storyId,
-    p_reply: reply ?? "",
+    p_body: body ?? "",
   });
   return { error: error?.message ?? null };
 }
@@ -90,7 +99,7 @@ export async function submitStory(params: {
 export async function adminFetchPendingStories(): Promise<{ data: ArmyStory[]; error: string | null }> {
   const { data, error } = await supabase
     .from("army_stories")
-    .select("id, author_id, author_username, anonymous, title, body, status, created_at, admin_reply, admin_replied_at, author_reply, author_replied_at")
+    .select("id, author_id, author_username, anonymous, title, body, status, created_at")
     .neq("status", "approved")
     .order("created_at", { ascending: false });
   if (error) return { data: [], error: error.message };
@@ -103,37 +112,28 @@ export async function adminModerateStory(params: {
   status: "approved" | "rejected";
   adminReply?: string | null;
 }): Promise<{ error: string | null }> {
-  const payload: { status: string; admin_reply?: string | null; admin_replied_at?: string | null } = {
-    status: params.status,
-  };
-  if (params.adminReply !== undefined) {
-    payload.admin_reply = params.adminReply?.trim() || null;
-    payload.admin_replied_at = params.adminReply?.trim() ? new Date().toISOString() : null;
+  const { error } = await supabase.from("army_stories").update({ status: params.status }).eq("id", params.id);
+  if (error) return { error: error.message };
+  const firstReply = params.adminReply?.trim();
+  if (params.status === "approved" && firstReply) {
+    const { error: replyError } = await addStoryReplyAdmin(params.id, firstReply);
+    return { error: replyError ?? null };
   }
-  const { error } = await supabase.from("army_stories").update(payload).eq("id", params.id);
+  return { error: null };
+}
+
+/** Admin adds a reply to an approved story (unlimited); notifies story author. */
+export async function addStoryReplyAdmin(storyId: string, body: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("add_story_reply_admin", {
+    p_story_id: storyId,
+    p_body: body ?? "",
+  });
   return { error: error?.message ?? null };
 }
 
-export async function adminSetStoryReply(storyId: string, adminReply: string | null): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from("army_stories")
-    .update({
-      admin_reply: adminReply?.trim() || null,
-      admin_replied_at: adminReply?.trim() ? new Date().toISOString() : null,
-    })
-    .eq("id", storyId);
-  return { error: error?.message ?? null };
-}
-
+/** Fetches approved stories with replies (uses get_approved_stories RPC). */
 export async function adminFetchApprovedStories(): Promise<{ data: ArmyStory[]; error: string | null }> {
-  const { data, error } = await supabase
-    .from("army_stories")
-    .select("id, author_id, author_username, anonymous, title, body, status, created_at, admin_reply, admin_replied_at, author_reply, author_replied_at")
-    .eq("status", "approved")
-    .order("created_at", { ascending: false });
-  if (error) return { data: [], error: error.message };
-  const rows = (data ?? []) as any[];
-  return { data: rows.map(mapStoryRow), error: null };
+  return fetchApprovedStories();
 }
 
 export async function adminDeleteStory(id: string): Promise<{ error: string | null }> {

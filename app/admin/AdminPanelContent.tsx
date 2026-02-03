@@ -11,11 +11,11 @@ import { formatPrice } from "@/lib/data/currencies";
 import { deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
 import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
 import {
+  addStoryReplyAdmin,
   adminDeleteStory,
   adminFetchApprovedStories,
   adminFetchPendingStories,
   adminModerateStory,
-  adminSetStoryReply,
   type ArmyStory,
 } from "@/lib/supabase/stories";
 import { supabase } from "@/lib/supabaseClient";
@@ -115,7 +115,7 @@ export default function AdminPanelContent() {
   const [stories, setStories] = useState<ArmyStory[]>([]);
   const [storyReplyDrafts, setStoryReplyDrafts] = useState<Record<string, string>>({});
   const [approvedStories, setApprovedStories] = useState<ArmyStory[]>([]);
-  const [storyReplyEdit, setStoryReplyEdit] = useState<{ id: string; title: string; reply: string } | null>(null);
+  const [storyReplyEdit, setStoryReplyEdit] = useState<{ id: string; title: string; reply: string } | null>(null); // modal for adding admin reply
   const [recommendations, setRecommendations] = useState<AdminRecommendation[]>([]);
 
   const [armyProfileQuestions, setArmyProfileQuestions] = useState<
@@ -497,12 +497,14 @@ export default function AdminPanelContent() {
   );
 
   const saveStoryReply = useCallback(async (id: string, reply: string) => {
+    const body = reply.trim();
+    if (!body) return;
     setLoading(true);
     setError(null);
     try {
-      const { error: e } = await adminSetStoryReply(id, reply.trim() || null);
+      const { error: e } = await addStoryReplyAdmin(id, body);
       if (e) setFeedback(`Error: ${e}`);
-      else setFeedback("Reply saved.");
+      else setFeedback("Reply added.");
       setStoryReplyEdit(null);
       await loadStories();
     } finally {
@@ -1273,7 +1275,7 @@ export default function AdminPanelContent() {
               {approvedStories.length > 0 && (
                 <div className="mt-8">
                   <h3 className="mb-3 font-display text-lg font-semibold text-army-purple dark:text-army-300">
-                    Approved stories (add or edit admin reply)
+                    Approved stories (add admin reply)
                   </h3>
                   <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
                     <div className="max-h-[50vh] overflow-auto">
@@ -1282,8 +1284,7 @@ export default function AdminPanelContent() {
                           <tr>
                             <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
                             <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Title</th>
-                            <th className="min-w-[200px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Admin reply</th>
-                            <th className="min-w-[200px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Author reply</th>
+                            <th className="min-w-[200px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Replies</th>
                             <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
                           </tr>
                         </thead>
@@ -1295,13 +1296,19 @@ export default function AdminPanelContent() {
                               </td>
                               <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{s.title}</td>
                               <td className="px-3 py-2">
-                                <div className="max-h-16 overflow-y-auto whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
-                                  {s.adminReply || "—"}
-                                </div>
-                              </td>
-                              <td className="px-3 py-2">
-                                <div className="max-h-16 overflow-y-auto whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
-                                  {s.authorReply || "—"}
+                                <div className="max-h-24 overflow-y-auto whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
+                                  {(s.replies?.length ?? 0) === 0
+                                    ? "—"
+                                    : s.replies!.map((r) => (
+                                        <div key={r.id} className="mb-1 border-b border-army-purple/10 pb-1 last:mb-0 last:border-0 last:pb-0">
+                                          <span className="text-xs font-semibold text-army-purple/80 dark:text-army-300/80">
+                                            {r.replyType === "admin" ? "Team" : "Author"}
+                                          </span>
+                                          {" · "}
+                                          {new Date(r.createdAt).toLocaleDateString()}
+                                          <p className="mt-0.5 text-neutral-600 dark:text-neutral-400">{r.body}</p>
+                                        </div>
+                                      ))}
                                 </div>
                               </td>
                               <td className="whitespace-nowrap px-3 py-2">
@@ -1312,12 +1319,12 @@ export default function AdminPanelContent() {
                                     setStoryReplyEdit({
                                       id: s.id,
                                       title: s.title,
-                                      reply: s.adminReply ?? "",
+                                      reply: "",
                                     })
                                   }
                                   disabled={loading}
                                 >
-                                  {s.adminReply ? "Edit reply" : "Add reply"}
+                                  Add reply
                                 </button>
                               </td>
                             </tr>
@@ -1342,7 +1349,7 @@ export default function AdminPanelContent() {
                 className="w-full max-w-lg cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="font-display text-lg font-bold text-army-purple">Admin reply</h3>
+                <h3 className="font-display text-lg font-bold text-army-purple">Add admin reply</h3>
                 <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{storyReplyEdit.title}</p>
                 <textarea
                   className="input-army mt-3 min-h-[120px] w-full resize-y"
@@ -1366,9 +1373,9 @@ export default function AdminPanelContent() {
                     type="button"
                     className="btn-army"
                     onClick={() => saveStoryReply(storyReplyEdit.id, storyReplyEdit.reply)}
-                    disabled={loading}
+                    disabled={loading || !storyReplyEdit.reply.trim()}
                   >
-                    {loading ? "Saving…" : "Save reply"}
+                    {loading ? "Saving…" : "Add reply"}
                   </button>
                 </div>
               </div>
