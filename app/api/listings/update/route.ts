@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         concertCity?: string;
         concertDate?: string; // YYYY-MM-DD
         ticketSource?: string;
+        vip?: boolean;
         ticketingExperience?: string;
         sellingReason?: string;
         priceExplanation?: string | null;
@@ -106,16 +107,18 @@ export async function POST(request: NextRequest) {
 
   const service = createServiceClient();
 
-  const { error: upErr } = await service
-    .from("listings")
-    .update({
+  const updatePayload: Record<string, unknown> = {
       concert_city: concertCity,
       concert_date: concertDate,
       ticket_source: ticketSource,
       ticketing_experience: ticketingExperience,
       selling_reason: sellingReason,
       price_explanation: priceExplanation || null,
-    })
+    };
+  if (vip !== undefined) updatePayload.vip = vip;
+  const { error: upErr } = await service
+    .from("listings")
+    .update(updatePayload)
     .eq("id", listingId)
     .eq("seller_id", user.id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });

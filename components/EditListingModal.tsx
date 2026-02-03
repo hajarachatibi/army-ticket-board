@@ -59,6 +59,7 @@ export default function EditListingModal({
   const [concertCity, setConcertCity] = useState("");
   const [concertDate, setConcertDate] = useState("");
   const [ticketSource, setTicketSource] = useState("Ticketmaster");
+  const [vip, setVip] = useState(false);
   const [ticketingExperience, setTicketingExperience] = useState("");
   const [sellingReason, setSellingReason] = useState("");
   const [priceExplanation, setPriceExplanation] = useState("");
@@ -133,6 +134,7 @@ export default function EditListingModal({
           concertCity: concertCity.trim(),
           concertDate: concertDate.trim(),
           ticketSource: ticketSource.trim(),
+          vip,
           ticketingExperience: ticketingExperience.trim(),
           sellingReason: sellingReason.trim(),
           priceExplanation: priceExplanation.trim() || null,
@@ -202,6 +204,18 @@ export default function EditListingModal({
           <div>
             <label className="block text-sm font-semibold text-army-purple">Concert date</label>
             <input type="date" className="input-army mt-2" value={concertDate} onChange={(e) => setConcertDate(e.target.value)} />
+          </div>
+          <div className="sm:col-span-2 flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="edit-listing-vip"
+              checked={vip}
+              onChange={(e) => setVip(e.target.checked)}
+              className="h-4 w-4 rounded border-army-purple/50 text-army-purple focus:ring-army-purple"
+            />
+            <label htmlFor="edit-listing-vip" className="text-sm font-semibold text-army-purple">
+              VIP (e.g. sound check, VIP package)
+            </label>
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">Ticket source</label>

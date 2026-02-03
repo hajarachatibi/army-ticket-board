@@ -629,11 +629,34 @@ export default function ConnectionBoardView() {
                   {filteredBrowse.map((l) => (
                     <div
                       key={l.listingId}
-                      className="group rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-army-purple/25 dark:bg-neutral-900"
+                      className="group relative rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-army-purple/25 dark:bg-neutral-900"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-army-purple/70 hover:bg-army-purple/10 hover:text-army-purple dark:text-army-purple/60 dark:hover:bg-army-purple/20 dark:hover:text-army-purple"
+                        onClick={() =>
+                          setListingDetailsOpen({
+                            listingId: l.listingId,
+                            summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
+                          })
+                        }
+                        aria-label="View more details"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
+                        <div className="min-w-0 pl-8">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
+                            {l.vip && (
+                              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-200">
+                                VIP
+                              </span>
+                            )}
+                          </div>
                           <p className="mt-1 font-display text-lg font-bold text-army-purple">{l.concertDate}</p>
                         </div>
                         {(() => {
@@ -658,28 +681,16 @@ export default function ConnectionBoardView() {
                         })()}
                       </div>
                       <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                        <span className="font-semibold">Seat:</span> {l.section} · {l.seatRow} · {l.seat}
+                        <span className="font-semibold">Section:</span> {l.section}
+                        <span className="mx-1">·</span>
+                        <span className="font-semibold">Row:</span> {l.seatRow}
+                        <span className="mx-1">·</span>
+                        <span className="font-semibold">Seat:</span> {l.seat}
                       </p>
                       <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
                         <span className="font-semibold">Face value:</span> {formatPrice(l.faceValuePrice, l.currency)}
                       </p>
                       <div className="mt-4 flex flex-wrap justify-end gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-army-purple/30 bg-white text-army-purple hover:bg-army-purple/10 dark:border-army-purple/40 dark:bg-neutral-900 dark:hover:bg-army-purple/20"
-                          onClick={() =>
-                            setListingDetailsOpen({
-                              listingId: l.listingId,
-                              summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
-                            })
-                          }
-                          aria-label="View more details"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
                         <button
                           type="button"
                           className="btn-army-outline disabled:cursor-not-allowed disabled:opacity-50"
@@ -824,7 +835,11 @@ export default function ConnectionBoardView() {
                       {l.seats.map((seat) => (
                         <div key={seat.seatIndex} className="rounded-xl border border-army-purple/10 bg-army-purple/5 p-3 dark:border-army-purple/20 dark:bg-army-purple/10">
                           <p className="text-sm font-semibold text-army-purple">
-                            {seat.section} · {seat.seatRow} · {seat.seat}
+                            <span className="font-semibold">Section:</span> {seat.section}
+                            <span className="mx-1">·</span>
+                            <span className="font-semibold">Row:</span> {seat.seatRow}
+                            <span className="mx-1">·</span>
+                            <span className="font-semibold">Seat:</span> {seat.seat}
                           </p>
                           <p className="text-sm text-neutral-700 dark:text-neutral-300">
                             {formatPrice(seat.faceValuePrice, seat.currency)}
