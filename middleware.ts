@@ -39,8 +39,35 @@ function isMaintenanceBypassEmail(email: string | null | undefined): boolean {
   return hardcoded.has(e) || parseMaintenanceBypassEmails().includes(e);
 }
 
+/** Comma-separated 2-letter ISO country codes to block. Defaults to NG (Nigeria). Set to empty to disable. Only applied when Vercel sets geo headers. */
+function getBlockedCountries(): Set<string> {
+  const raw = process.env.GEO_BLOCKED_COUNTRIES ?? "NG";
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length === 2)
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Geo-block: block requests from specified countries (e.g. Nigeria). Only works on Vercel where geo headers are set.
+  const blockedCountries = getBlockedCountries();
+  if (blockedCountries.size > 0) {
+    const country =
+      request.headers.get("x-vercel-ip-country") ??
+      (request as NextRequest & { geo?: { country?: string } }).geo?.country ??
+      "";
+    const countryCode = country.trim().toUpperCase();
+    if (countryCode && blockedCountries.has(countryCode)) {
+      return new NextResponse(
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Access unavailable</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:1rem;text-align:center;"><h1>Access unavailable</h1><p>Access from your region is not available for this service.</p></body></html>`,
+        { status: 403, headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
+    }
+  }
 
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
   if (!supportEnabled && (pathname === "/support" || pathname.startsWith("/support/"))) {

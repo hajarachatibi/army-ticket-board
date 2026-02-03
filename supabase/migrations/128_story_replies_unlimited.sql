@@ -59,6 +59,7 @@ FROM public.army_stories
 WHERE status = 'approved' AND author_reply IS NOT NULL AND trim(author_reply) <> '';
 
 -- 3) Update get_approved_stories to return replies array (no longer single admin_reply/author_reply)
+DROP FUNCTION IF EXISTS public.get_approved_stories();
 CREATE OR REPLACE FUNCTION public.get_approved_stories()
 RETURNS TABLE (
   id uuid,
