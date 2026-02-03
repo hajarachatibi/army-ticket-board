@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
 import type { Notification, NotificationType } from "@/lib/NotificationContext";
 
@@ -54,7 +55,7 @@ function label(type: NotificationType): string {
   }
 }
 
-function notificationHref(n: Notification): string {
+function notificationHref(n: Notification, isAdmin?: boolean): string {
   if (n.connectionId) return `/connections/${encodeURIComponent(n.connectionId)}`;
   const ticket = n.ticketId;
   if (!ticket) return "/tickets";
@@ -67,13 +68,14 @@ function notificationHref(n: Notification): string {
     case "chat_opened":
     case "new_message":
     case "request_accepted":
-      return `/chats?ticket=${ticket}`;
+      return isAdmin ? `/chats?ticket=${ticket}` : "/tickets";
     default:
       return `/tickets?ticket=${ticket}`;
   }
 }
 
 export default function NotificationBell() {
+  const { user, isAdmin } = useAuth();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [reportPopup, setReportPopup] = useState<Notification | null>(null);
@@ -197,7 +199,7 @@ export default function NotificationBell() {
                     ) : (
                       <li key={n.id}>
                         <Link
-                          href={notificationHref(n)}
+                          href={notificationHref(n, isAdmin)}
                           onClick={() => {
                             markRelatedRead(n);
                             setOpen(false);

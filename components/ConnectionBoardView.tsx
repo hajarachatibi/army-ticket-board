@@ -666,25 +666,30 @@ export default function ConnectionBoardView() {
                       <div className="mt-4 flex flex-wrap justify-end gap-2">
                         <button
                           type="button"
-                          className="btn-army-outline"
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-army-purple/30 bg-white text-army-purple hover:bg-army-purple/10 dark:border-army-purple/40 dark:bg-neutral-900 dark:hover:bg-army-purple/20"
                           onClick={() =>
                             setListingDetailsOpen({
                               listingId: l.listingId,
                               summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
                             })
                           }
+                          aria-label="View more details"
                         >
-                          View more details
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
                         </button>
                         <button
                           type="button"
-                          className="btn-army-outline"
+                          className="btn-army-outline disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() =>
                             setReportOpen({
                               listingId: l.listingId,
                               summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
                             })
                           }
+                          disabled={String(l.status) === "sold"}
                         >
                           Report
                         </button>

@@ -167,6 +167,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Chats page is admin-only (admin-to-user messaging). Non-admins are redirected.
+  if (pathname.startsWith("/chats") && user) {
+    const { data } = await supabase.from("user_profiles").select("role").eq("id", user.id).single();
+    const adminOk = data?.role === "admin" || isAdminEmail(user.email);
+    if (!adminOk) {
+      const ticketsUrl = request.nextUrl.clone();
+      ticketsUrl.pathname = "/tickets";
+      ticketsUrl.search = "";
+      const redirect = NextResponse.redirect(ticketsUrl);
+      passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
+      return redirect;
+    }
+  }
+
   return passThrough;
 }
 

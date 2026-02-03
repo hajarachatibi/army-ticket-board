@@ -18,6 +18,51 @@ function formatPrice(amount: number, currency: string): string {
   }
 }
 
+function RatingForm({
+  connectionId: _connectionId,
+  submitting,
+  error,
+  onSubmit,
+}: {
+  connectionId: string;
+  submitting: boolean;
+  error: string | null;
+  onSubmit: (rating: number) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  return (
+    <div className="mt-2">
+      <div className="flex gap-2">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`h-9 w-9 rounded-lg border text-sm font-semibold transition-colors ${
+              selected === n
+                ? "border-army-purple bg-army-purple text-white"
+                : "border-army-purple/30 bg-white text-army-purple hover:bg-army-purple/10 dark:border-army-purple/40 dark:bg-neutral-900 dark:hover:bg-army-purple/20"
+            }`}
+            onClick={() => setSelected(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+      <button
+        type="button"
+        className="btn-army-outline mt-2 text-sm"
+        disabled={selected == null || submitting}
+        onClick={() => selected != null && void onSubmit(selected)}
+      >
+        {submitting ? "Saving…" : "Submit rating"}
+      </button>
+    </div>
+  );
+}
+
 type ConnectionRow = {
   id: string;
   listing_id: string;
@@ -61,6 +106,10 @@ export default function ConnectionPageContent() {
   const [sellerHasOtherActive, setSellerHasOtherActive] = useState(false);
   const [bondingIntroOpen, setBondingIntroOpen] = useState(false);
   const bondingSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const [sellerRating, setSellerRating] = useState<number | null>(null);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingError, setRatingError] = useState<string | null>(null);
 
   const isBuyer = useMemo(() => !!user && conn?.buyer_id === user.id, [conn?.buyer_id, user]);
   const isSeller = useMemo(() => !!user && conn?.seller_id === user.id, [conn?.seller_id, user]);
@@ -136,6 +185,19 @@ export default function ConnectionPageContent() {
       }
     } else {
       setPreview(null);
+    }
+
+    // If connection is complete and user is buyer, load existing rating (optional rate-the-seller).
+    if (user && String((data as any)?.buyer_id ?? "") === user.id && ["chat_open", "ended"].includes(stage)) {
+      const { data: ratingRow } = await supabase
+        .from("connection_ratings")
+        .select("rating")
+        .eq("connection_id", connectionId)
+        .eq("rater_id", user.id)
+        .maybeSingle();
+      setSellerRating((ratingRow as any)?.rating != null ? Number((ratingRow as any).rating) : null);
+    } else {
+      setSellerRating(null);
     }
 
     setLoading(false);
@@ -798,6 +860,36 @@ export default function ConnectionPageContent() {
               <p className="text-sm text-neutral-700 dark:text-neutral-300">
                 Connection complete. If both agreed to share socials, you can connect there (no in-app chat).
               </p>
+              {isBuyer && (
+                <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                  <p className="text-sm font-semibold text-army-purple">Optional: rate the seller</p>
+                  {sellerRating != null ? (
+                    <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                      Thanks — you rated this seller {sellerRating}/5.
+                    </p>
+                  ) : (
+                    <RatingForm
+                      connectionId={connectionId}
+                      submitting={ratingSubmitting}
+                      error={ratingError}
+                      onSubmit={async (rating) => {
+                        setRatingError(null);
+                        setRatingSubmitting(true);
+                        const { error: err } = await supabase.rpc("submit_connection_rating", {
+                          p_connection_id: connectionId,
+                          p_rating: rating,
+                        });
+                        setRatingSubmitting(false);
+                        if (err) {
+                          setRatingError(err.message);
+                          return;
+                        }
+                        setSellerRating(rating);
+                      }}
+                    />
+                  )}
+                </div>
+              )}
               <div className="mt-4 flex justify-end">
                 <Link href="/tickets" className="btn-army">
                   Back to listings
