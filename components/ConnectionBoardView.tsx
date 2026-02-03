@@ -754,7 +754,10 @@ export default function ConnectionBoardView() {
                           onClick={() =>
                             setReportOpen({
                               listingId: l.listingId,
-                              summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
+                              summary:
+                                (l.seats?.length ?? 0) > 0
+                                  ? `${l.concertCity} · ${l.concertDate} · ${l.seats!.length} seat${l.seats!.length === 1 ? "" : "s"}`
+                                  : `${l.concertCity} · ${l.concertDate}`,
                             })
                           }
                           disabled={String(l.status) === "sold"}
