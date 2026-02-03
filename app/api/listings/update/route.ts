@@ -106,28 +106,34 @@ export async function POST(request: NextRequest) {
   if (seats.some((s) => !s.section || !s.row || !s.seat)) return NextResponse.json({ error: "Each seat needs section, row, seat" }, { status: 400 });
   if (seats.some((s) => s.faceValuePrice <= 0)) return NextResponse.json({ error: "Each seat needs a face value price" }, { status: 400 });
 
-  const service = createServiceClient();
+  let client: ReturnType<typeof createServiceClient> | null = null;
+  try {
+    client = createServiceClient();
+  } catch {
+    // Fallback when service role is not configured (e.g. local dev): use user's session; RLS allows seller to update own listing.
+  }
+  const db = client ?? supabase;
 
   const updatePayload: Record<string, unknown> = {
-      concert_city: concertCity,
-      concert_date: concertDate,
-      ticket_source: ticketSource,
-      ticketing_experience: ticketingExperience,
-      selling_reason: sellingReason,
-      price_explanation: priceExplanation || null,
-    };
+    concert_city: concertCity,
+    concert_date: concertDate,
+    ticket_source: ticketSource,
+    ticketing_experience: ticketingExperience,
+    selling_reason: sellingReason,
+    price_explanation: priceExplanation || null,
+  };
   if (vip !== undefined) updatePayload.vip = vip;
-  const { error: upErr } = await service
+  const { error: upErr } = await db
     .from("listings")
     .update(updatePayload)
     .eq("id", listingId)
     .eq("seller_id", user.id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
 
-  const { error: delErr } = await service.from("listing_seats").delete().eq("listing_id", listingId);
+  const { error: delErr } = await db.from("listing_seats").delete().eq("listing_id", listingId);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 });
 
-  const { error: seatsErr } = await service.from("listing_seats").insert(
+  const { error: seatsErr } = await db.from("listing_seats").insert(
     seats.map((s, idx) => ({
       listing_id: listingId,
       seat_index: idx + 1,
