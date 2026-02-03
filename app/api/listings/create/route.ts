@@ -33,7 +33,13 @@ export async function POST(request: NextRequest) {
     verification = { isBot: false };
   }
   if (verification.isBot) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    return NextResponse.json(
+      {
+        error:
+          "We couldn’t verify your browser. Please refresh the page and try again. If you use privacy or script-blocking extensions, try disabling them for this site.",
+      },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json().catch(() => null)) as

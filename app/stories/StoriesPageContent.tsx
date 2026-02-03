@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
-import { displayName } from "@/lib/displayName";
-import { fetchApprovedStories, submitStory, type ArmyStory } from "@/lib/supabase/stories";
+import { fetchApprovedStories, setMyStoryReply, submitStory, type ArmyStory } from "@/lib/supabase/stories";
 import { submitRecommendation } from "@/lib/supabase/recommendations";
 
 export default function StoriesPageContent() {
@@ -24,6 +23,9 @@ export default function StoriesPageContent() {
   const [recTitle, setRecTitle] = useState("");
   const [recBody, setRecBody] = useState("");
   const [recSubmitting, setRecSubmitting] = useState(false);
+
+  const [ownerReplyEdit, setOwnerReplyEdit] = useState<{ storyId: string; title: string; reply: string } | null>(null);
+  const [ownerReplySaving, setOwnerReplySaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -101,6 +103,19 @@ export default function StoriesPageContent() {
     setError("Thanks! Your recommendation was sent to the admins.");
   };
 
+  const saveOwnerReply = async () => {
+    if (!ownerReplyEdit) return;
+    setOwnerReplySaving(true);
+    setError(null);
+    const { error: e } = await setMyStoryReply(ownerReplyEdit.storyId, ownerReplyEdit.reply.trim() || null);
+    setOwnerReplySaving(false);
+    if (e) setError(e);
+    else {
+      setOwnerReplyEdit(null);
+      void load();
+    }
+  };
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-gradient-army-subtle px-4 py-12">
@@ -162,12 +177,60 @@ export default function StoriesPageContent() {
               >
                 <h2 className="font-display text-xl font-bold text-army-purple">{s.title}</h2>
                 <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  {s.anonymous ? "Anonymous ARMY" : displayName(s.authorUsername, { viewerIsAdmin: isAdmin, subjectIsAdmin: false })} ·{" "}
+                  {s.authorDisplayName ?? (s.anonymous ? "Anonymous ARMY" : "ARMY")} ·{" "}
                   {new Date(s.createdAt).toLocaleDateString()}
+                  {user?.id === s.authorId && (
+                    <>
+                      {" · "}
+                      <button
+                        type="button"
+                        className="font-medium text-army-purple underline hover:no-underline"
+                        onClick={() =>
+                          setOwnerReplyEdit({
+                            storyId: s.id,
+                            title: s.title,
+                            reply: s.authorReply ?? "",
+                          })
+                        }
+                      >
+                        {s.authorReply?.trim() ? "Edit your reply" : "Add your reply"}
+                      </button>
+                    </>
+                  )}
                 </p>
                 <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
                   {s.body}
                 </p>
+                {s.adminReply?.trim() && (
+                  <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/10 p-4 dark:border-army-purple/30 dark:bg-army-purple/20">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-army-purple/80 dark:text-army-300/80">
+                      ARMY Ticket Board team
+                      {s.adminRepliedAt && (
+                        <span className="ml-2 font-normal normal-case">
+                          · {new Date(s.adminRepliedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
+                      {s.adminReply}
+                    </p>
+                  </div>
+                )}
+                {s.authorReply?.trim() && (
+                  <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                      Story author
+                      {s.authorRepliedAt && (
+                        <span className="ml-2 font-normal normal-case">
+                          · {new Date(s.authorRepliedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-800 dark:text-neutral-200">
+                      {s.authorReply}
+                    </p>
+                  </div>
+                )}
               </article>
             ))
           )}
@@ -277,6 +340,50 @@ export default function StoriesPageContent() {
                 </button>
                 <button type="button" className="btn-army" disabled={!canSubmitRec || recSubmitting} onClick={doSubmitRec}>
                   {recSubmitting ? "Sending…" : "Send"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {ownerReplyEdit && (
+          <div
+            className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setOwnerReplyEdit(null)}
+          >
+            <div
+              className="w-full max-w-lg cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-display text-lg font-bold text-army-purple">Your reply</h3>
+              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{ownerReplyEdit.title}</p>
+              <textarea
+                className="input-army mt-3 min-h-[100px] w-full resize-y"
+                placeholder="Add a reply to your story (optional)"
+                value={ownerReplyEdit.reply}
+                onChange={(e) =>
+                  setOwnerReplyEdit((prev) => (prev ? { ...prev, reply: e.target.value } : null))
+                }
+                rows={3}
+              />
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="btn-army-outline"
+                  onClick={() => setOwnerReplyEdit(null)}
+                  disabled={ownerReplySaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-army"
+                  onClick={saveOwnerReply}
+                  disabled={ownerReplySaving}
+                >
+                  {ownerReplySaving ? "Saving…" : "Save reply"}
                 </button>
               </div>
             </div>

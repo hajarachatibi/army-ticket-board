@@ -10,7 +10,14 @@ import { useAuth } from "@/lib/AuthContext";
 import { formatPrice } from "@/lib/data/currencies";
 import { deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
 import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
-import { adminDeleteStory, adminFetchPendingStories, adminModerateStory, type ArmyStory } from "@/lib/supabase/stories";
+import {
+  adminDeleteStory,
+  adminFetchApprovedStories,
+  adminFetchPendingStories,
+  adminModerateStory,
+  adminSetStoryReply,
+  type ArmyStory,
+} from "@/lib/supabase/stories";
 import { supabase } from "@/lib/supabaseClient";
 import {
   adminBanAndDeleteUser,
@@ -106,6 +113,9 @@ export default function AdminPanelContent() {
   const [listingOpen, setListingOpen] = useState<{ listingId: string } | null>(null);
 
   const [stories, setStories] = useState<ArmyStory[]>([]);
+  const [storyReplyDrafts, setStoryReplyDrafts] = useState<Record<string, string>>({});
+  const [approvedStories, setApprovedStories] = useState<ArmyStory[]>([]);
+  const [storyReplyEdit, setStoryReplyEdit] = useState<{ id: string; title: string; reply: string } | null>(null);
   const [recommendations, setRecommendations] = useState<AdminRecommendation[]>([]);
 
   const [armyProfileQuestions, setArmyProfileQuestions] = useState<
@@ -241,10 +251,15 @@ export default function AdminPanelContent() {
   const loadStories = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: e } = await adminFetchPendingStories();
+    const [pendingRes, approvedRes] = await Promise.all([
+      adminFetchPendingStories(),
+      adminFetchApprovedStories(),
+    ]);
     setLoading(false);
-    if (e) setError(e);
-    else setStories(data);
+    if (pendingRes.error) setError(pendingRes.error);
+    else setStories(pendingRes.data);
+    if (approvedRes.error) setError(approvedRes.error);
+    else setApprovedStories(approvedRes.data);
   }, []);
 
   const loadRecommendations = useCallback(async () => {
@@ -460,13 +475,35 @@ export default function AdminPanelContent() {
     }
   }, [loadArmyProfileQuestions]);
 
-  const moderateStory = useCallback(async (id: string, status: "approved" | "rejected") => {
+  const moderateStory = useCallback(
+    async (id: string, status: "approved" | "rejected", adminReply?: string | null) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminModerateStory({ id, status, adminReply });
+        if (e) setFeedback(`Error: ${e}`);
+        else setFeedback(`Story ${status}.`);
+        setStoryReplyDrafts((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+        await loadStories();
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadStories]
+  );
+
+  const saveStoryReply = useCallback(async (id: string, reply: string) => {
     setLoading(true);
     setError(null);
     try {
-      const { error: e } = await adminModerateStory({ id, status });
+      const { error: e } = await adminSetStoryReply(id, reply.trim() || null);
       if (e) setFeedback(`Error: ${e}`);
-      else setFeedback(`Story ${status}.`);
+      else setFeedback("Reply saved.");
+      setStoryReplyEdit(null);
       await loadStories();
     } finally {
       setLoading(false);
@@ -1157,6 +1194,7 @@ export default function AdminPanelContent() {
                           <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Author</th>
                           <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Title</th>
                           <th className="min-w-[320px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Body</th>
+                          <th className="min-w-[200px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Admin reply (optional)</th>
                           <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
                         </tr>
                       </thead>
@@ -1183,12 +1221,25 @@ export default function AdminPanelContent() {
                                 {s.body}
                               </div>
                             </td>
+                            <td className="px-3 py-2 align-top">
+                              <textarea
+                                className="min-h-[60px] w-full rounded border border-army-purple/20 bg-white px-2 py-1 text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+                                placeholder="Optional reply (shown when published)"
+                                value={storyReplyDrafts[s.id] ?? ""}
+                                onChange={(e) =>
+                                  setStoryReplyDrafts((prev) => ({ ...prev, [s.id]: e.target.value }))
+                                }
+                                rows={2}
+                              />
+                            </td>
                             <td className="whitespace-nowrap px-3 py-2">
                               <div className="flex flex-wrap gap-1">
                                 <button
                                   type="button"
                                   className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
-                                  onClick={() => moderateStory(s.id, "approved")}
+                                  onClick={() =>
+                                    moderateStory(s.id, "approved", storyReplyDrafts[s.id]?.trim() || null)
+                                  }
                                   disabled={loading}
                                 >
                                   Approve
@@ -1218,7 +1269,110 @@ export default function AdminPanelContent() {
                   </div>
                 </div>
               )}
+
+              {approvedStories.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="mb-3 font-display text-lg font-semibold text-army-purple dark:text-army-300">
+                    Approved stories (add or edit admin reply)
+                  </h3>
+                  <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                    <div className="max-h-[50vh] overflow-auto">
+                      <table className="w-full min-w-[800px] text-left text-sm">
+                        <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                          <tr>
+                            <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                            <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Title</th>
+                            <th className="min-w-[200px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Admin reply</th>
+                            <th className="min-w-[200px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Author reply</th>
+                            <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {approvedStories.map((s) => (
+                            <tr key={s.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                              <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                                {formatDate(s.createdAt)}
+                              </td>
+                              <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{s.title}</td>
+                              <td className="px-3 py-2">
+                                <div className="max-h-16 overflow-y-auto whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
+                                  {s.adminReply || "—"}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="max-h-16 overflow-y-auto whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
+                                  {s.authorReply || "—"}
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  onClick={() =>
+                                    setStoryReplyEdit({
+                                      id: s.id,
+                                      title: s.title,
+                                      reply: s.adminReply ?? "",
+                                    })
+                                  }
+                                  disabled={loading}
+                                >
+                                  {s.adminReply ? "Edit reply" : "Add reply"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
+          )}
+
+          {storyReplyEdit && (
+            <div
+              className="fixed inset-0 z-[100] flex cursor-pointer items-center justify-center bg-black/50 p-4"
+              role="dialog"
+              aria-modal="true"
+              onClick={() => setStoryReplyEdit(null)}
+            >
+              <div
+                className="w-full max-w-lg cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-display text-lg font-bold text-army-purple">Admin reply</h3>
+                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{storyReplyEdit.title}</p>
+                <textarea
+                  className="input-army mt-3 min-h-[120px] w-full resize-y"
+                  placeholder="Your comment or answer (shown under the story on the public page)"
+                  value={storyReplyEdit.reply}
+                  onChange={(e) =>
+                    setStoryReplyEdit((prev) => (prev ? { ...prev, reply: e.target.value } : null))
+                  }
+                  rows={4}
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="btn-army-outline"
+                    onClick={() => setStoryReplyEdit(null)}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-army"
+                    onClick={() => saveStoryReply(storyReplyEdit.id, storyReplyEdit.reply)}
+                    disabled={loading}
+                  >
+                    {loading ? "Saving…" : "Save reply"}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {tab === "recommendations" && (
