@@ -22,6 +22,8 @@ const SUPPORTED_TYPES = [
   "connection_ended",
   "connection_expired",
   "listing_removed_3_reports",
+  "story_published",
+  "story_admin_replied",
 ] as const satisfies readonly NotificationType[];
 
 type SupportedType = (typeof SUPPORTED_TYPES)[number];
@@ -35,6 +37,7 @@ type DbNotificationRow = {
   listing_id?: string | null;
   listing_summary?: string | null;
   connection_id?: string | null;
+  story_id?: string | null;
   message: string | null;
   report_reasons?: string | null;
   delivered: boolean;
@@ -110,6 +113,7 @@ export default function SyncDbNotifications() {
           listingId: r.listing_id ?? undefined,
           listingSummary: r.listing_summary ?? undefined,
           connectionId: r.connection_id ?? undefined,
+          storyId: r.story_id ?? undefined,
           message: r.message ?? undefined,
           reportReasons: r.report_reasons ?? undefined,
         });
@@ -139,6 +143,7 @@ export default function SyncDbNotifications() {
             listingId: r.listing_id ?? undefined,
             listingSummary: r.listing_summary ?? undefined,
             connectionId: r.connection_id ?? undefined,
+            storyId: r.story_id ?? undefined,
             message: r.message ?? undefined,
             reportReasons: r.report_reasons ?? undefined,
           });

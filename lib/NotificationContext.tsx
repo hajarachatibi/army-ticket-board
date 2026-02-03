@@ -29,7 +29,9 @@ export type NotificationType =
   | "connection_match_confirmed"
   | "connection_ended"
   | "connection_expired"
-  | "listing_removed_3_reports";
+  | "listing_removed_3_reports"
+  | "story_published"
+  | "story_admin_replied";
 
 export type Notification = {
   id: string;
@@ -44,6 +46,8 @@ export type Notification = {
   ticketSummary?: string;
   /** Main report reasons when type = listing_removed_3_reports (comma-separated). */
   reportReasons?: string;
+  /** Story ID when type = story_published or story_admin_replied. */
+  storyId?: string;
   read: boolean;
   createdAt: number;
 };

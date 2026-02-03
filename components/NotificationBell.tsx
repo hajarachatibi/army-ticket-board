@@ -56,6 +56,10 @@ function label(type: NotificationType, n?: Notification): string {
       return "Ticket reported";
     case "listing_removed_3_reports":
       return listingRemovedLabel(n?.message);
+    case "story_published":
+      return "Your story was published";
+    case "story_admin_replied":
+      return "Admin replied to your story";
     default:
       return "Notification";
   }
@@ -63,6 +67,7 @@ function label(type: NotificationType, n?: Notification): string {
 
 function notificationHref(n: Notification, isAdmin?: boolean): string {
   if (n.connectionId) return `/connections/${encodeURIComponent(n.connectionId)}`;
+  if (n.type === "story_published" || n.type === "story_admin_replied") return "/stories";
   const ticket = n.ticketId;
   if (!ticket) return "/tickets";
   switch (n.type) {
