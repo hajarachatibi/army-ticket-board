@@ -1,5 +1,4 @@
--- Admin channel replies: admins see full email, users see masked username (e***-7a8f).
--- RPC returns display_label so email is never sent to non-admin clients.
+-- Admin channel replies: admin repliers show full email to everyone; non-admin repliers show full email to admin viewers, masked username (e***-7a8f) to others.
 
 -- SQL language: body is a single SELECT that returns the value (no semicolon/block issues).
 CREATE OR REPLACE FUNCTION public.mask_username_for_channel(p_username text, p_user_id uuid)
@@ -35,7 +34,7 @@ BEGIN
     r.text,
     r.created_at,
     CASE
-      WHEN public.is_admin() THEN coalesce(nullif(trim(up.email), ''), up.username, 'User')
+      WHEN (coalesce(up.role, '') = 'admin') OR public.is_admin() THEN coalesce(nullif(trim(up.email), ''), up.username, 'User')
       ELSE public.mask_username_for_channel(up.username, up.id)
     END AS display_label,
     coalesce(up.role, 'user')::text AS role
@@ -49,4 +48,4 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_admin_channel_replies(uuid) TO authenticated;
 
 COMMENT ON FUNCTION public.mask_username_for_channel(text, uuid) IS 'Mask username for non-admin display: first letter + ***- + last 4 of user id (e.g. e***-7a8f).';
-COMMENT ON FUNCTION public.get_admin_channel_replies(uuid) IS 'Replies for admin channel post: admins get full email as display_label, others get masked username.';
+COMMENT ON FUNCTION public.get_admin_channel_replies(uuid) IS 'Replies for admin channel post: admin repliers show full email to everyone; non-admin repliers show full email to admin viewers, masked username to others.';

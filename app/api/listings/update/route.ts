@@ -3,13 +3,14 @@ import { checkBotId } from "botid/server";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createServiceClient } from "@/lib/supabase/serviceClient";
+import { parsePrice } from "@/lib/parsePrice";
 import { sameOriginError } from "@/lib/security/sameOrigin";
 
 type SeatInput = {
   section?: string;
   row?: string;
   seat?: string;
-  faceValuePrice?: number;
+  faceValuePrice?: number | string;
   currency?: string;
 };
 
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
       section: String(s.section ?? "").trim(),
       row: String(s.row ?? "").trim(),
       seat: String(s.seat ?? "").trim(),
-      faceValuePrice: Math.max(0, Number(s.faceValuePrice ?? 0) || 0),
+      faceValuePrice: Math.max(0, parsePrice(s.faceValuePrice) || 0),
       currency: String(s.currency ?? "USD").trim() || "USD",
     }))
     .filter((s) => s.section || s.row || s.seat || s.faceValuePrice > 0);

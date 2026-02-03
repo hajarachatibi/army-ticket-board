@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { parsePrice } from "@/lib/parsePrice";
+
 type SeatDraft = {
   section: string;
   row: string;
@@ -75,7 +77,7 @@ export default function PostListingModal({
     if (seats.length < 1 || seats.length > 4) return false;
     for (const s of seats) {
       if (!s.section.trim() || !s.row.trim() || !s.seat.trim()) return false;
-      const p = Number(s.faceValuePrice);
+      const p = parsePrice(s.faceValuePrice);
       if (!Number.isFinite(p) || p <= 0) return false;
       if (!s.currency.trim()) return false;
     }
@@ -131,7 +133,7 @@ export default function PostListingModal({
             section: s.section.trim(),
             row: s.row.trim(),
             seat: s.seat.trim(),
-            faceValuePrice: Number(s.faceValuePrice),
+            faceValuePrice: parsePrice(s.faceValuePrice) || 0,
             currency: s.currency.trim(),
           })),
         }),
@@ -299,6 +301,7 @@ export default function PostListingModal({
                           setSeats((prev) => prev.map((x, i) => (i === idx ? { ...x, faceValuePrice: e.target.value } : x)))
                         }
                         inputMode="decimal"
+                        placeholder="e.g. 754.69 or 754,69"
                       />
                     </div>
                     <div>
