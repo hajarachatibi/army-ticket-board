@@ -651,9 +651,13 @@ export default function ConnectionBoardView() {
                         <div className="min-w-0 pl-8">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
-                            {l.vip && (
+                            {l.vip ? (
                               <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-200">
                                 VIP
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400">
+                                Standard
                               </span>
                             )}
                           </div>
