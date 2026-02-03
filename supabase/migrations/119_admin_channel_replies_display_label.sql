@@ -1,13 +1,13 @@
 -- Admin channel replies: admins see full email, users see masked username (e***-7a8f).
 -- RPC returns display_label so email is never sent to non-admin clients.
 
+-- SQL language: body is a single SELECT that returns the value (no semicolon/block issues).
 CREATE OR REPLACE FUNCTION public.mask_username_for_channel(p_username text, p_user_id uuid)
 RETURNS text
-LANGUAGE plpgsql
+LANGUAGE sql
 IMMUTABLE
 SET search_path = public
 AS $$
-  -- First letter + '***-' + last 4 chars of user id (e.g. e***-7a8f).
   SELECT coalesce(left(nullif(trim(p_username), ''), 1), '*') || '***-' || right(p_user_id::text, 4);
 $$;
 

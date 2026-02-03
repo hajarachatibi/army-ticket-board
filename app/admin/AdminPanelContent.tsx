@@ -25,12 +25,14 @@ import {
   fetchAdminListingsFiltered,
   fetchAdminSellersPage,
   fetchAdminUserReports,
+  fetchConnectionStats,
   type AdminDashboardStats,
   type AdminListing,
   type AdminListingReport,
   type AdminUser,
   type AdminUserReport,
   type BannedUser,
+  type ConnectionStats,
 } from "@/lib/supabase/admin";
 
 type Tab =
@@ -66,6 +68,7 @@ export default function AdminPanelContent() {
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
+  const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
 
   const [listingReports, setListingReports] = useState<AdminListingReport[]>([]);
   const [userReports, setUserReports] = useState<AdminUserReport[]>([]);
@@ -140,9 +143,11 @@ export default function AdminPanelContent() {
   }, [authLoading, isAdmin, router, user]);
 
   const loadDashboard = useCallback(async () => {
-    const { data, error: e } = await fetchAdminDashboardStats();
-    if (e) setError(e);
-    else setDashboardStats(data);
+    const [statsRes, connRes] = await Promise.all([fetchAdminDashboardStats(), fetchConnectionStats()]);
+    if (statsRes.error) setError(statsRes.error);
+    else setDashboardStats(statsRes.data);
+    if (connRes.error) setError(connRes.error);
+    else setConnectionStats(connRes.data);
   }, []);
 
   const loadListingReports = useCallback(async () => {
@@ -622,6 +627,45 @@ export default function AdminPanelContent() {
                     <p className="text-sm font-medium text-army-purple dark:text-army-300">Banned</p>
                     <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{dashboardStats.banned}</p>
                   </div>
+                </div>
+              )}
+
+              {connectionStats !== null && (
+                <div className="mt-8">
+                  <h3 className="mb-3 font-display text-lg font-semibold text-army-purple dark:text-army-300">Connections</h3>
+                  <div className="mb-4 grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                      <p className="text-sm font-medium text-army-purple dark:text-army-300">Active connections</p>
+                      <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{connectionStats.activeConnections}</p>
+                    </div>
+                    <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                      <p className="text-sm font-medium text-army-purple dark:text-army-300">Waiting list (pending_seller)</p>
+                      <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{connectionStats.waitingListCount}</p>
+                    </div>
+                  </div>
+                  {Object.keys(connectionStats.byStage).length > 0 && (
+                    <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                      <p className="border-b border-army-purple/15 px-4 py-2 text-sm font-semibold text-army-purple dark:border-army-purple/25 dark:text-army-300">Count by stage</p>
+                      <table className="w-full text-left text-sm">
+                        <thead className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                          <tr>
+                            <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Stage</th>
+                            <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(connectionStats.byStage)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([stage, count]) => (
+                              <tr key={stage} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                                <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">{stage}</td>
+                                <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{count}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </section>

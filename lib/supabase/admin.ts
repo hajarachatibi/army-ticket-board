@@ -715,6 +715,34 @@ export type AdminDashboardStats = {
   buyers: number;
 };
 
+export type ConnectionStats = {
+  activeConnections: number;
+  waitingListCount: number;
+  byStage: Record<string, number>;
+};
+
+export async function fetchConnectionStats(): Promise<{
+  data: ConnectionStats | null;
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("get_connection_stats");
+    if (error) return { data: null, error: error.message };
+    const o = data as { active_connections?: number; waiting_list_count?: number; by_stage?: Record<string, number> } | null;
+    if (!o) return { data: null, error: "No stats" };
+    return {
+      data: {
+        activeConnections: Number(o.active_connections) || 0,
+        waitingListCount: Number(o.waiting_list_count) || 0,
+        byStage: (typeof o.by_stage === "object" && o.by_stage !== null ? o.by_stage : {}) as Record<string, number>,
+      },
+      error: null,
+    };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "Failed to fetch connection stats" };
+  }
+}
+
 export async function fetchAdminDashboardStats(): Promise<{
   data: AdminDashboardStats | null;
   error: string | null;

@@ -40,11 +40,6 @@ export default function LiteProfileModal({
     };
   }, [open, userId]);
 
-  const answers = useMemo(() => {
-    const list = profile?.forumAnswers ?? [];
-    return list.filter((a) => a.prompt.trim().length > 0);
-  }, [profile?.forumAnswers]);
-
   const socials = useMemo(() => {
     const p = profile;
     if (!p) return [];
@@ -87,7 +82,7 @@ export default function LiteProfileModal({
               {title ?? "Profile"}
             </h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Lite profile: username, admin badge, and ARMY check answers.
+              Lite profile: username, admin badge, socials, and ARMY Profile answers.
             </p>
           </div>
           <button type="button" className="btn-army-outline" onClick={onClose}>
@@ -126,33 +121,6 @@ export default function LiteProfileModal({
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div className="mt-5">
-                <h3 className="font-display text-lg font-bold text-army-purple">ARMY check answers</h3>
-                {answers.length === 0 ? (
-                  <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">No answers found.</p>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    {answers.map((a, idx) => (
-                      <div
-                        key={a.id}
-                        className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80"
-                      >
-                        <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
-                          Question {idx + 1}
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-army-purple">{a.prompt}</p>
-                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                          Answer
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
-                          {a.answer?.trim() ? a.answer : "—"}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {(socials.some((s) => s.value.length > 0) || onboardingAnswers.some((a) => a.value.length > 0)) && (
