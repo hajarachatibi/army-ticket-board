@@ -65,22 +65,18 @@ export async function fetchChannelReplies(postId: string): Promise<{
   data: Array<{ id: string; postId: string; userId: string; text: string; createdAt: string; username: string; role: string }>;
   error: string | null;
 }> {
-  const { data, error } = await supabase
-    .from("admin_channel_replies")
-    .select("id, post_id, user_id, text, created_at, user_profiles(username, role)")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true });
+  const { data, error } = await supabase.rpc("get_admin_channel_replies", { p_post_id: postId });
   if (error) return { data: [], error: error.message };
   const rows = (data ?? []) as any[];
   return {
-    data: rows.map((r) => ({
+    data: rows.map((r: any) => ({
       id: String(r.id),
       postId: String(r.post_id),
       userId: String(r.user_id),
       text: String(r.text ?? ""),
       createdAt: String(r.created_at),
-      username: String(r.user_profiles?.username ?? "User"),
-      role: String(r.user_profiles?.role ?? "user"),
+      username: String(r.display_label ?? "User"),
+      role: String(r.role ?? "user"),
     })),
     error: null,
   };

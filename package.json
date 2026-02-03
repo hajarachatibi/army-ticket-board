@@ -7,7 +7,8 @@
     "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "connection-stats": "node scripts/connection-stats.mjs"
   },
   "dependencies": {
     "@paypal/react-paypal-js": "^8.9.2",
