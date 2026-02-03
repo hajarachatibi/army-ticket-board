@@ -21,6 +21,7 @@ type ListingRow = {
   ticketSource: string;
   status: string;
   createdAt: string;
+  priceExplanation: string | null;
 };
 
 function formatDate(s: string | null) {
@@ -75,6 +76,7 @@ export default function ConnectionTicketDetailsModal({
         ticketSource: String(l?.ticket_source ?? ""),
         status: String(l?.status ?? ""),
         createdAt: String(l?.created_at ?? ""),
+        priceExplanation: l?.price_explanation != null ? String(l.price_explanation) : null,
       });
       setSeats(
         s.map((x: any) => ({
@@ -145,6 +147,15 @@ export default function ConnectionTicketDetailsModal({
                   </div>
                 </div>
               </div>
+
+              {listing.priceExplanation?.trim() && (
+                <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Price explanation</p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+                    {listing.priceExplanation.trim()}
+                  </p>
+                </div>
+              )}
 
               <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
                 <h3 className="font-display text-lg font-bold text-army-purple">Seats</h3>

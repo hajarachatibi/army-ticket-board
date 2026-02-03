@@ -68,6 +68,7 @@ export default function ConnectionBoardView() {
   const [filterCurrency, setFilterCurrency] = useState("");
   const [filterStatus, setFilterStatus] = useState<"" | "active" | "locked" | "sold">("");
   const [filterVip, setFilterVip] = useState<"" | "vip" | "standard">("");
+  const [filterQuantity, setFilterQuantity] = useState<"" | "1" | "2" | "3" | "4">("");
 
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
@@ -224,11 +225,13 @@ export default function ConnectionBoardView() {
     const currency = filterCurrency.trim();
     const status = filterStatus;
     const vipFilter = filterVip;
+    const qty = filterQuantity ? Number(filterQuantity) : null;
 
     return browse.filter((l) => {
       if (status && String(l.status) !== status) return false;
       if (vipFilter === "vip" && !l.vip) return false;
       if (vipFilter === "standard" && l.vip) return false;
+      if (qty != null && Number.isFinite(qty) && (l.quantity ?? 1) !== qty) return false;
       if (city && String(l.concertCity ?? "") !== city) return false;
       if (currency && String(l.currency) !== currency) return false;
 
@@ -241,7 +244,7 @@ export default function ConnectionBoardView() {
       if (max != null && Number.isFinite(max) && price > max) return false;
       return true;
     });
-  }, [browse, filterCity, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterStatus, filterVip]);
+  }, [browse, filterCity, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterQuantity, filterStatus, filterVip]);
 
   const connect = async (listingId: string) => {
     if (!user) return;
@@ -266,6 +269,7 @@ export default function ConnectionBoardView() {
   };
 
   const cancelRequest = async (connectionId: string) => {
+    if (!confirm("End this connection? The listing will be unlocked and the other person will be notified.")) return;
     setMutatingId(connectionId);
     setError(null);
     try {
@@ -610,6 +614,16 @@ export default function ConnectionBoardView() {
                         <option value="standard">Standard only</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">Quantity</label>
+                      <select className="input-army mt-2" value={filterQuantity} onChange={(e) => setFilterQuantity(e.target.value as "" | "1" | "2" | "3" | "4")}>
+                        <option value="">All</option>
+                        <option value="1">1 ticket</option>
+                        <option value="2">2 tickets</option>
+                        <option value="3">3 tickets</option>
+                        <option value="4">4 tickets</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="mt-4 flex justify-end">
@@ -625,6 +639,7 @@ export default function ConnectionBoardView() {
                         setFilterCurrency("");
                         setFilterStatus("");
                         setFilterVip("");
+                        setFilterQuantity("");
                       }}
                     >
                       Clear filters
@@ -673,6 +688,9 @@ export default function ConnectionBoardView() {
                                 Standard
                               </span>
                             )}
+                            <span className="rounded-full bg-army-purple/10 px-2 py-0.5 text-xs font-medium text-army-purple dark:bg-army-purple/20 dark:text-army-300">
+                              {l.quantity ?? 1} {l.quantity === 1 ? "ticket" : "tickets"}
+                            </span>
                           </div>
                           <p className="mt-1 font-display text-lg font-bold text-army-purple">{l.concertDate}</p>
                         </div>
@@ -786,9 +804,14 @@ export default function ConnectionBoardView() {
                 <div key={l.id} className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
-                        {l.concertCity} · {l.concertDate}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
+                          {l.concertCity} · {l.concertDate}
+                        </p>
+                        <span className="rounded-full bg-army-purple/10 px-2 py-0.5 text-xs font-medium text-army-purple dark:bg-army-purple/20 dark:text-army-300">
+                          {l.seats.length} {l.seats.length === 1 ? "ticket" : "tickets"}
+                        </span>
+                      </div>
                       <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
                         <span className="font-semibold">Source:</span> {l.ticketSource}
                       </p>
@@ -1072,6 +1095,14 @@ export default function ConnectionBoardView() {
                     {listingDetailsFetch.data.sellingReason || "—"}
                   </p>
                 </div>
+                {listingDetailsFetch.data.priceExplanation?.trim() && (
+                  <div>
+                    <p className="font-semibold text-army-purple">Price explanation</p>
+                    <p className="mt-1 text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap break-words">
+                      {listingDetailsFetch.data.priceExplanation.trim()}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             <div className="mt-6 flex justify-end">

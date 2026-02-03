@@ -12,6 +12,8 @@ export type BrowseListingCard = {
   status: "processing" | "active" | "locked" | "sold" | "removed" | string;
   lockExpiresAt: string | null;
   vip: boolean;
+  /** Number of seats (1–4) in this listing. */
+  quantity: number;
 };
 
 export type MyListing = {
@@ -42,6 +44,7 @@ export type BrowseListingSellerDetails = {
   ticketSource: string;
   ticketingExperience: string;
   sellingReason: string;
+  priceExplanation: string;
 };
 
 export async function fetchBrowseListingSellerDetails(
@@ -56,6 +59,7 @@ export async function fetchBrowseListingSellerDetails(
       ticketSource: String(r.ticketSource ?? r.ticket_source ?? ""),
       ticketingExperience: String(r.ticketingExperience ?? r.ticketing_experience ?? ""),
       sellingReason: String(r.sellingReason ?? r.selling_reason ?? ""),
+      priceExplanation: String(r.priceExplanation ?? r.price_explanation ?? ""),
     },
     error: null,
   };
@@ -78,6 +82,7 @@ export async function fetchBrowseListings(): Promise<{ data: BrowseListingCard[]
       status: String(r.status ?? "active"),
       lockExpiresAt: r.lock_expires_at != null ? String(r.lock_expires_at) : null,
       vip: Boolean(r.vip ?? false),
+      quantity: Math.max(1, Math.min(4, Number(r.seat_count ?? 1) || 1)),
     })),
     error: null,
   };

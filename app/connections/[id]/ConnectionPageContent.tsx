@@ -319,6 +319,11 @@ export default function ConnectionPageContent() {
 
   const doEndConnection = async () => {
     if (!conn) return;
+    const isCancel = conn.stage === "pending_seller" && conn.buyer_id === user?.id;
+    const message = isCancel
+      ? "Cancel your connection request? The seller will no longer see it."
+      : "End this connection? The listing will be unlocked and the other person will be notified.";
+    if (!confirm(message)) return;
     setSubmitting(true);
     setError(null);
     setNotice("Saved: this connection has been ended.");
