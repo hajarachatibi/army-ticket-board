@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
   const concertCity = String(body?.concertCity ?? "").trim();
   const concertDate = String(body?.concertDate ?? "").trim();
   const ticketSource = String(body?.ticketSource ?? "").trim();
+  const vip = body?.vip !== undefined ? Boolean(body.vip) : undefined;
   const ticketingExperience = String(body?.ticketingExperience ?? "").trim();
   const sellingReason = String(body?.sellingReason ?? "").trim();
   const priceExplanationRaw = body?.priceExplanation;
