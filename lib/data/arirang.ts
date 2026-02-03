@@ -3,6 +3,7 @@
  * Source: https://en.wikipedia.org/wiki/Arirang_World_Tour
  */
 
+// (deploy trigger)
 export const ARIRANG_EVENT_NAME = "Arirang World Tour" as const;
 
 /** Canonical event options for dropdowns. */
