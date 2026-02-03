@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { fetchApprovedStories, setMyStoryReply, submitStory, type ArmyStory } from "@/lib/supabase/stories";
 import { submitRecommendation } from "@/lib/supabase/recommendations";
@@ -203,10 +204,11 @@ export default function StoriesPageContent() {
                 </p>
                 {s.adminReply?.trim() && (
                   <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/10 p-4 dark:border-army-purple/30 dark:bg-army-purple/20">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-army-purple/80 dark:text-army-300/80">
-                      ARMY Ticket Board team
+                    <p className="flex flex-wrap items-center gap-1 text-xs font-semibold uppercase tracking-wide text-army-purple/80 dark:text-army-300/80">
+                      <span>ARMY Ticket Board team</span>
+                      <VerifiedAdminBadge title="Verified admin" />
                       {s.adminRepliedAt && (
-                        <span className="ml-2 font-normal normal-case">
+                        <span className="ml-1 font-normal normal-case">
                           · {new Date(s.adminRepliedAt).toLocaleDateString()}
                         </span>
                       )}
