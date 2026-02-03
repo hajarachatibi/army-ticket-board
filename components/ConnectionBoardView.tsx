@@ -179,8 +179,10 @@ export default function ConnectionBoardView() {
   const browseCurrencies = useMemo(() => {
     const set = new Set<string>();
     for (const l of browse) {
-      const c = String(l.currency ?? "").trim();
-      if (c) set.add(c);
+      for (const seat of l.seats ?? []) {
+        const c = String(seat.currency ?? "").trim();
+        if (c) set.add(c);
+      }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [browse]);
@@ -233,13 +235,15 @@ export default function ConnectionBoardView() {
       if (vipFilter === "standard" && l.vip) return false;
       if (qty != null && Number.isFinite(qty) && (l.quantity ?? 1) !== qty) return false;
       if (city && String(l.concertCity ?? "") !== city) return false;
-      if (currency && String(l.currency) !== currency) return false;
+      const seatCurrencies = (l.seats ?? []).map((s) => String(s.currency ?? "").trim());
+      if (currency && (seatCurrencies.length === 0 || !seatCurrencies.includes(currency))) return false;
 
       const d = String(l.concertDate ?? "");
       if (from && d && d < from) return false;
       if (to && d && d > to) return false;
 
-      const price = Number(l.faceValuePrice ?? 0);
+      const seatPrices = (l.seats ?? []).map((s) => Number(s.faceValuePrice ?? 0));
+      const price = seatPrices.length > 0 ? Math.min(...seatPrices) : 0;
       if (min != null && Number.isFinite(min) && price < min) return false;
       if (max != null && Number.isFinite(max) && price > max) return false;
       return true;
@@ -665,7 +669,10 @@ export default function ConnectionBoardView() {
                         onClick={() =>
                           setListingDetailsOpen({
                             listingId: l.listingId,
-                            summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
+                            summary:
+                              (l.seats?.length ?? 0) > 0
+                                ? `${l.concertCity} · ${l.concertDate} · ${l.seats!.length} seat${l.seats!.length === 1 ? "" : "s"}`
+                                : `${l.concertCity} · ${l.concertDate}`,
                           })
                         }
                         aria-label="View more details"
@@ -697,7 +704,10 @@ export default function ConnectionBoardView() {
                         {(() => {
                           const pill = browseStatusPill(String(l.status));
                           const isLocked = String(l.status) === "locked";
-                          const summary = `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`;
+                          const summary =
+                            (l.seats?.length ?? 0) > 0
+                              ? `${l.concertCity} · ${l.concertDate} · ${l.seats!.length} seat${l.seats!.length === 1 ? "" : "s"}`
+                              : `${l.concertCity} · ${l.concertDate}`;
                           return (
                             <button
                               type="button"
@@ -715,16 +725,28 @@ export default function ConnectionBoardView() {
                           );
                         })()}
                       </div>
-                      <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                        <span className="font-semibold">Section:</span> {l.section}
-                        <span className="mx-1">·</span>
-                        <span className="font-semibold">Row:</span> {l.seatRow}
-                        <span className="mx-1">·</span>
-                        <span className="font-semibold">Seat:</span> {l.seat}
-                      </p>
-                      <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-                        <span className="font-semibold">Face value:</span> {formatPrice(l.faceValuePrice, l.currency)}
-                      </p>
+                      <div className="mt-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Seats</p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {(l.seats ?? []).map((seat, idx) => (
+                            <div
+                              key={idx}
+                              className="rounded-xl border border-army-purple/10 bg-army-purple/5 p-3 dark:border-army-purple/20 dark:bg-army-purple/10"
+                            >
+                              <p className="text-sm font-semibold text-army-purple">
+                                <span className="font-semibold">Section:</span> {seat.section}
+                                <span className="mx-1">·</span>
+                                <span className="font-semibold">Row:</span> {seat.seatRow}
+                                <span className="mx-1">·</span>
+                                <span className="font-semibold">Seat:</span> {seat.seat}
+                              </p>
+                              <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                                {formatPrice(seat.faceValuePrice, seat.currency)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                       <div className="mt-4 flex flex-wrap justify-end gap-2">
                         <button
                           type="button"
@@ -772,7 +794,10 @@ export default function ConnectionBoardView() {
                               type="button"
                               className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
                               onClick={() => {
-                                const summary = `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`;
+                                const summary =
+                                  (l.seats?.length ?? 0) > 0
+                                    ? `${l.concertCity} · ${l.concertDate} · ${l.seats!.length} seat${l.seats!.length === 1 ? "" : "s"}`
+                                    : `${l.concertCity} · ${l.concertDate}`;
                                 if (isLocked) {
                                   setLockedExplain({ summary, lockExpiresAt: l.lockExpiresAt });
                                   return;

@@ -1,19 +1,24 @@
 import { supabase } from "@/lib/supabaseClient";
 
-export type BrowseListingCard = {
-  listingId: string;
-  concertCity: string;
-  concertDate: string;
+export type BrowseListingSeat = {
   section: string;
   seatRow: string;
   seat: string;
   faceValuePrice: number;
   currency: string;
+};
+
+export type BrowseListingCard = {
+  listingId: string;
+  concertCity: string;
+  concertDate: string;
   status: "processing" | "active" | "locked" | "sold" | "removed" | string;
   lockExpiresAt: string | null;
   vip: boolean;
   /** Number of seats (1–4) in this listing. */
   quantity: number;
+  /** All seats in this listing (section, row, seat, face value). */
+  seats: BrowseListingSeat[];
 };
 
 export type MyListing = {
@@ -70,20 +75,28 @@ export async function fetchBrowseListings(): Promise<{ data: BrowseListingCard[]
   if (error) return { data: [], error: error.message };
   const rows = (data ?? []) as any[];
   return {
-    data: rows.map((r) => ({
-      listingId: String(r.listing_id),
-      concertCity: String(r.concert_city ?? ""),
-      concertDate: String(r.concert_date ?? ""),
-      section: String(r.section ?? ""),
-      seatRow: String(r.seat_row ?? ""),
-      seat: String(r.seat ?? ""),
-      faceValuePrice: Number(r.face_value_price ?? 0),
-      currency: String(r.currency ?? "USD"),
-      status: String(r.status ?? "active"),
-      lockExpiresAt: r.lock_expires_at != null ? String(r.lock_expires_at) : null,
-      vip: Boolean(r.vip ?? false),
-      quantity: Math.max(1, Math.min(4, Number(r.seat_count ?? 1) || 1)),
-    })),
+    data: rows.map((r) => {
+      const rawSeats = Array.isArray(r.seats) ? r.seats : [];
+      const seats: BrowseListingSeat[] = rawSeats.map((s: any) => ({
+        section: String(s?.section ?? ""),
+        seatRow: String(s?.seat_row ?? ""),
+        seat: String(s?.seat ?? ""),
+        faceValuePrice: Number(s?.face_value_price ?? 0),
+        currency: String(s?.currency ?? "USD"),
+      }));
+      const seatCount = Math.max(1, Math.min(4, Number(r.seat_count ?? seats.length ?? 1) || 1));
+      const quantity = seats.length > 0 ? seats.length : seatCount;
+      return {
+        listingId: String(r.listing_id),
+        concertCity: String(r.concert_city ?? ""),
+        concertDate: String(r.concert_date ?? ""),
+        status: String(r.status ?? "active"),
+        lockExpiresAt: r.lock_expires_at != null ? String(r.lock_expires_at) : null,
+        vip: Boolean(r.vip ?? false),
+        quantity,
+        seats,
+      };
+    }),
     error: null,
   };
 }
