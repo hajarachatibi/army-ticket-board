@@ -8,7 +8,13 @@ import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
 import type { Notification, NotificationType } from "@/lib/NotificationContext";
 
-function label(type: NotificationType): string {
+function listingRemovedLabel(message?: string): string {
+  const match = message?.match(/after (\d+) reports?\.?/i);
+  const count = match ? parseInt(match[1], 10) : 3;
+  return `Listing removed (${count} reports)`;
+}
+
+function label(type: NotificationType, n?: Notification): string {
   switch (type) {
     case "request_accepted":
       return "Request accepted";
@@ -49,7 +55,7 @@ function label(type: NotificationType): string {
     case "ticket_reported":
       return "Ticket reported";
     case "listing_removed_3_reports":
-      return "Listing removed (3 reports)";
+      return listingRemovedLabel(n?.message);
     default:
       return "Notification";
   }
@@ -163,7 +169,7 @@ export default function NotificationBell() {
                             !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
                           }`}
                         >
-                          <p className="font-semibold text-army-purple">{label(n.type)}</p>
+                          <p className="font-semibold text-army-purple">{label(n.type, n)}</p>
                           {n.message && (
                             <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
                               {n.message}
@@ -185,7 +191,7 @@ export default function NotificationBell() {
                             !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
                           }`}
                         >
-                          <p className="font-semibold text-army-purple">{label(n.type)}</p>
+                          <p className="font-semibold text-army-purple">{label(n.type, n)}</p>
                           {n.message && (
                             <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
                               {n.message}
@@ -208,7 +214,7 @@ export default function NotificationBell() {
                             !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
                           }`}
                         >
-                          <p className="font-semibold text-army-purple">{label(n.type)}</p>
+                          <p className="font-semibold text-army-purple">{label(n.type, n)}</p>
                           {n.message && (
                             <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
                               {n.message}
@@ -245,7 +251,7 @@ export default function NotificationBell() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="report-notification-title" className="font-display text-lg font-bold text-army-purple">
-                {label(reportPopup.type)}
+                {label(reportPopup.type, reportPopup)}
               </h2>
               {(reportPopup.ticketSummary || reportPopup.ticketId) && (
                 <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -286,7 +292,7 @@ export default function NotificationBell() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="listing-removed-title" className="font-display text-lg font-bold text-army-purple">
-                {label(listingRemovedPopup.type)}
+                {label(listingRemovedPopup.type, listingRemovedPopup)}
               </h2>
               {listingRemovedPopup.listingSummary && (
                 <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">

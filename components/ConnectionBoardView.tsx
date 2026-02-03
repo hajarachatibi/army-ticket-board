@@ -67,6 +67,7 @@ export default function ConnectionBoardView() {
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterCurrency, setFilterCurrency] = useState("");
   const [filterStatus, setFilterStatus] = useState<"" | "active" | "locked" | "sold">("");
+  const [filterVip, setFilterVip] = useState<"" | "vip" | "standard">("");
 
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
@@ -222,9 +223,12 @@ export default function ConnectionBoardView() {
     const to = filterDateTo.trim();
     const currency = filterCurrency.trim();
     const status = filterStatus;
+    const vipFilter = filterVip;
 
     return browse.filter((l) => {
       if (status && String(l.status) !== status) return false;
+      if (vipFilter === "vip" && !l.vip) return false;
+      if (vipFilter === "standard" && l.vip) return false;
       if (city && String(l.concertCity ?? "") !== city) return false;
       if (currency && String(l.currency) !== currency) return false;
 
@@ -237,7 +241,7 @@ export default function ConnectionBoardView() {
       if (max != null && Number.isFinite(max) && price > max) return false;
       return true;
     });
-  }, [browse, filterCity, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterStatus]);
+  }, [browse, filterCity, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterStatus, filterVip]);
 
   const connect = async (listingId: string) => {
     if (!user) return;
@@ -598,6 +602,14 @@ export default function ConnectionBoardView() {
                         <option value="sold">Sold</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">VIP</label>
+                      <select className="input-army mt-2" value={filterVip} onChange={(e) => setFilterVip(e.target.value as "" | "vip" | "standard")}>
+                        <option value="">All</option>
+                        <option value="vip">VIP only</option>
+                        <option value="standard">Standard only</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="mt-4 flex justify-end">
@@ -612,6 +624,7 @@ export default function ConnectionBoardView() {
                         setFilterPriceMax("");
                         setFilterCurrency("");
                         setFilterStatus("");
+                        setFilterVip("");
                       }}
                     >
                       Clear filters
