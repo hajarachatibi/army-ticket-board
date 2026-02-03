@@ -36,6 +36,29 @@ export type MyListing = {
   }>;
 };
 
+export type BrowseListingSellerDetails = {
+  ticketSource: string;
+  ticketingExperience: string;
+  sellingReason: string;
+};
+
+export async function fetchBrowseListingSellerDetails(
+  listingId: string
+): Promise<{ data: BrowseListingSellerDetails | null; error: string | null }> {
+  const { data, error } = await supabase.rpc("get_browse_listing_seller_details", { p_listing_id: listingId });
+  if (error) return { data: null, error: error.message };
+  const r = data as any;
+  if (!r) return { data: null, error: null };
+  return {
+    data: {
+      ticketSource: String(r.ticketSource ?? r.ticket_source ?? ""),
+      ticketingExperience: String(r.ticketingExperience ?? r.ticketing_experience ?? ""),
+      sellingReason: String(r.sellingReason ?? r.selling_reason ?? ""),
+    },
+    error: null,
+  };
+}
+
 export async function fetchBrowseListings(): Promise<{ data: BrowseListingCard[]; error: string | null }> {
   const { data, error } = await supabase.rpc("browse_listings");
   if (error) return { data: [], error: error.message };

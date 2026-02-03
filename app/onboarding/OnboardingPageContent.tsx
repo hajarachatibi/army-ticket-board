@@ -242,7 +242,7 @@ export default function OnboardingPageContent() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-army-purple">Facebook</label>
-                  <input className="input-army mt-2" value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="profile link or name" />
+                  <input className="input-army mt-2" value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="username" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-army-purple">TikTok</label>

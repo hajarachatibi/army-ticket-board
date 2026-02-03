@@ -10,7 +10,7 @@ import ListingReportModal from "@/components/ListingReportModal";
 import PostListingModal from "@/components/PostListingModal";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
-import { connectToListing, endConnection, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type MyListing } from "@/lib/supabase/listings";
+import { connectToListing, endConnection, fetchBrowseListingSellerDetails, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type BrowseListingSellerDetails, type MyListing } from "@/lib/supabase/listings";
 import { supabase } from "@/lib/supabaseClient";
 
 function formatPrice(amount: number, currency: string): string {
@@ -73,10 +73,31 @@ export default function ConnectionBoardView() {
   const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
   const [limitOpen, setLimitOpen] = useState<{ title: string; body: string } | null>(null);
   const [ticketDetailsOpen, setTicketDetailsOpen] = useState<{ connectionId: string } | null>(null);
+  const [listingDetailsOpen, setListingDetailsOpen] = useState<{ listingId: string; summary: string } | null>(null);
+  const [listingDetailsFetch, setListingDetailsFetch] = useState<{
+    loading: boolean;
+    data: BrowseListingSellerDetails | null;
+    error: string | null;
+  } | null>(null);
   const [lockedExplain, setLockedExplain] = useState<{ summary: string; lockExpiresAt: string | null } | null>(null);
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!listingDetailsOpen) {
+      setListingDetailsFetch(null);
+      return;
+    }
+    setListingDetailsFetch({ loading: true, data: null, error: null });
+    void fetchBrowseListingSellerDetails(listingDetailsOpen.listingId).then((res) => {
+      setListingDetailsFetch({
+        loading: false,
+        data: res.data ?? null,
+        error: res.error ?? null,
+      });
+    });
+  }, [listingDetailsOpen?.listingId]);
 
   const load = async () => {
     if (!user) return;
@@ -642,10 +663,22 @@ export default function ConnectionBoardView() {
                       <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
                         <span className="font-semibold">Face value:</span> {formatPrice(l.faceValuePrice, l.currency)}
                       </p>
-                      <div className="mt-4 flex justify-end">
+                      <div className="mt-4 flex flex-wrap justify-end gap-2">
                         <button
                           type="button"
-                          className="btn-army-outline mr-2"
+                          className="btn-army-outline"
+                          onClick={() =>
+                            setListingDetailsOpen({
+                              listingId: l.listingId,
+                              summary: `${l.concertCity} · ${l.concertDate} · ${l.section} · ${l.seatRow} · ${l.seat}`,
+                            })
+                          }
+                        >
+                          View more details
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-army-outline"
                           onClick={() =>
                             setReportOpen({
                               listingId: l.listingId,
@@ -951,6 +984,61 @@ export default function ConnectionBoardView() {
             <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">{limitOpen.body}</p>
             <div className="mt-6 flex justify-end">
               <button type="button" className="btn-army" onClick={() => setLimitOpen(null)}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {listingDetailsOpen && (
+        <div
+          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="listing-details-title"
+          onClick={() => setListingDetailsOpen(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="listing-details-title" className="font-display text-xl font-bold text-army-purple">
+              Seller details
+            </h2>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              {listingDetailsOpen.summary}
+            </p>
+            {listingDetailsFetch?.loading && (
+              <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+            )}
+            {listingDetailsFetch?.error && (
+              <p className="mt-4 text-sm text-red-600 dark:text-red-400">{listingDetailsFetch.error}</p>
+            )}
+            {listingDetailsFetch && !listingDetailsFetch.loading && !listingDetailsFetch.error && listingDetailsFetch.data && (
+              <div className="mt-4 space-y-4 text-sm">
+                <div>
+                  <p className="font-semibold text-army-purple">Where ticket was bought</p>
+                  <p className="mt-1 text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+                    {listingDetailsFetch.data.ticketSource || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-army-purple">Ticketing experience</p>
+                  <p className="mt-1 text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+                    {listingDetailsFetch.data.ticketingExperience || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-army-purple">Why sell to the buyers</p>
+                  <p className="mt-1 text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+                    {listingDetailsFetch.data.sellingReason || "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="mt-6 flex justify-end">
+              <button type="button" className="btn-army" onClick={() => setListingDetailsOpen(null)}>
                 Got it
               </button>
             </div>

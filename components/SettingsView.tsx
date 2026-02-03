@@ -79,7 +79,7 @@ export default function SettingsView() {
           "You can only change your socials once every 30 days. Please make sure your contact socials are correct."
         );
       } else if (msg.toLowerCase().includes("social usernames only") || msg.toLowerCase().includes("no whatsapp") || msg.toLowerCase().includes("no phone")) {
-        setSocialsError("Please use social usernames only (no phone numbers, emails, WhatsApp, Telegram, or links).");
+        setSocialsError("Please use social usernames only (no phone numbers, emails, WhatsApp, Telegram).");
       } else {
         setSocialsError(msg);
       }
@@ -115,7 +115,7 @@ export default function SettingsView() {
         <h2 className="font-display text-lg font-bold text-army-purple">Socials</h2>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
           There is no in-app buyer/seller chat. Please put the social you want ARMY to contact you on.
-          You can change your socials only <span className="font-semibold">once every 30 days</span>. Your ARMY profile answers from onboarding can’t be changed.
+          You can change your socials only <span className="font-semibold">once every 30 days</span>.
         </p>
         {socialsLastChangedAt && (
           <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -126,15 +126,15 @@ export default function SettingsView() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-semibold text-army-purple">Instagram</label>
-            <input className="input-army mt-2" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@username or link" />
+            <input className="input-army mt-2" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@username" />
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">Facebook</label>
-            <input className="input-army mt-2" value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="username or link" />
+            <input className="input-army mt-2" value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="username" />
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">TikTok</label>
-            <input className="input-army mt-2" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="@username or link" />
+            <input className="input-army mt-2" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="@username" />
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">Snapchat</label>

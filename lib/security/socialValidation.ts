@@ -13,20 +13,19 @@ function looksLikePhoneNumber(s: string): boolean {
   return false;
 }
 
-function looksLikeMessagingOrLink(s: string): boolean {
-  const v = s.toLowerCase();
-  return (
-    v.includes("whatsapp") ||
-    v.includes("wa.me") ||
-    v.includes("telegram") ||
-    v.includes("t.me") ||
-    v.includes("tg://") ||
-    v.includes("mailto:") ||
-    v.includes("email") ||
-    v.includes("http://") ||
-    v.includes("https://") ||
-    v.includes("www.")
-  );
+function looksLikeLink(s: string): boolean {
+  const v = s.toLowerCase().trim();
+  if (!v) return false;
+  // Protocol or www
+  if (v.startsWith("http://") || v.startsWith("https://") || v.startsWith("www.")) return true;
+  if (v.includes("http://") || v.includes("https://") || v.includes("www.")) return true;
+  // URL path or backslash
+  if (v.includes("/") || v.includes("\\")) return true;
+  // Common TLDs (domain-like)
+  if (v.includes(".com") || v.includes(".net") || v.includes(".org") || v.includes(".io") || v.includes(".co/") || v.includes(".me/")) return true;
+  // Messaging / contact
+  if (v.includes("whatsapp") || v.includes("wa.me") || v.includes("telegram") || v.includes("t.me") || v.includes("tg://") || v.includes("mailto:") || v.includes("email")) return true;
+  return false;
 }
 
 export function validateSocialValue(field: SocialField, value: string): string | null {
@@ -35,7 +34,7 @@ export function validateSocialValue(field: SocialField, value: string): string |
 
   if (looksLikeEmail(raw)) return `Please don’t put an email address in ${field}. Use your ${field} username only.`;
   if (looksLikePhoneNumber(raw)) return `Please don’t put a phone number in ${field}. Use your ${field} username only.`;
-  if (looksLikeMessagingOrLink(raw)) return `Please don’t put WhatsApp/Telegram/links in ${field}. Use your ${field} username only.`;
+  if (looksLikeLink(raw)) return `Use your ${field} username only — no links or URLs.`;
   return null;
 }
 
