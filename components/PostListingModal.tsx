@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { ARIRANG_CITIES } from "@/lib/data/arirang";
 import { parsePrice } from "@/lib/parsePrice";
 
 type SeatDraft = {
@@ -13,37 +14,6 @@ type SeatDraft = {
 };
 
 const COMMON_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "KRW"] as const;
-
-const ARIRANG_TOUR_CITIES = [
-  "Goyang",
-  "Tokyo",
-  "Busan",
-  "Kaohsiung",
-  "Bangkok",
-  "Kuala Lumpur",
-  "Tampa",
-  "El Paso",
-  "Stanford",
-  "Las Vegas",
-  "East Rutherford",
-  "Foxborough",
-  "Baltimore",
-  "Arlington",
-  "Toronto",
-  "Chicago",
-  "Los Angeles",
-  "Mexico City",
-  "Bogotá",
-  "Lima",
-  "Santiago",
-  "Buenos Aires",
-  "São Paulo",
-  "Madrid",
-  "Brussels",
-  "London",
-  "Munich",
-  "Paris",
-] as const;
 
 export default function PostListingModal({
   open,
@@ -178,18 +148,20 @@ export default function PostListingModal({
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-semibold text-army-purple">Concert city</label>
-            <input
-              className="input-army mt-2"
-              list="arirang-tour-cities"
+            <select
+              className="input-army mt-2 w-full"
               value={concertCity}
               onChange={(e) => setConcertCity(e.target.value)}
-              placeholder="Start typing or pick from list"
-            />
-            <datalist id="arirang-tour-cities">
-              {ARIRANG_TOUR_CITIES.map((c) => (
-                <option key={c} value={c} />
+              required
+              disabled={submitting}
+            >
+              <option value="">Select city</option>
+              {ARIRANG_CITIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
-            </datalist>
+            </select>
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">Concert date</label>

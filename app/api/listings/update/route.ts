@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { checkBotId } from "botid/server";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { ARIRANG_CITIES } from "@/lib/data/arirang";
 import { createServiceClient } from "@/lib/supabase/serviceClient";
 import { parsePrice } from "@/lib/parsePrice";
 import { sameOriginError } from "@/lib/security/sameOrigin";
@@ -87,6 +88,9 @@ export async function POST(request: NextRequest) {
   const seatsRaw = Array.isArray(body?.seats) ? body!.seats! : [];
 
   if (!concertCity) return NextResponse.json({ error: "Missing concert city" }, { status: 400 });
+  if (!(ARIRANG_CITIES as readonly string[]).includes(concertCity)) {
+    return NextResponse.json({ error: "Concert city must be selected from the list" }, { status: 400 });
+  }
   if (!concertDate) return NextResponse.json({ error: "Missing concert date" }, { status: 400 });
   if (!ticketSource) return NextResponse.json({ error: "Missing ticket source" }, { status: 400 });
   if (!ticketingExperience) return NextResponse.json({ error: "Missing ticketing experience" }, { status: 400 });
