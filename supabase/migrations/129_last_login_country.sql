@@ -22,7 +22,7 @@ BEGIN
   WHERE EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = up.id)
     AND (search_trim = '' OR up.username ILIKE '%' || search_trim || '%' OR up.email ILIKE '%' || search_trim || '%');
   SELECT json_agg(t) INTO rows FROM (
-    SELECT up.id, up.email, up.created_at, up.last_login_at, up.last_login_country
+    SELECT up.id, up.email, up.created_at, up.last_login_at, up.country, up.last_login_country
     FROM user_profiles up
     WHERE EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = up.id)
       AND (search_trim = '' OR up.username ILIKE '%' || search_trim || '%' OR up.email ILIKE '%' || search_trim || '%')
@@ -52,7 +52,7 @@ BEGIN
   )
   SELECT count(*) INTO total FROM buyers;
   SELECT json_agg(t) INTO rows FROM (
-    SELECT up.id, up.email, up.created_at, up.last_login_at, up.last_login_country
+    SELECT up.id, up.email, up.created_at, up.last_login_at, up.country, up.last_login_country
     FROM user_profiles up
     WHERE EXISTS (SELECT 1 FROM connections c WHERE c.buyer_id = up.id)
       AND (search_trim = '' OR up.username ILIKE '%' || search_trim || '%' OR up.email ILIKE '%' || search_trim || '%')
@@ -77,7 +77,7 @@ BEGIN
   SELECT count(*) INTO total FROM user_profiles up
   WHERE search_trim = '' OR up.username ILIKE '%' || search_trim || '%' OR up.email ILIKE '%' || search_trim || '%';
   SELECT json_agg(t) INTO rows FROM (
-    SELECT up.id, up.email, up.created_at, up.last_login_at, up.last_login_country
+    SELECT up.id, up.email, up.created_at, up.last_login_at, up.country, up.last_login_country
     FROM user_profiles up
     WHERE search_trim = '' OR up.username ILIKE '%' || search_trim || '%' OR up.email ILIKE '%' || search_trim || '%'
     ORDER BY up.username

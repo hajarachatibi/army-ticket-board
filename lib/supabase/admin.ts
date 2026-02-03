@@ -104,6 +104,8 @@ export type AdminUser = {
   email: string;
   createdAt: string | null;
   lastLoginAt: string | null;
+  /** Profile country from onboarding (self-reported). */
+  country: string | null;
   /** 2-letter country code from last login (Vercel geo). */
   lastLoginCountry: string | null;
 };
@@ -516,6 +518,7 @@ async function fetchAdminUserListPaged(
         email: string;
         created_at?: string | null;
         last_login_at?: string | null;
+        country?: string | null;
         last_login_country?: string | null;
       }>;
       total?: number | string;
@@ -528,6 +531,7 @@ async function fetchAdminUserListPaged(
         email: r.email ?? "",
         createdAt: r.created_at ?? null,
         lastLoginAt: r.last_login_at ?? null,
+        country: r.country ?? null,
         lastLoginCountry: r.last_login_country ?? null,
       })),
       total,

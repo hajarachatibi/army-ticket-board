@@ -1494,7 +1494,8 @@ export default function AdminPanelContent() {
                             <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Email</th>
                             <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Created</th>
                             <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Last login</th>
-                            <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">From</th>
+                            <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Country</th>
+                            <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Last login country</th>
                             <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
                           </tr>
                         </thead>
@@ -1504,7 +1505,10 @@ export default function AdminPanelContent() {
                               <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{u.email}</td>
                               <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(u.createdAt)}</td>
                               <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(u.lastLoginAt)}</td>
-                              <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400" title={u.lastLoginCountry ? `Country from last login: ${u.lastLoginCountry}` : undefined}>
+                              <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400" title="Profile country (onboarding)">
+                                {u.country?.trim() ? u.country : "—"}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400" title="Country from last login (geo)">
                                 {u.lastLoginCountry ?? "—"}
                               </td>
                               <td className="whitespace-nowrap px-3 py-2">
