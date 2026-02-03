@@ -16,6 +16,8 @@ type OnboardingStatus = {
 
 type ArmyProfileQuestionRow = { key: string; prompt: string };
 
+const MIN_BIAS_CHARS = 50;
+
 function nonEmpty(s: string): boolean {
   return s.trim().length > 0;
 }
@@ -46,6 +48,7 @@ export default function OnboardingPageContent() {
   const [agreeUserAgreement, setAgreeUserAgreement] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  const [validationMessages, setValidationMessages] = useState<string[]>([]);
   const [armyProfilePrompts, setArmyProfilePrompts] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function OnboardingPageContent() {
     if (!is18) return false;
     if (!nonEmpty(instagram) && !nonEmpty(facebook) && !nonEmpty(tiktok) && !nonEmpty(snapchat)) return false;
     if (validateAllSocials({ instagram, facebook, tiktok, snapchat })) return false;
-    if (biasAnswer.trim().length < 100) return false;
+    if (biasAnswer.trim().length < MIN_BIAS_CHARS) return false;
     if (!nonEmpty(yearsArmy)) return false;
     if (!nonEmpty(favoriteAlbum)) return false;
     if (!agreeTerms) return false;
@@ -105,8 +108,37 @@ export default function OnboardingPageContent() {
     return validateAllSocials({ instagram, facebook, tiktok, snapchat });
   }, [facebook, instagram, snapchat, tiktok]);
 
+  const getMissingMessages = useMemo(() => {
+    const messages: string[] = [];
+    if (!nonEmpty(firstName)) messages.push("First name is required.");
+    if (!nonEmpty(country)) messages.push("Country is required.");
+    if (!is18) messages.push("You must confirm you are 18 or older.");
+    if (!nonEmpty(instagram) && !nonEmpty(facebook) && !nonEmpty(tiktok) && !nonEmpty(snapchat)) {
+      messages.push("At least one social (Instagram, Facebook, TikTok, or Snapchat) is required.");
+    }
+    if (validateAllSocials({ instagram, facebook, tiktok, snapchat })) {
+      messages.push("Use usernames only for socials (no links, phone numbers, or emails).");
+    }
+    if (biasAnswer.trim().length < MIN_BIAS_CHARS) {
+      messages.push(`Bias / ARMY profile answer must be at least ${MIN_BIAS_CHARS} characters (you have ${biasAnswer.trim().length}).`);
+    }
+    if (!nonEmpty(yearsArmy)) messages.push("How many years you've been ARMY is required.");
+    if (!nonEmpty(favoriteAlbum)) messages.push("Favorite BTS album is required.");
+    if (!agreeTerms) messages.push("You must agree to the Terms and Conditions.");
+    if (!agreeUserAgreement) messages.push("You must agree to the User Agreement.");
+    return messages;
+  }, [agreeTerms, agreeUserAgreement, biasAnswer, country, favoriteAlbum, facebook, firstName, instagram, is18, snapchat, tiktok, yearsArmy]);
+
+  useEffect(() => {
+    if (canSubmit && validationMessages.length > 0) setValidationMessages([]);
+  }, [canSubmit, validationMessages.length]);
+
   const onSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      setValidationMessages(getMissingMessages);
+      return;
+    }
+    setValidationMessages([]);
     setSubmitting(true);
     setError(null);
     try {
@@ -191,6 +223,16 @@ export default function OnboardingPageContent() {
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
               {error}
+            </div>
+          )}
+          {validationMessages.length > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+              <p className="font-semibold">Please complete the following:</p>
+              <ul className="mt-2 list-inside list-disc space-y-1">
+                {validationMessages.map((msg, i) => (
+                  <li key={i}>{msg}</li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -331,7 +373,7 @@ export default function OnboardingPageContent() {
           </div>
 
           <div className="mt-6 flex justify-end gap-2">
-            <button type="button" className="btn-army" disabled={!canSubmit || submitting} onClick={onSubmit}>
+            <button type="button" className="btn-army" disabled={submitting} onClick={onSubmit}>
               {submitting ? "Saving…" : "Save and continue"}
             </button>
           </div>

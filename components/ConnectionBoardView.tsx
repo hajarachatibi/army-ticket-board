@@ -369,10 +369,10 @@ export default function ConnectionBoardView() {
                   });
                   return;
                 }
-                if (postedLast48hCount >= 2) {
+                if (postedLast48hCount >= 3) {
                   setLimitOpen({
                     title: "Posting limit reached",
-                    body: "You can only post 2 listings within 48 hours. Please wait before posting another listing.",
+                    body: "You can only post 3 listings within 48 hours. Please wait before posting another listing.",
                   });
                   return;
                 }
@@ -380,8 +380,8 @@ export default function ConnectionBoardView() {
               }}
               disabled={false}
               title={
-                postedLast48hCount >= 2
-                  ? "Max 2 listings per 48 hours"
+                postedLast48hCount >= 3
+                  ? "Max 3 listings per 48 hours"
                   : activeListingsCount >= 5
                     ? "Max 5 active listings"
                     : "Post a listing"
@@ -443,9 +443,9 @@ export default function ConnectionBoardView() {
           You can have a maximum of <span className="font-semibold">5 active listings</span> at a time.
         </div>
       )}
-      {postedLast48hCount >= 2 && (
+      {postedLast48hCount >= 3 && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-          You can post a maximum of <span className="font-semibold">2 listings within 48 hours</span>. Please wait before posting another.
+          You can post a maximum of <span className="font-semibold">3 listings within 48 hours</span>. Please wait before posting another.
         </div>
       )}
 
