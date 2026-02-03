@@ -20,7 +20,17 @@ export async function POST(request: NextRequest) {
   const so = sameOriginError(request);
   if (so) return NextResponse.json({ error: "Bad origin" }, { status: 403 });
 
-  const verification = await checkBotId();
+  // BotID: only deny when it explicitly says bot. If checkBotId() throws (e.g. not on Vercel,
+  // BotID not enabled, or missing VERCEL_OIDC_TOKEN), allow the request so real users aren't locked out.
+  let verification: { isBot?: boolean };
+  try {
+    verification = await checkBotId();
+  } catch (e) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn("[listings/create] BotID check failed, allowing request:", (e as Error).message);
+    }
+    verification = { isBot: false };
+  }
   if (verification.isBot) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }

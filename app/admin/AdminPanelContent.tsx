@@ -643,7 +643,7 @@ export default function AdminPanelContent() {
                       <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{connectionStats.waitingListCount}</p>
                     </div>
                   </div>
-                  {Object.keys(connectionStats.byStage).length > 0 && (
+                  {(Object.keys(connectionStats.byStage).length > 0 || connectionStats.activeConnections !== undefined) && (
                     <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
                       <p className="border-b border-army-purple/15 px-4 py-2 text-sm font-semibold text-army-purple dark:border-army-purple/25 dark:text-army-300">Count by stage</p>
                       <table className="w-full text-left text-sm">
@@ -654,14 +654,25 @@ export default function AdminPanelContent() {
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.entries(connectionStats.byStage)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([stage, count]) => (
-                              <tr key={stage} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
-                                <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">{stage}</td>
-                                <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{count}</td>
-                              </tr>
-                            ))}
+                          {(
+                            [
+                              "pending_seller",
+                              "declined",
+                              "bonding",
+                              "preview",
+                              "comfort",
+                              "social",
+                              "agreement",
+                              "chat_open",
+                              "ended",
+                              "expired",
+                            ] as const
+                          ).map((stage) => (
+                            <tr key={stage} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                              <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">{stage}</td>
+                              <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{connectionStats.byStage[stage] ?? 0}</td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
