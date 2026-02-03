@@ -100,9 +100,18 @@ export async function ensureGoogleProfile(
   return { username, email, role: "user" };
 }
 
-/** Set last_login_at = now() for the user. Call after OAuth login (e.g. auth callback). */
-export async function touchLastLogin(userId: string, accessToken: string): Promise<void> {
+/** Set last_login_at = now() and optionally last_login_country. Call after OAuth login (e.g. auth callback). */
+export async function touchLastLogin(
+  userId: string,
+  accessToken: string,
+  countryCode?: string | null
+): Promise<void> {
   const url = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+  const body: { last_login_at: string; last_login_country?: string } = {
+    last_login_at: new Date().toISOString(),
+  };
+  const code = countryCode?.trim().toUpperCase();
+  if (code && code.length === 2) body.last_login_country = code;
   try {
     await fetch(url, {
       method: "PATCH",
@@ -112,7 +121,7 @@ export async function touchLastLogin(userId: string, accessToken: string): Promi
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       },
-      body: JSON.stringify({ last_login_at: new Date().toISOString() }),
+      body: JSON.stringify(body),
     });
   } catch {
     /* ignore */

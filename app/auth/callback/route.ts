@@ -69,7 +69,11 @@ export async function GET(request: NextRequest) {
     }
     try {
       await ensureGoogleProfile(session);
-      await touchLastLogin(session.user.id, session.access_token);
+      const countryCode =
+        request.headers.get("x-vercel-ip-country") ??
+        (request as NextRequest & { geo?: { country?: string } }).geo?.country ??
+        null;
+      await touchLastLogin(session.user.id, session.access_token, countryCode);
     } catch (e) {
       if (process.env.NODE_ENV === "development") console.error("[Auth callback] ensureGoogleProfile", e);
     }

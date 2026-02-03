@@ -104,6 +104,8 @@ export type AdminUser = {
   email: string;
   createdAt: string | null;
   lastLoginAt: string | null;
+  /** 2-letter country code from last login (Vercel geo). */
+  lastLoginCountry: string | null;
 };
 
 export type BannedUser = {
@@ -509,7 +511,13 @@ async function fetchAdminUserListPaged(
     });
     if (error) return { data: [], total: 0, error: error.message };
     const obj = data as {
-      data: Array<{ id: string; email: string; created_at?: string | null; last_login_at?: string | null }>;
+      data: Array<{
+        id: string;
+        email: string;
+        created_at?: string | null;
+        last_login_at?: string | null;
+        last_login_country?: string | null;
+      }>;
       total?: number | string;
     } | null;
     const list = Array.isArray(obj?.data) ? obj.data : [];
@@ -520,6 +528,7 @@ async function fetchAdminUserListPaged(
         email: r.email ?? "",
         createdAt: r.created_at ?? null,
         lastLoginAt: r.last_login_at ?? null,
+        lastLoginCountry: r.last_login_country ?? null,
       })),
       total,
       error: null,
