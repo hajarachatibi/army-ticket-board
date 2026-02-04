@@ -663,28 +663,8 @@ export default function ConnectionBoardView() {
                       key={l.listingId}
                       className="group relative rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-army-purple/25 dark:bg-neutral-900"
                     >
-                      <button
-                        type="button"
-                        className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-army-purple/15 px-2.5 py-1.5 text-sm font-semibold text-army-purple shadow-sm hover:bg-army-purple/25 hover:text-army-purple dark:bg-army-purple/25 dark:text-army-200 dark:hover:bg-army-purple/35"
-                        onClick={() =>
-                          setListingDetailsOpen({
-                            listingId: l.listingId,
-                            summary:
-                              (l.seats?.length ?? 0) > 0
-                                ? `${l.concertCity} · ${l.concertDate} · ${l.seats!.length} seat${l.seats!.length === 1 ? "" : "s"}`
-                                : `${l.concertCity} · ${l.concertDate}`,
-                          })
-                        }
-                        aria-label="View more details"
-                      >
-                        <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span>View details</span>
-                      </button>
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 pl-8">
+                        <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
                             {l.vip ? (
@@ -748,7 +728,27 @@ export default function ConnectionBoardView() {
                           ))}
                         </div>
                       </div>
-                      <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          className="btn-army-outline inline-flex items-center gap-1.5"
+                          onClick={() =>
+                            setListingDetailsOpen({
+                              listingId: l.listingId,
+                              summary:
+                                (l.seats?.length ?? 0) > 0
+                                  ? `${l.concertCity} · ${l.concertDate} · ${l.seats!.length} seat${l.seats!.length === 1 ? "" : "s"}`
+                                  : `${l.concertCity} · ${l.concertDate}`,
+                            })
+                          }
+                          aria-label="View more details"
+                        >
+                          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          View details
+                        </button>
                         <button
                           type="button"
                           className="btn-army-outline disabled:cursor-not-allowed disabled:opacity-50"
