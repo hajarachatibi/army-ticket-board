@@ -19,6 +19,8 @@ type ListingRow = {
   concertCity: string;
   concertDate: string;
   ticketSource: string;
+  ticketingExperience: string;
+  sellingReason: string;
   status: string;
   createdAt: string;
   priceExplanation: string | null;
@@ -74,6 +76,8 @@ export default function ConnectionTicketDetailsModal({
         concertCity: String(l?.concert_city ?? ""),
         concertDate: String(l?.concert_date ?? ""),
         ticketSource: String(l?.ticket_source ?? ""),
+        ticketingExperience: String(l?.ticketing_experience ?? ""),
+        sellingReason: String(l?.selling_reason ?? ""),
         status: String(l?.status ?? ""),
         createdAt: String(l?.created_at ?? ""),
         priceExplanation: l?.price_explanation != null ? String(l.price_explanation) : null,
@@ -134,16 +138,30 @@ export default function ConnectionTicketDetailsModal({
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Source</p>
-                    <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">{listing.ticketSource || "—"}</p>
-                  </div>
-                  <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Listing status</p>
                     <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">{listing.status || "—"}</p>
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Created</p>
                     <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">{formatDate(listing.createdAt)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Seller’s answers</p>
+                <div className="mt-3 space-y-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-army-purple">Where did you buy?</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300">{listing.ticketSource || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-army-purple">How was your ticketing experience?</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300">{listing.ticketingExperience || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-army-purple">Why are you selling?</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300">{listing.sellingReason || "—"}</p>
                   </div>
                 </div>
               </div>

@@ -665,7 +665,7 @@ export default function ConnectionBoardView() {
                     >
                       <button
                         type="button"
-                        className="absolute left-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-army-purple/70 hover:bg-army-purple/10 hover:text-army-purple dark:text-army-purple/60 dark:hover:bg-army-purple/20 dark:hover:text-army-purple"
+                        className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-army-purple/15 px-2.5 py-1.5 text-sm font-semibold text-army-purple shadow-sm hover:bg-army-purple/25 hover:text-army-purple dark:bg-army-purple/25 dark:text-army-200 dark:hover:bg-army-purple/35"
                         onClick={() =>
                           setListingDetailsOpen({
                             listingId: l.listingId,
@@ -677,10 +677,11 @@ export default function ConnectionBoardView() {
                         }
                         aria-label="View more details"
                       >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
+                        <span>View details</span>
                       </button>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 pl-8">

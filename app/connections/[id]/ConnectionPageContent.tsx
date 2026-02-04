@@ -751,6 +751,14 @@ export default function ConnectionPageContent() {
                         <p className="text-sm text-neutral-700 dark:text-neutral-300">No seat details available.</p>
                       )}
                     </div>
+                    <div className="mt-4 rounded-lg border border-army-purple/15 bg-white/60 p-3 dark:border-army-purple/25 dark:bg-neutral-900/50">
+                      <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Seller’s answers</p>
+                      <div className="mt-2 space-y-2 text-sm">
+                        <p><span className="font-semibold text-army-purple">Where did you buy?</span> {String((preview as any)?.listing?.ticketSource ?? "—")}</p>
+                        <p><span className="font-semibold text-army-purple">How was your ticketing experience?</span> {String((preview as any)?.listing?.ticketingExperience ?? "—")}</p>
+                        <p><span className="font-semibold text-army-purple">Why are you selling?</span> {String((preview as any)?.listing?.sellingReason ?? "—")}</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
