@@ -104,12 +104,15 @@ export default function PayPalDonationWidget() {
     // - The PayPal *secret* never appears in client code; we only use it in server routes.
     // - The actual order amount/payee are enforced server-side, so "button hijacking" via client
     //   tampering cannot redirect funds or change the amount charged.
+    // - Always request "card" so the credit/debit card button is eligible when the account/region supports it.
+    const extraFunding = cfg.enableFunding ? cfg.enableFunding.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    const enableFunding = ["card", ...extraFunding].filter((v, i, a) => a.indexOf(v) === i).join(",");
     return {
       clientId: cfg.paypalClientId,
       currency: activeCurrency,
       intent: "capture",
       components: "buttons,funding-eligibility",
-      enableFunding: cfg.enableFunding ?? undefined,
+      enableFunding,
     };
   }, [cfg, activeCurrency]);
 

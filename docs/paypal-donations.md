@@ -76,6 +76,6 @@ Even if a malicious user tampers with the client JavaScript, your server still c
 
 ## 4) Notes on cards / Apple Pay / Google Pay
 
-- **Cards**: The modal renders both a PayPal button and a Card button. Card eligibility varies by country/account settings.
+- **Cards**: The modal renders both a PayPal button and a Card button. The app requests the card funding source so it shows when eligible. If **credit card doesn't work**: ensure your PayPal Business account has card processing enabled (some accounts/regions need this in the PayPal dashboard); card (guest checkout) is not available in all countries; in sandbox, try a different test buyer or use the PayPal account option.
 - **Apple Pay / Google Pay**: These require PayPal’s separate wallet/APM integration (not `enable-funding`). If you need them, we can add the dedicated PayPal Apple Pay / Google Pay components and update CSP accordingly.
 
