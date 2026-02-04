@@ -665,7 +665,7 @@ export default function ConnectionBoardView() {
                     >
                       <button
                         type="button"
-                        className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-army-purple/15 px-2.5 py-1.5 text-sm font-semibold text-army-purple shadow-sm hover:bg-army-purple/25 hover:text-army-purple dark:bg-army-purple/25 dark:text-army-200 dark:hover:bg-army-purple/35"
+                        className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-army-purple/15 px-2.5 py-1.5 text-sm font-semibold text-army-purple shadow-sm hover:bg-army-purple/25 hover:text-army-purple dark:bg-army-purple/25 dark:text-army-200 dark:hover:bg-army-purple/35"
                         onClick={() =>
                           setListingDetailsOpen({
                             listingId: l.listingId,
