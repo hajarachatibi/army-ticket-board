@@ -70,12 +70,6 @@ export async function middleware(request: NextRequest) {
   }
 
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
-  if (!supportEnabled && (pathname === "/support" || pathname.startsWith("/support/"))) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
 
   const maintenanceModeEnabled =
     isTruthyEnv(process.env.MAINTENANCE_MODE) || isTruthyEnv(process.env.NEXT_PUBLIC_MAINTENANCE_MODE);
@@ -139,6 +133,23 @@ export async function middleware(request: NextRequest) {
       const redirect = NextResponse.redirect(bannedUrl);
       passThrough.cookies.getAll().forEach(({ name, value }) => redirect.cookies.set(name, value));
       return redirect;
+    }
+  }
+
+  // Support page: allow when NEXT_PUBLIC_ENABLE_SUPPORT_PAGE is on, or when the user is an admin.
+  if (pathname === "/support" || pathname.startsWith("/support/")) {
+    if (!supportEnabled) {
+      let allowSupport = false;
+      if (user) {
+        const { data } = await supabase.from("user_profiles").select("role").eq("id", user.id).single();
+        allowSupport = data?.role === "admin" || isAdminEmail(user.email);
+      }
+      if (!allowSupport) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
     }
   }
 

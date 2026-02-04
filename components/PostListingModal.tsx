@@ -27,7 +27,7 @@ export default function PostListingModal({
   const [concertCity, setConcertCity] = useState("");
   const [concertDate, setConcertDate] = useState("");
   const [ticketSource, setTicketSource] = useState("Ticketmaster");
-  const [listingType, setListingType] = useState<"standard" | "vip" | "loge">("standard");
+  const [listingType, setListingType] = useState<"standard" | "vip" | "loge" | "suite">("standard");
   const [ticketingExperience, setTicketingExperience] = useState("");
   const [sellingReason, setSellingReason] = useState("");
   const [priceExplanation, setPriceExplanation] = useState("");
@@ -97,6 +97,7 @@ export default function PostListingModal({
           ticketSource: ticketSource.trim(),
           vip: listingType === "vip",
           loge: listingType === "loge",
+          suite: listingType === "suite",
           ticketingExperience: ticketingExperience.trim(),
           sellingReason: sellingReason.trim(),
           priceExplanation: priceExplanation.trim() || null,
@@ -173,13 +174,14 @@ export default function PostListingModal({
             <select
               id="post-listing-type"
               value={listingType}
-              onChange={(e) => setListingType(e.target.value as "standard" | "vip" | "loge")}
+              onChange={(e) => setListingType(e.target.value as "standard" | "vip" | "loge" | "suite")}
               className="input-army mt-2"
               disabled={submitting}
             >
               <option value="standard">Standard</option>
               <option value="vip">VIP (e.g. sound check, VIP package)</option>
               <option value="loge">Loge</option>
+              <option value="suite">Suite</option>
             </select>
           </div>
           <div>

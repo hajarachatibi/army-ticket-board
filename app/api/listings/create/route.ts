@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
         ticketSource?: string;
         vip?: boolean;
         loge?: boolean;
+        suite?: boolean;
         ticketingExperience?: string;
         sellingReason?: string;
         priceExplanation?: string | null;
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
   const ticketSource = String(body?.ticketSource ?? "").trim();
   const vip = Boolean(body?.vip);
   const loge = Boolean(body?.loge);
+  const suite = Boolean(body?.suite);
   const ticketingExperience = String(body?.ticketingExperience ?? "").trim();
   const sellingReason = String(body?.sellingReason ?? "").trim();
   const priceExplanationRaw = body?.priceExplanation;
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
       ticket_source: ticketSource,
       vip,
       loge,
+      suite,
       ticketing_experience: ticketingExperience,
       selling_reason: sellingReason,
       price_explanation: priceExplanation || null,

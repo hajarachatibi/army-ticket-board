@@ -67,7 +67,7 @@ export default function ConnectionBoardView() {
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterCurrency, setFilterCurrency] = useState("");
   const [filterStatus, setFilterStatus] = useState<"" | "active" | "locked" | "sold">("");
-  const [filterVip, setFilterVip] = useState<"" | "vip" | "standard" | "loge">("");
+  const [filterVip, setFilterVip] = useState<"" | "vip" | "standard" | "loge" | "suite">("");
   const [filterQuantity, setFilterQuantity] = useState<"" | "1" | "2" | "3" | "4">("");
 
   const [postOpen, setPostOpen] = useState(false);
@@ -613,11 +613,12 @@ export default function ConnectionBoardView() {
                     </div>
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">Type</label>
-                      <select className="input-army mt-2" value={filterVip} onChange={(e) => setFilterVip(e.target.value as "" | "vip" | "standard" | "loge")}>
+                      <select className="input-army mt-2" value={filterVip} onChange={(e) => setFilterVip(e.target.value as "" | "vip" | "standard" | "loge" | "suite")}>
                         <option value="">All</option>
                         <option value="standard">Standard only</option>
                         <option value="vip">VIP only</option>
                         <option value="loge">Loge only</option>
+                        <option value="suite">Suite only</option>
                       </select>
                     </div>
                     <div>
@@ -672,6 +673,10 @@ export default function ConnectionBoardView() {
                             {l.loge ? (
                               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-200">
                                 Loge
+                              </span>
+                            ) : l.suite ? (
+                              <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-bold text-sky-800 dark:text-sky-200">
+                                Suite
                               </span>
                             ) : l.vip ? (
                               <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-200">

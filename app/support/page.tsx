@@ -1,6 +1,9 @@
+"use client";
+
 import { notFound } from "next/navigation";
 
 import PayPalDonationWidget from "@/components/PayPalDonationWidget";
+import { useAuth } from "@/lib/AuthContext";
 
 function isTruthyEnv(value: string | undefined) {
   if (!value) return false;
@@ -8,9 +11,19 @@ function isTruthyEnv(value: string | undefined) {
 }
 
 export default function SupportPage() {
-  // Hidden until PayPal is configured.
-  if (!isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE)) {
+  const { isAdmin, isLoading: authLoading } = useAuth();
+  const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
+  // Show page when support is enabled for everyone, or when the user is an admin (admins can always see it).
+  if (!authLoading && !supportEnabled && !isAdmin) {
     notFound();
+  }
+
+  if (authLoading) {
+    return (
+      <main className="min-h-screen bg-gradient-army-subtle flex items-center justify-center">
+        <p className="text-army-purple">Loading…</p>
+      </main>
+    );
   }
 
   return (

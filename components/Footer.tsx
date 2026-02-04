@@ -10,8 +10,9 @@ function isTruthyEnv(value: string | undefined) {
 
 export default function Footer() {
   const year = new Date().getFullYear();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin } = useAuth();
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
+  const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
   return (
     <footer className="mt-auto border-t border-army-purple/10 bg-white/80 py-6 dark:bg-[#0f0f0f]/80">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -24,7 +25,7 @@ export default function Footer() {
             <Link href="/terms" className="text-army-purple hover:underline dark:text-army-300">
               Terms
             </Link>
-            {supportEnabled && isLoggedIn && (
+            {showSupportLink && (
               <Link href="/support" className="text-army-purple hover:underline dark:text-army-300">
                 Support us 💜
               </Link>

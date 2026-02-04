@@ -16,6 +16,7 @@ export type BrowseListingCard = {
   lockExpiresAt: string | null;
   vip: boolean;
   loge: boolean;
+  suite: boolean;
   /** Number of seats (1–4) in this listing. */
   quantity: number;
   /** All seats in this listing (section, row, seat, face value). */
@@ -32,6 +33,7 @@ export type MyListing = {
   priceExplanation?: string | null;
   vip: boolean;
   loge: boolean;
+  suite: boolean;
   status: "processing" | "active" | "locked" | "sold" | "removed";
   processingUntil: string;
   lockedBy: string | null;
@@ -96,6 +98,7 @@ export async function fetchBrowseListings(): Promise<{ data: BrowseListingCard[]
         lockExpiresAt: r.lock_expires_at != null ? String(r.lock_expires_at) : null,
         vip: Boolean(r.vip ?? false),
         loge: Boolean(r.loge ?? false),
+        suite: Boolean(r.suite ?? false),
         quantity,
         seats,
       };
@@ -127,6 +130,7 @@ export async function fetchMyListings(userId: string): Promise<{ data: MyListing
       priceExplanation: r.price_explanation != null ? String(r.price_explanation) : null,
       vip: Boolean(r.vip ?? false),
       loge: Boolean(r.loge ?? false),
+      suite: Boolean(r.suite ?? false),
       status: String(r.status ?? "processing") as MyListing["status"],
       processingUntil: String(r.processing_until ?? ""),
       lockedBy: r.locked_by != null ? String(r.locked_by) : null,

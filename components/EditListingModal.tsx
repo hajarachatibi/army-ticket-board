@@ -30,7 +30,7 @@ export default function EditListingModal({
   const [concertCity, setConcertCity] = useState("");
   const [concertDate, setConcertDate] = useState("");
   const [ticketSource, setTicketSource] = useState("Ticketmaster");
-  const [listingType, setListingType] = useState<"standard" | "vip" | "loge">("standard");
+  const [listingType, setListingType] = useState<"standard" | "vip" | "loge" | "suite">("standard");
   const [ticketingExperience, setTicketingExperience] = useState("");
   const [sellingReason, setSellingReason] = useState("");
   const [priceExplanation, setPriceExplanation] = useState("");
@@ -44,7 +44,7 @@ export default function EditListingModal({
     setConcertCity(listing.concertCity ?? "");
     setConcertDate(listing.concertDate ?? "");
     setTicketSource(listing.ticketSource ?? "Ticketmaster");
-    setListingType(listing.loge ? "loge" : listing.vip ? "vip" : "standard");
+    setListingType(listing.suite ? "suite" : listing.loge ? "loge" : listing.vip ? "vip" : "standard");
     setTicketingExperience(listing.ticketingExperience ?? "");
     setSellingReason(listing.sellingReason ?? "");
     setPriceExplanation(listing.priceExplanation ?? "");
@@ -188,13 +188,14 @@ export default function EditListingModal({
             <select
               id="edit-listing-type"
               value={listingType}
-              onChange={(e) => setListingType(e.target.value as "standard" | "vip" | "loge")}
+              onChange={(e) => setListingType(e.target.value as "standard" | "vip" | "loge" | "suite")}
               className="input-army mt-2"
               disabled={submitting}
             >
               <option value="standard">Standard</option>
               <option value="vip">VIP (e.g. sound check, VIP package)</option>
               <option value="loge">Loge</option>
+              <option value="suite">Suite</option>
             </select>
           </div>
           <div>

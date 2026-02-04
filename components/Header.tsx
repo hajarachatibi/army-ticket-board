@@ -39,6 +39,8 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
+  const { isAdmin } = useAuth();
+  const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
 
   const navLinks = useMemo(() => {
     // Hide Admin Channel for logged-out users (route is still protected by middleware).
@@ -288,7 +290,7 @@ export default function Header() {
           {isLoggedIn && <NotificationBell />}
 
           <div className="flex items-center gap-2">
-            {supportEnabled && isLoggedIn && (
+            {showSupportLink && (
               <Link
                 href="/support"
                 className="hidden rounded-lg border border-army-purple/30 bg-army-purple/10 px-3 py-2 text-sm font-semibold text-army-purple hover:bg-army-purple/15 dark:border-army-purple/40 dark:bg-army-purple/20 dark:text-army-300 sm:inline-flex"
