@@ -210,6 +210,9 @@ export default function PayPalDonationWidget() {
                 <li>Pay with major credit/debit cards (no PayPal account required)</li>
                 <li>Apple Pay / Google Pay may appear if your device/account is eligible</li>
               </ul>
+              <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">
+                <strong className="text-neutral-700 dark:text-neutral-300">Card form:</strong> Tap or click into each field to enter your details—they are active even if they look light. On supported phones, a &quot;Scan card&quot; option may appear in the form. No shipping needed; only card details (and sometimes billing) are requested.
+              </p>
             </div>
 
             {error && (
@@ -290,7 +293,7 @@ export default function PayPalDonationWidget() {
                   {/* Card button (lets donors pay with card without a PayPal account when eligible) */}
                   <PayPalButtons
                     fundingSource={FUNDING.CARD}
-                    style={{ layout: "vertical", shape: "rect" }}
+                    style={{ layout: "vertical", shape: "rect", color: "blue" }}
                     disabled={submitting}
                     createOrder={async () => {
                       setSubmitting(true);
