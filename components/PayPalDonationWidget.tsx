@@ -28,6 +28,45 @@ function formatMoney(currency: string, value: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(safe);
 }
 
+/** Dark text and light background so card fields don’t look disabled. */
+const cardFieldsStyle: Record<string, { color?: string; background?: string; "font-size"?: string }> = {
+  input: {
+    color: "#1a1a1a",
+    background: "#ffffff",
+    "font-size": "16px",
+  },
+  ".invalid": {
+    color: "#b91c1c",
+  },
+};
+
+function CardFieldsSubmitButton({
+  disabled,
+  onClick,
+}: {
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const { cardFieldsForm } = usePayPalCardFields();
+  const handleSubmit = async () => {
+    if (!cardFieldsForm) return;
+    const state = await cardFieldsForm.getState();
+    if (!state.isFormValid) return;
+    cardFieldsForm.submit();
+    onClick();
+  };
+  return (
+    <button
+      type="button"
+      className="btn-army mt-3 w-full"
+      disabled={disabled || !cardFieldsForm}
+      onClick={handleSubmit}
+    >
+      Donate with card
+    </button>
+  );
+}
+
 export default function PayPalDonationWidget() {
   const router = useRouter();
   const [cfg, setCfg] = useState<DonationConfigResponse | null>(null);
@@ -290,10 +329,10 @@ export default function PayPalDonationWidget() {
                     }}
                   />
 
-                  {/* Card button (lets donors pay with card without a PayPal account when eligible) */}
+                  {/* Card button (pay with card without a PayPal account when eligible) */}
                   <PayPalButtons
                     fundingSource={FUNDING.CARD}
-                    style={{ layout: "vertical", shape: "rect", color: "blue" }}
+                    style={{ layout: "vertical", shape: "rect" }}
                     disabled={submitting}
                     createOrder={async () => {
                       setSubmitting(true);
