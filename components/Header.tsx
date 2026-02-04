@@ -142,11 +142,14 @@ export default function Header() {
     if (isLoggedIn) {
       base.push({ href: "/channel", label: "Admin Channel" });
     }
+    if (showSupportLink) {
+      base.push({ href: "/support", label: "Support us" });
+    }
     if (showAdmin) {
       base.push({ href: "/admin", label: "Admin" });
     }
     return base;
-  }, [isLoggedIn, showAdmin]);
+  }, [isLoggedIn, showAdmin, showSupportLink]);
 
   const overflowMobileLinks = useMemo(() => {
     const allowed = new Set(topMobileLinks.map((x) => x.href));
