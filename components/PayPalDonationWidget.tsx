@@ -1,8 +1,8 @@
 "use client";
 
 import { PayPalButtons, PayPalScriptProvider, type ReactPayPalScriptOptions, FUNDING } from "@paypal/react-paypal-js";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
 
 type DonationConfigResponse = {
   ok: true;
@@ -32,13 +32,13 @@ export default function PayPalDonationWidget() {
   const router = useRouter();
   const [cfg, setCfg] = useState<DonationConfigResponse | null>(null);
   const [cfgError, setCfgError] = useState<string | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState<string>("");
 
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [paypalLoading, setPaypalLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +52,6 @@ export default function PayPalDonationWidget() {
         return;
       }
       setCfg(j);
-      setSelectedCurrency(j.currency);
       setSelectedTier(j.amount);
       setCustomAmount(j.amount);
     })();
@@ -63,16 +62,26 @@ export default function PayPalDonationWidget() {
 
   const amountLabel = useMemo(() => {
     if (!cfg) return "$—";
-    const c = selectedCurrency || cfg.currency;
+    const c = cfg.currency;
     const a = cfg.mode === "custom" ? customAmount || cfg.amount : selectedTier || cfg.amount;
     return formatMoney(c, a);
-  }, [cfg, selectedCurrency, selectedTier, customAmount]);
+  }, [cfg, selectedTier, customAmount]);
 
-  const activeCurrency = useMemo(() => {
-    if (!cfg) return null;
-    const c = (selectedCurrency || cfg.currency || "").trim().toUpperCase();
-    return cfg.allowedCurrencies.includes(c) ? c : cfg.currency;
-  }, [cfg, selectedCurrency]);
+  // USD only; client cannot override currency (enforced server-side).
+  const activeCurrency = useMemo(() => (cfg ? cfg.currency : null), [cfg]);
+
+  // When currency changes, PayPalScriptProvider remounts (new key) and the SDK reloads. Show loading until buttons can render.
+  const prevCurrencyRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (activeCurrency === null) return;
+    if (prevCurrencyRef.current !== null && prevCurrencyRef.current !== activeCurrency) {
+      setPaypalLoading(true);
+      const t = setTimeout(() => setPaypalLoading(false), 3000);
+      prevCurrencyRef.current = activeCurrency;
+      return () => clearTimeout(t);
+    }
+    prevCurrencyRef.current = activeCurrency;
+  }, [activeCurrency]);
 
   const activeTier = useMemo(() => {
     if (!cfg) return null;
@@ -114,13 +123,12 @@ export default function PayPalDonationWidget() {
     <div className="mt-6">
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="btn-army" onClick={() => setOpen(true)}>
-          Donate {amountLabel}
+          Donate
         </button>
         <p className="text-xs text-neutral-600 dark:text-neutral-400">
           Optional · Securely processed via PayPal
         </p>
       </div>
-
       {cfgError && (
         <p className="mt-3 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
           {cfgError}
@@ -143,14 +151,15 @@ export default function PayPalDonationWidget() {
               Confirm donation
             </h2>
             <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-              You are donating <strong>{amountLabel}</strong> to support the app. This is optional and securely
-              processed via PayPal.
+              You are donating <strong>{amountLabel}</strong>{" "}
+              <span className="font-semibold text-army-purple">(USD)</span> to support the app. This is optional and
+              securely processed via PayPal.
             </p>
 
             {cfg?.mode === "tiers" && cfg?.tiers?.length ? (
               <div className="mt-4">
                 <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-tier">
-                  Donation amount
+                  Donation amount (USD)
                 </label>
                 <select
                   id="donation-tier"
@@ -174,44 +183,20 @@ export default function PayPalDonationWidget() {
             {cfg?.mode === "custom" ? (
               <div className="mt-4">
                 <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-amount">
-                  Donation amount
+                  Donation amount (USD)
                 </label>
-                <input
-                  id="donation-amount"
-                  inputMode="decimal"
-                  className="input-army mt-1"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  placeholder={cfg.amount}
-                  disabled={submitting}
-                />
-                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-                  Allowed range is enforced server-side ({cfg.minAmount} – {cfg.maxAmount}).
-                </p>
-              </div>
-            ) : null}
-
-            {cfg?.allowedCurrencies?.length ? (
-              <div className="mt-4">
-                <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-currency">
-                  Currency
-                </label>
-                <select
-                  id="donation-currency"
-                  className="input-army mt-1"
-                  value={activeCurrency ?? ""}
-                  onChange={(e) => setSelectedCurrency(e.target.value)}
-                  disabled={submitting}
-                >
-                  {cfg.allowedCurrencies.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-                  Currency is selectable, but only from an allowlist.
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    id="donation-amount"
+                    inputMode="decimal"
+                    className="input-army flex-1"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    placeholder={cfg.amount}
+                    disabled={submitting}
+                  />
+                  <span className="shrink-0 text-sm font-semibold text-army-purple">USD</span>
+                </div>
               </div>
             ) : null}
 
@@ -234,9 +219,18 @@ export default function PayPalDonationWidget() {
               <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
                 Donations aren’t configured yet.
               </p>
+            ) : paypalLoading ? (
+              <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 text-sm text-neutral-700 dark:text-neutral-300">
+                <p>Loading payment options for {activeCurrency}…</p>
+                {cfg?.environment === "sandbox" && (
+                  <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                    In test mode, buttons may only appear for USD. Switch back to USD if they don’t load.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {/* Changing currency requires reloading the PayPal JS SDK. */}
+                {/* Changing currency requires reloading the PayPal JS SDK (key forces remount). */}
                 <PayPalScriptProvider options={paypalOptions} key={paypalOptions.currency}>
                   {/* PayPal button */}
                   <PayPalButtons
@@ -249,7 +243,7 @@ export default function PayPalDonationWidget() {
                       const res = await fetch("/api/paypal/create-order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ currency: activeCurrency, amount: activeAmount }),
+                        body: JSON.stringify({ amount: activeAmount }),
                       });
                       const j = (await res.json().catch(() => null)) as
                         | ApiOk<{ orderId: string }>
@@ -301,7 +295,7 @@ export default function PayPalDonationWidget() {
                       const res = await fetch("/api/paypal/create-order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ currency: activeCurrency, amount: activeAmount }),
+                        body: JSON.stringify({ amount: activeAmount }),
                       });
                       const j = (await res.json().catch(() => null)) as
                         | ApiOk<{ orderId: string }>

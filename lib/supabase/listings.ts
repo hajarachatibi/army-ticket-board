@@ -15,6 +15,7 @@ export type BrowseListingCard = {
   status: "processing" | "active" | "locked" | "sold" | "removed" | string;
   lockExpiresAt: string | null;
   vip: boolean;
+  loge: boolean;
   /** Number of seats (1–4) in this listing. */
   quantity: number;
   /** All seats in this listing (section, row, seat, face value). */
@@ -30,6 +31,7 @@ export type MyListing = {
   sellingReason: string;
   priceExplanation?: string | null;
   vip: boolean;
+  loge: boolean;
   status: "processing" | "active" | "locked" | "sold" | "removed";
   processingUntil: string;
   lockedBy: string | null;
@@ -93,6 +95,7 @@ export async function fetchBrowseListings(): Promise<{ data: BrowseListingCard[]
         status: String(r.status ?? "active"),
         lockExpiresAt: r.lock_expires_at != null ? String(r.lock_expires_at) : null,
         vip: Boolean(r.vip ?? false),
+        loge: Boolean(r.loge ?? false),
         quantity,
         seats,
       };
@@ -105,7 +108,7 @@ export async function fetchMyListings(userId: string): Promise<{ data: MyListing
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, concert_city, concert_date, ticket_source, ticketing_experience, selling_reason, price_explanation, status, processing_until, locked_by, lock_expires_at, created_at, listing_seats(seat_index, section, seat_row, seat, face_value_price, currency)"
+      "id, concert_city, concert_date, ticket_source, ticketing_experience, selling_reason, price_explanation, status, processing_until, locked_by, lock_expires_at, created_at, vip, loge, listing_seats(seat_index, section, seat_row, seat, face_value_price, currency)"
     )
     .eq("seller_id", userId)
     .order("created_at", { ascending: false });
@@ -123,6 +126,7 @@ export async function fetchMyListings(userId: string): Promise<{ data: MyListing
       sellingReason: String(r.selling_reason ?? ""),
       priceExplanation: r.price_explanation != null ? String(r.price_explanation) : null,
       vip: Boolean(r.vip ?? false),
+      loge: Boolean(r.loge ?? false),
       status: String(r.status ?? "processing") as MyListing["status"],
       processingUntil: String(r.processing_until ?? ""),
       lockedBy: r.locked_by != null ? String(r.locked_by) : null,

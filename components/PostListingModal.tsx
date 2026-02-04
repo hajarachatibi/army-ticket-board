@@ -27,7 +27,7 @@ export default function PostListingModal({
   const [concertCity, setConcertCity] = useState("");
   const [concertDate, setConcertDate] = useState("");
   const [ticketSource, setTicketSource] = useState("Ticketmaster");
-  const [vip, setVip] = useState(false);
+  const [listingType, setListingType] = useState<"standard" | "vip" | "loge">("standard");
   const [ticketingExperience, setTicketingExperience] = useState("");
   const [sellingReason, setSellingReason] = useState("");
   const [priceExplanation, setPriceExplanation] = useState("");
@@ -58,7 +58,7 @@ export default function PostListingModal({
     setConcertCity("");
     setConcertDate("");
     setTicketSource("Ticketmaster");
-    setVip(false);
+    setListingType("standard");
     setTicketingExperience("");
     setSellingReason("");
     setPriceExplanation("");
@@ -95,7 +95,8 @@ export default function PostListingModal({
           concertCity: concertCity.trim(),
           concertDate: concertDate.trim(),
           ticketSource: ticketSource.trim(),
-          vip,
+          vip: listingType === "vip",
+          loge: listingType === "loge",
           ticketingExperience: ticketingExperience.trim(),
           sellingReason: sellingReason.trim(),
           priceExplanation: priceExplanation.trim() || null,
@@ -167,17 +168,19 @@ export default function PostListingModal({
             <label className="block text-sm font-semibold text-army-purple">Concert date</label>
             <input type="date" className="input-army mt-2" value={concertDate} onChange={(e) => setConcertDate(e.target.value)} />
           </div>
-          <div className="sm:col-span-2 flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="post-listing-vip"
-              checked={vip}
-              onChange={(e) => setVip(e.target.checked)}
-              className="h-4 w-4 rounded border-army-purple/50 text-army-purple focus:ring-army-purple"
-            />
-            <label htmlFor="post-listing-vip" className="text-sm font-semibold text-army-purple">
-              VIP (e.g. sound check, VIP package)
-            </label>
+          <div>
+            <label className="block text-sm font-semibold text-army-purple">Listing type</label>
+            <select
+              id="post-listing-type"
+              value={listingType}
+              onChange={(e) => setListingType(e.target.value as "standard" | "vip" | "loge")}
+              className="input-army mt-2"
+              disabled={submitting}
+            >
+              <option value="standard">Standard</option>
+              <option value="vip">VIP (e.g. sound check, VIP package)</option>
+              <option value="loge">Loge</option>
+            </select>
           </div>
           <div>
             <label className="block text-sm font-semibold text-army-purple">Ticket source</label>

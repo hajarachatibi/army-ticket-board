@@ -67,7 +67,7 @@ export default function ConnectionBoardView() {
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterCurrency, setFilterCurrency] = useState("");
   const [filterStatus, setFilterStatus] = useState<"" | "active" | "locked" | "sold">("");
-  const [filterVip, setFilterVip] = useState<"" | "vip" | "standard">("");
+  const [filterVip, setFilterVip] = useState<"" | "vip" | "standard" | "loge">("");
   const [filterQuantity, setFilterQuantity] = useState<"" | "1" | "2" | "3" | "4">("");
 
   const [postOpen, setPostOpen] = useState(false);
@@ -231,8 +231,9 @@ export default function ConnectionBoardView() {
 
     return browse.filter((l) => {
       if (status && String(l.status) !== status) return false;
-      if (vipFilter === "vip" && !l.vip) return false;
-      if (vipFilter === "standard" && l.vip) return false;
+      if (vipFilter === "vip" && (!l.vip || l.loge)) return false;
+      if (vipFilter === "standard" && (l.vip || l.loge)) return false;
+      if (vipFilter === "loge" && !l.loge) return false;
       if (qty != null && Number.isFinite(qty) && (l.quantity ?? 1) !== qty) return false;
       if (city && String(l.concertCity ?? "") !== city) return false;
       const seatCurrencies = (l.seats ?? []).map((s) => String(s.currency ?? "").trim());
@@ -611,11 +612,12 @@ export default function ConnectionBoardView() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">VIP</label>
-                      <select className="input-army mt-2" value={filterVip} onChange={(e) => setFilterVip(e.target.value as "" | "vip" | "standard")}>
+                      <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">Type</label>
+                      <select className="input-army mt-2" value={filterVip} onChange={(e) => setFilterVip(e.target.value as "" | "vip" | "standard" | "loge")}>
                         <option value="">All</option>
-                        <option value="vip">VIP only</option>
                         <option value="standard">Standard only</option>
+                        <option value="vip">VIP only</option>
+                        <option value="loge">Loge only</option>
                       </select>
                     </div>
                     <div>
@@ -667,7 +669,11 @@ export default function ConnectionBoardView() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">{l.concertCity}</p>
-                            {l.vip ? (
+                            {l.loge ? (
+                              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                                Loge
+                              </span>
+                            ) : l.vip ? (
                               <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-200">
                                 VIP
                               </span>

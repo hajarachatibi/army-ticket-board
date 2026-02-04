@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   adminBanAndDeleteUser,
   adminDeleteListingReport,
+  adminReleaseUserListings,
   adminRemoveListing,
   adminUnbanUser,
   fetchAdminAllUsersPage,
@@ -32,12 +33,14 @@ import {
   fetchAdminListingsFiltered,
   fetchAdminSellersPage,
   fetchAdminUserReports,
+  fetchAdminUsersUnderReview,
   fetchConnectionStats,
   type AdminDashboardStats,
   type AdminListing,
   type AdminListingReport,
   type AdminUser,
   type AdminUserReport,
+  type AdminUserUnderReview,
   type BannedUser,
   type ConnectionStats,
 } from "@/lib/supabase/admin";
@@ -46,6 +49,7 @@ type Tab =
   | "dashboard"
   | "listingReports"
   | "userReports"
+  | "usersUnderReview"
   | "listings"
   | "armyProfileQuestions"
   | "bondingQuestions"
@@ -108,6 +112,7 @@ export default function AdminPanelContent() {
   const [allUsersSearchApplied, setAllUsersSearchApplied] = useState("");
 
   const [banned, setBanned] = useState<BannedUser[]>([]);
+  const [usersUnderReview, setUsersUnderReview] = useState<AdminUserUnderReview[]>([]);
 
   const [profileOpen, setProfileOpen] = useState<{ userId: string; title: string } | null>(null);
   const [listingOpen, setListingOpen] = useState<{ listingId: string } | null>(null);
@@ -134,6 +139,7 @@ export default function AdminPanelContent() {
       { id: "dashboard", label: "Dashboard" },
       { id: "listingReports", label: "Listing reports" },
       { id: "userReports", label: "User reports" },
+      { id: "usersUnderReview", label: "Users under review" },
       { id: "listings", label: "Listings" },
       { id: "armyProfileQuestions", label: "ARMY Profile Questions" },
       { id: "bondingQuestions", label: "Connection bonding questions" },
@@ -248,6 +254,15 @@ export default function AdminPanelContent() {
     else setBanned(data);
   }, []);
 
+  const loadUsersUnderReview = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminUsersUnderReview();
+    setLoading(false);
+    if (e) setError(e);
+    else setUsersUnderReview(data);
+  }, []);
+
   const loadStories = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -333,6 +348,7 @@ export default function AdminPanelContent() {
     loadSellers,
     loadStories,
     loadUserReports,
+    loadUsersUnderReview,
   ]);
 
   useEffect(() => {
@@ -367,11 +383,28 @@ export default function AdminPanelContent() {
       const { error: e } = await adminBanAndDeleteUser(email);
       if (e) setFeedback(`Error: ${e}`);
       else setFeedback("User banned and deleted.");
-      await Promise.all([loadDashboard(), loadBanned(), loadSellers(), loadBuyers(), loadAllUsers()]);
+      await Promise.all([loadDashboard(), loadBanned(), loadSellers(), loadBuyers(), loadAllUsers(), loadUsersUnderReview()]);
     } finally {
       setLoading(false);
     }
-  }, [loadAllUsers, loadBanned, loadBuyers, loadDashboard, loadSellers]);
+  }, [loadAllUsers, loadBanned, loadBuyers, loadDashboard, loadSellers, loadUsersUnderReview]);
+
+  const releaseUserListings = useCallback(
+    async (userId: string) => {
+      if (!confirm("Release this user's listings? They will be visible in browse again.")) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminReleaseUserListings(userId);
+        if (e) setFeedback(`Error: ${e}`);
+        else setFeedback("Listings released.");
+        await Promise.all([loadUsersUnderReview(), loadDashboard()]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadDashboard, loadUsersUnderReview]
+  );
 
   const unban = useCallback(async (email: string) => {
     setLoading(true);
@@ -885,6 +918,73 @@ export default function AdminPanelContent() {
                                   onClick={() => r.reportedEmail && banAndDelete(r.reportedEmail)}
                                 >
                                   Ban reported
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "usersUnderReview" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Users under review</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Users with at least one user report have their listings hidden from browse. Release listings to make them visible again, or remove and ban the user.
+              </p>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : usersUnderReview.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No users under review.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[800px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Email</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">User reports</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Active listings</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {usersUnderReview.map((u) => (
+                          <tr key={u.user_id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{u.reported_email}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{u.report_count}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{u.active_listing_count}</td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => openUserProfile({ userId: u.user_id, title: `User: ${u.reported_email}` })}
+                                >
+                                  View profile
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40"
+                                  onClick={() => releaseUserListings(u.user_id)}
+                                  disabled={loading}
+                                >
+                                  Release listings
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => banAndDelete(u.reported_email)}
+                                  disabled={loading}
+                                >
+                                  Remove and ban
                                 </button>
                               </div>
                             </td>

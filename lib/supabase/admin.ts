@@ -116,6 +116,14 @@ export type BannedUser = {
   reason: string | null;
 };
 
+/** User with listings held for review (due to user reports). From admin_users_under_review() RPC. */
+export type AdminUserUnderReview = {
+  user_id: string;
+  reported_email: string;
+  report_count: number;
+  active_listing_count: number;
+};
+
 export async function fetchAdminReports(): Promise<{
   data: AdminReport[];
   error: string | null;
@@ -635,6 +643,33 @@ export async function fetchAdminBannedUsers(): Promise<{
       data: [],
       error: e instanceof Error ? e.message : "Failed to fetch banned users",
     };
+  }
+}
+
+export async function fetchAdminUsersUnderReview(): Promise<{
+  data: AdminUserUnderReview[];
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_users_under_review");
+    if (error) return { data: [], error: error.message };
+    const raw = data as AdminUserUnderReview[] | null;
+    const rows = Array.isArray(raw) ? raw : [];
+    return { data: rows, error: null };
+  } catch (e) {
+    return {
+      data: [],
+      error: e instanceof Error ? e.message : "Failed to fetch users under review",
+    };
+  }
+}
+
+export async function adminReleaseUserListings(userId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_release_user_listings", { p_user_id: userId });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to release listings" };
   }
 }
 

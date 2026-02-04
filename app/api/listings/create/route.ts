@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         concertDate?: string; // YYYY-MM-DD
         ticketSource?: string;
         vip?: boolean;
+        loge?: boolean;
         ticketingExperience?: string;
         sellingReason?: string;
         priceExplanation?: string | null;
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
   const concertDate = String(body?.concertDate ?? "").trim();
   const ticketSource = String(body?.ticketSource ?? "").trim();
   const vip = Boolean(body?.vip);
+  const loge = Boolean(body?.loge);
   const ticketingExperience = String(body?.ticketingExperience ?? "").trim();
   const sellingReason = String(body?.sellingReason ?? "").trim();
   const priceExplanationRaw = body?.priceExplanation;
@@ -132,6 +134,7 @@ export async function POST(request: NextRequest) {
       concert_date: concertDate,
       ticket_source: ticketSource,
       vip,
+      loge,
       ticketing_experience: ticketingExperience,
       selling_reason: sellingReason,
       price_explanation: priceExplanation || null,

@@ -6,6 +6,7 @@
 - **Server-side order creation + capture** (PayPal secret stays on server)
 - **Server-side verification** that the captured payment matches your configured amount (and optional merchant id)
 - A simple **thank-you page** at `/support/thank-you`
+- **USD-only** donations; the UI shows a note that the payment provider may apply currency conversion
 
 ## 1) Create / configure your PayPal Business account
 
@@ -35,10 +36,9 @@ PAYPAL_MERCHANT_ID=YOUR_MERCHANT_ID
 # sandbox | live (defaults to sandbox if unset)
 PAYPAL_ENV=sandbox
 
-# Donation amount is user-entered, but still enforced server-side.
-# Currency is user-selectable, but only from a server-controlled allowlist.
+# Donations are USD-only by design. No currency conversion in the app.
+# (Donor's payment provider may apply conversion.)
 DONATION_CURRENCY=USD
-DONATION_ALLOWED_CURRENCIES=USD,EUR,GBP
 
 # Donation mode:
 # - custom: user can type an amount (min/max enforced server-side)
@@ -68,8 +68,8 @@ This integration is designed so the **browser cannot choose where funds go**:
   - `POST /api/paypal/create-order`
   - `POST /api/paypal/capture-order`
 - Those routes create/capture orders using your secret and **enforce**:
+  - **USD only** (no client override; PayPal response must be USD)
   - The **donation bounds** (`DONATION_MIN_AMOUNT`/`DONATION_MAX_AMOUNT`) in custom mode
-  - The **currency allowlist** (`DONATION_ALLOWED_CURRENCIES`)
   - The **payee** (optionally locked to `PAYPAL_MERCHANT_ID`)
 
 Even if a malicious user tampers with the client JavaScript, your server still creates an order for **your** PayPal account and only for the configured amount.

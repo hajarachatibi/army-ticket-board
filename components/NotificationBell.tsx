@@ -310,10 +310,25 @@ export default function NotificationBell() {
                 </p>
               )}
               {listingRemovedPopup.reportReasons && (
-                <div className="mt-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
-                    Main reasons reported
-                  </p>
+                <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                  {listingRemovedPopup.reportReasons.toLowerCase().includes("not face value") && (
+                    <>
+                      <p className="text-sm font-semibold text-army-purple">
+                        Your listing was removed for face value reasons.
+                      </p>
+                      <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                        You can resubmit again if you change the price, or if you believe the price is face value.
+                      </p>
+                      <p className="mt-3 text-xs font-bold uppercase tracking-wide text-army-purple/70">
+                        Main reasons reported
+                      </p>
+                    </>
+                  )}
+                  {!listingRemovedPopup.reportReasons.toLowerCase().includes("not face value") && (
+                    <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">
+                      Main reasons reported
+                    </p>
+                  )}
                   <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-neutral-700 dark:text-neutral-300">
                     {listingRemovedPopup.reportReasons.split(",").map((r) => (
                       <li key={r}>{r.trim()}</li>

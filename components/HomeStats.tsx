@@ -20,10 +20,11 @@ export default function HomeStats() {
       {!stats ? (
         <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">Loading…</p>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard title="Listings available" value={stats.tickets} />
           <StatsCard title="Active events" value={stats.events} />
           <StatsCard title="Listings sold" value={stats.sold} />
+          <StatsCard title="Tickets sold" value={stats.ticketsSold} />
         </div>
       )}
     </section>

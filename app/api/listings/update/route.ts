@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         concertDate?: string; // YYYY-MM-DD
         ticketSource?: string;
         vip?: boolean;
+        loge?: boolean;
         ticketingExperience?: string;
         sellingReason?: string;
         priceExplanation?: string | null;
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
   const concertDate = String(body?.concertDate ?? "").trim();
   const ticketSource = String(body?.ticketSource ?? "").trim();
   const vip = body?.vip !== undefined ? Boolean(body.vip) : undefined;
+  const loge = body?.loge !== undefined ? Boolean(body.loge) : undefined;
   const ticketingExperience = String(body?.ticketingExperience ?? "").trim();
   const sellingReason = String(body?.sellingReason ?? "").trim();
   const priceExplanationRaw = body?.priceExplanation;
@@ -128,6 +130,7 @@ export async function POST(request: NextRequest) {
     price_explanation: priceExplanation || null,
   };
   if (vip !== undefined) updatePayload.vip = vip;
+  if (loge !== undefined) updatePayload.loge = loge;
   const { error: upErr } = await db
     .from("listings")
     .update(updatePayload)

@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
+/** Donation currency: USD only. No conversion in-app; donor's provider may convert. */
+const DONATION_CURRENCY = "USD";
+
 export type DonationConfig = {
   enabled: boolean;
   paypalClientId: string | null; // safe to expose to client
-  currency: string; // default currency
-  allowedCurrencies: string[]; // server-controlled allowlist
+  /** Always USD. System is USD-only by design. */
+  currency: string;
+  /** Always ["USD"]. Client cannot override. */
+  allowedCurrencies: string[];
   mode: "tiers" | "custom";
   amount: string; // default amount, e.g. "5.00"
   tiers: string[]; // allowlisted tier amounts (used only in tiers mode)
@@ -54,12 +59,10 @@ export function getDonationConfig(): DonationConfig {
   const paypalClientId =
     (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID || "").trim() || null;
 
-  const currency = (process.env.DONATION_CURRENCY || "USD").trim().toUpperCase() || "USD";
+  // USD-only by design. Env DONATION_CURRENCY=USD is recommended; we ignore other values.
   const amount = (process.env.DONATION_AMOUNT || "5.00").trim();
-  const allowedCurrencies = String(process.env.DONATION_ALLOWED_CURRENCIES || currency)
-    .split(",")
-    .map((c) => c.trim().toUpperCase())
-    .filter(Boolean);
+  const currency = DONATION_CURRENCY;
+  const allowedCurrencies = [DONATION_CURRENCY];
   const tiers = String(process.env.DONATION_TIERS || amount)
     .split(",")
     .map((v) => v.trim())
@@ -134,9 +137,14 @@ function isAllowedCurrency(currency: string, allowedCurrencies: string[]) {
 }
 
 function isAllowedTierAmount(value: string, tiers: string[]) {
-  // Keep this lenient and let PayPal validate currency-specific decimal rules.
-  // We only enforce the allowlist (prevents arbitrary amounts).
-  return tiers.includes(value);
+  // Compare numerically so "5.0" / "5.00" from PayPal match tier "5" or "5.00".
+  const num = parseAmountLenient(value);
+  if (num == null) return false;
+  const rounded = Math.round(num * 100) / 100;
+  return tiers.some((t) => {
+    const tierNum = parseAmountLenient(t) ?? parseMoneyLike(t);
+    return tierNum != null && Math.round(tierNum * 100) / 100 === rounded;
+  });
 }
 
 const ZERO_DECIMAL_CURRENCIES = new Set([
@@ -158,6 +166,15 @@ function parseMoneyLike(value: string) {
   return n;
 }
 
+/** Parse amount string leniently (PayPal may return "5", "5.0", "5.00", "5.000"). */
+function parseAmountLenient(value: string): number | null {
+  const raw = String(value ?? "").trim();
+  if (!/^\d+(\.\d+)?$/.test(raw)) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 function formatAmountForCurrency(amount: number, currency: string) {
   if (ZERO_DECIMAL_CURRENCIES.has(currency)) {
     if (!Number.isInteger(amount)) throw new Error("This currency requires a whole-number amount.");
@@ -170,15 +187,18 @@ export async function createDonationOrder(opts?: { currency?: string; amount?: s
   const config = getDonationConfig();
   if (!config.enabled) throw new Error("Donations are not enabled.");
 
-  // SECURITY:
-  // - Amount is selectable by the user, but enforced server-side:
-  //   - either from preset tiers, OR
-  //   - as a custom amount within server-defined min/max bounds.
-  // - Currency is selectable by the user, but ONLY from a server-controlled allowlist.
-  const currency = String(opts?.currency ?? config.currency).trim().toUpperCase();
-  if (!isAllowedCurrency(currency, config.allowedCurrencies)) {
-    throw new Error("Unsupported currency.");
+  // USD-only: reject any client-supplied currency that is not USD.
+  if (opts?.currency != null) {
+    const requested = String(opts.currency).trim().toUpperCase();
+    if (requested !== DONATION_CURRENCY) {
+      throw new Error("Only USD is accepted. Do not pass a different currency.");
+    }
   }
+  const currency = DONATION_CURRENCY;
+
+  // SECURITY:
+  // - Amount is selectable by the user, but enforced server-side (tiers or min/max).
+  // - Currency is always USD; no conversion in-app. Donor's payment provider may convert.
 
   let amount: string;
   if (config.mode === "tiers") {
@@ -204,9 +224,9 @@ export async function createDonationOrder(opts?: { currency?: string; amount?: s
   const { accessToken, baseUrl } = await getPayPalAccessToken();
 
   // SECURITY:
-  // - We do NOT accept amount/payee from the browser.
-  // - Even if an attacker tampers with the client, the order created here still targets YOUR account
-  //   (and optionally the specific merchant id), for the server-configured amount only.
+  // - Amount and currency are enforced server-side (USD only; amount from tiers or min/max).
+  // - We do NOT accept amount/payee from the browser. Payee is locked to our PayPal Business account.
+  // - No PayPal secrets exposed to the client.
   const body: any = {
     intent: "CAPTURE",
     purchase_units: [
@@ -317,10 +337,22 @@ export async function captureAndVerifyDonationOrder(orderId: string) {
   }
 
   const pu = j?.purchase_units?.[0];
-  const amount = pu?.amount;
-  const currency = String(amount?.currency_code ?? "");
-  const value = String(amount?.value ?? "");
+  // Amount can be on purchase_unit or on the first capture (PayPal varies by response).
+  const amountObj = pu?.amount ?? pu?.payments?.captures?.[0]?.amount;
+  const currency = String(amountObj?.currency_code ?? "").trim().toUpperCase();
+  const value = String(amountObj?.value ?? "").trim();
+  if (!currency || !value) {
+    throw new Error("Captured amount does not match expected donation amount.");
+  }
+  // USD-only: reject if PayPal response is not USD (e.g. tampering or API inconsistency).
+  if (currency !== DONATION_CURRENCY) {
+    throw new Error("Only USD is accepted. Order currency did not match.");
+  }
   if (!isAllowedCurrency(currency, config.allowedCurrencies)) {
+    throw new Error("Captured amount does not match expected donation amount.");
+  }
+  const capturedNum = parseAmountLenient(value);
+  if (capturedNum == null) {
     throw new Error("Captured amount does not match expected donation amount.");
   }
   if (config.mode === "tiers") {
@@ -328,10 +360,9 @@ export async function captureAndVerifyDonationOrder(orderId: string) {
       throw new Error("Captured amount does not match expected donation amount.");
     }
   } else {
-    const min = parseMoneyLike(config.minAmount);
-    const max = parseMoneyLike(config.maxAmount);
-    const captured = parseMoneyLike(value);
-    if (min == null || max == null || captured == null || captured < min || captured > max) {
+    const min = parseMoneyLike(config.minAmount) ?? parseAmountLenient(config.minAmount);
+    const max = parseMoneyLike(config.maxAmount) ?? parseAmountLenient(config.maxAmount);
+    if (min == null || max == null || capturedNum < min || capturedNum > max) {
       throw new Error("Captured amount does not match expected donation amount.");
     }
   }

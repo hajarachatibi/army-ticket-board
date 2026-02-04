@@ -24,6 +24,8 @@ type ListingRow = {
   status: string;
   createdAt: string;
   priceExplanation: string | null;
+  vip: boolean;
+  loge: boolean;
 };
 
 function formatDate(s: string | null) {
@@ -81,6 +83,8 @@ export default function ConnectionTicketDetailsModal({
         status: String(l?.status ?? ""),
         createdAt: String(l?.created_at ?? ""),
         priceExplanation: l?.price_explanation != null ? String(l.price_explanation) : null,
+        vip: Boolean(l?.vip ?? false),
+        loge: Boolean(l?.loge ?? false),
       });
       setSeats(
         s.map((x: any) => ({
@@ -135,6 +139,12 @@ export default function ConnectionTicketDetailsModal({
                     <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Concert</p>
                     <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
                       {listing.concertCity} · {listing.concertDate}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Type</p>
+                    <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
+                      {listing.loge ? "Loge" : listing.vip ? "VIP" : "Standard"}
                     </p>
                   </div>
                   <div>
