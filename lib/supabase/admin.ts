@@ -231,9 +231,15 @@ export async function adminDeleteListingReport(reportId: string): Promise<{ erro
   }
 }
 
-export async function adminRemoveListing(listingId: string): Promise<{ error: string | null }> {
+export async function adminRemoveListing(
+  listingId: string,
+  adminMessage?: string | null
+): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase.rpc("admin_remove_listing", { p_listing_id: listingId });
+    const { error } = await supabase.rpc("admin_remove_listing", {
+      p_listing_id: listingId,
+      p_admin_message: adminMessage ?? null,
+    });
     return { error: error?.message ?? null };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to remove listing" };

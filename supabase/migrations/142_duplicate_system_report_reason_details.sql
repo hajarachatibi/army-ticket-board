@@ -14,7 +14,8 @@ BEGIN
 END;
 $$;
 
--- 2) Duplicate seat trigger: call with reason='duplicate' and full phrase in details
+-- 2) Duplicate seat trigger: call with reason='duplicate' and full phrase in details (drop trigger first, then function)
+DROP TRIGGER IF EXISTS listing_seats_check_duplicate_seat ON public.listing_seats;
 DROP FUNCTION IF EXISTS public.listing_seats_duplicate_seat_trigger();
 CREATE OR REPLACE FUNCTION public.listing_seats_duplicate_seat_trigger()
 RETURNS trigger
@@ -68,6 +69,10 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+CREATE TRIGGER listing_seats_check_duplicate_seat
+  AFTER INSERT OR UPDATE OF section, seat_row, seat ON public.listing_seats
+  FOR EACH ROW EXECUTE FUNCTION public.listing_seats_duplicate_seat_trigger();
 
 -- 3) Backfill: existing system duplicate reports -> reason=duplicate, details=old reason
 UPDATE public.listing_reports

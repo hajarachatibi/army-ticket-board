@@ -22,6 +22,7 @@ const SUPPORTED_TYPES = [
   "connection_ended",
   "connection_expired",
   "listing_removed_3_reports",
+  "listing_removed_by_admin",
   "story_published",
   "story_admin_replied",
 ] as const satisfies readonly NotificationType[];

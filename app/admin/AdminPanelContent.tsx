@@ -116,6 +116,8 @@ export default function AdminPanelContent() {
 
   const [profileOpen, setProfileOpen] = useState<{ userId: string; title: string } | null>(null);
   const [listingOpen, setListingOpen] = useState<{ listingId: string } | null>(null);
+  const [removeListingModal, setRemoveListingModal] = useState<{ listingId: string } | null>(null);
+  const [removeListingMessage, setRemoveListingMessage] = useState("");
 
   const [stories, setStories] = useState<ArmyStory[]>([]);
   const [storyReplyDrafts, setStoryReplyDrafts] = useState<Record<string, string>>({});
@@ -435,19 +437,34 @@ export default function AdminPanelContent() {
     }
   }, []);
 
-  const removeListing = useCallback(async (listingId: string) => {
-    if (!confirm("Remove this listing?")) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const { error: e } = await adminRemoveListing(listingId);
-      if (e) setFeedback(`Error: ${e}`);
-      else setFeedback("Listing removed.");
-      await Promise.all([loadListings(), loadListingReports(), loadDashboard()]);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDashboard, loadListingReports, loadListings]);
+  const openRemoveListingModal = useCallback((listingId: string) => {
+    setRemoveListingModal({ listingId });
+    setRemoveListingMessage("");
+  }, []);
+
+  const removeListing = useCallback(
+    async (listingId: string, adminMessage?: string | null) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminRemoveListing(listingId, adminMessage);
+        if (e) setFeedback(`Error: ${e}`);
+        else setFeedback("Listing removed.");
+        setRemoveListingModal(null);
+        setRemoveListingMessage("");
+        await Promise.all([loadListings(), loadListingReports(), loadDashboard()]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadDashboard, loadListingReports, loadListings]
+  );
+
+  const confirmRemoveListing = useCallback(() => {
+    if (!removeListingModal) return;
+    const msg = removeListingMessage.trim() || undefined;
+    void removeListing(removeListingModal.listingId, msg);
+  }, [removeListingModal, removeListingMessage, removeListing]);
 
   const saveArmyProfileQuestion = useCallback(async (q: { key: string; prompt: string; active: boolean; position: number }) => {
     setLoading(true);
@@ -830,7 +847,7 @@ export default function AdminPanelContent() {
                                 >
                                   Ban seller
                                 </button>
-                                <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => removeListing(r.listingId)}>
+                                <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => openRemoveListingModal(r.listingId)}>
                                   Remove listing
                                 </button>
                                 <button type="button" className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40" onClick={() => deleteListingReport(r.id)}>
@@ -1076,7 +1093,7 @@ export default function AdminPanelContent() {
                                 <button
                                   type="button"
                                   className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
-                                  onClick={() => removeListing(l.id)}
+                                  onClick={() => openRemoveListingModal(l.id)}
                                 >
                                   Remove
                                 </button>
@@ -1737,6 +1754,60 @@ export default function AdminPanelContent() {
           onClose={() => setListingOpen(null)}
           listingId={listingOpen.listingId}
         />
+      )}
+
+      {removeListingModal && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-listing-title"
+          onClick={() => setRemoveListingModal(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-md cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="remove-listing-title" className="font-display text-xl font-bold text-army-purple">
+              Remove listing
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              This will remove the listing and end any connection. The seller will not be notified unless you add a message below.
+            </p>
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-army-purple" htmlFor="remove-listing-message">
+                Message to seller (optional)
+              </label>
+              <textarea
+                id="remove-listing-message"
+                className="input-army mt-1 min-h-[100px] w-full resize-y"
+                placeholder="e.g. Reason for removal, or instructions…"
+                value={removeListingMessage}
+                onChange={(e) => setRemoveListingMessage(e.target.value)}
+                disabled={loading}
+                rows={3}
+              />
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-army-outline"
+                onClick={() => setRemoveListingModal(null)}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
+                onClick={confirmRemoveListing}
+                disabled={loading}
+              >
+                {loading ? "Removing…" : "Remove listing"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {userReportProofOpen && (

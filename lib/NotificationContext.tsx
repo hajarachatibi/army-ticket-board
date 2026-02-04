@@ -30,6 +30,7 @@ export type NotificationType =
   | "connection_ended"
   | "connection_expired"
   | "listing_removed_3_reports"
+  | "listing_removed_by_admin"
   | "story_published"
   | "story_admin_replied";
 

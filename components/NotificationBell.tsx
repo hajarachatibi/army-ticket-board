@@ -56,6 +56,8 @@ function label(type: NotificationType, n?: Notification): string {
       return "Ticket reported";
     case "listing_removed_3_reports":
       return listingRemovedLabel(n?.message);
+    case "listing_removed_by_admin":
+      return "Listing removed by admin";
     case "story_published":
       return "Your story was published";
     case "story_admin_replied":
@@ -187,7 +189,7 @@ export default function NotificationBell() {
                           )}
                         </button>
                       </li>
-                    ) : n.type === "listing_removed_3_reports" ? (
+                    ) : n.type === "listing_removed_3_reports" || n.type === "listing_removed_by_admin" ? (
                       <li key={n.id}>
                         <button
                           type="button"
@@ -304,12 +306,19 @@ export default function NotificationBell() {
                   Listing: {listingRemovedPopup.listingSummary}
                 </p>
               )}
-              {listingRemovedPopup.message && (
+              {listingRemovedPopup.type === "listing_removed_by_admin" && listingRemovedPopup.message ? (
+                <div className="mt-3 rounded-xl border border-army-purple/20 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                  <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Message from the admin</p>
+                  <div className="mt-2 max-h-60 overflow-y-auto whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+                    {listingRemovedPopup.message}
+                  </div>
+                </div>
+              ) : listingRemovedPopup.message ? (
                 <p className="mt-3 text-sm text-neutral-700 dark:text-neutral-300">
                   {listingRemovedPopup.message}
                 </p>
-              )}
-              {listingRemovedPopup.reportReasons && (
+              ) : null}
+              {listingRemovedPopup.type === "listing_removed_3_reports" && listingRemovedPopup.reportReasons && (
                 <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
                   {listingRemovedPopup.reportReasons.toLowerCase().includes("not face value") && (
                     <>
@@ -335,6 +344,11 @@ export default function NotificationBell() {
                     ))}
                   </ul>
                 </div>
+              )}
+              {listingRemovedPopup.type === "listing_removed_by_admin" && !listingRemovedPopup.message && (
+                <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
+                  No message from the admin.
+                </p>
               )}
               <div className="mt-5 flex justify-end">
                 <button
