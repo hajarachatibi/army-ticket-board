@@ -143,7 +143,7 @@ export default function Header() {
       base.push({ href: "/channel", label: "Admin Channel" });
     }
     if (showSupportLink) {
-      base.push({ href: "/support", label: "Support us" });
+      base.push({ href: "/support", label: "Support us 💜" });
     }
     if (showAdmin) {
       base.push({ href: "/admin", label: "Admin" });
