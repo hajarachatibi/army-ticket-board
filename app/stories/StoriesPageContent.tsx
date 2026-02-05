@@ -156,7 +156,7 @@ export default function StoriesPageContent() {
         </div>
 
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Community stories and feedback. Posts are moderated. Ticket resale links are not allowed.
+          Community stories and feedback. Posts are moderated. Ticket resale links are not allowed. Use “Send a recommendation” only if you want to suggest a new feature or adjustment to the admins.
         </p>
 
         {error && (
@@ -318,7 +318,7 @@ export default function StoriesPageContent() {
                 Send a recommendation
               </h2>
               <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                This is not public — it goes to admins only.
+                Please only use this if you want to recommend a new feature or adjustment to the admins. This is not public — it goes to admins only.
               </p>
 
               <div className="mt-4 space-y-3">

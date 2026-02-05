@@ -16,6 +16,7 @@ const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Listings" },
   { href: "/channel", label: "Admin Channel" },
+  { href: "/questions", label: "Questions" },
   { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
   { href: "/user-manual", label: "User manual" },
@@ -42,9 +43,9 @@ export default function Header() {
   const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
 
   const navLinks = useMemo(() => {
-    // Hide Admin Channel for logged-out users (route is still protected by middleware).
+    // Hide Admin Channel and Questions for logged-out users (routes are still protected by middleware).
     return NAV.filter((x) => {
-      if (!isLoggedIn && x.href === "/channel") return false;
+      if (!isLoggedIn && (x.href === "/channel" || x.href === "/questions")) return false;
       return true;
     });
   }, [isLoggedIn]);
@@ -141,6 +142,7 @@ export default function Header() {
     ];
     if (isLoggedIn) {
       base.push({ href: "/channel", label: "Admin Channel" });
+      base.push({ href: "/questions", label: "Questions" });
     }
     if (showSupportLink) {
       base.push({ href: "/support", label: "Support the board 💜" });

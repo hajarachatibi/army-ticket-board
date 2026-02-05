@@ -92,7 +92,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/chats") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/channel");
+    pathname.startsWith("/channel") ||
+    pathname.startsWith("/questions");
 
   // Always start with a passthrough response; Supabase may set refreshed cookies on it.
   const passThrough = NextResponse.next({ request });
