@@ -271,7 +271,7 @@ export default function QuestionsPageContent() {
                                   {r.displayLabel}
                                 </span>
                                 {r.role === "admin" && (
-                                  <VerifiedAdminBadge className="inline-flex" />
+                                  <VerifiedAdminBadge />
                                 )}
                               </div>
                               <p className="mt-1 text-sm text-white/95">{r.text}</p>
