@@ -9,6 +9,12 @@ import LiteProfileModal from "@/components/LiteProfileModal";
 import { useAuth } from "@/lib/AuthContext";
 import { formatPrice } from "@/lib/data/currencies";
 import { deleteAdminRecommendation, fetchAdminRecommendations, type AdminRecommendation } from "@/lib/supabase/recommendations";
+import {
+  addUserQuestionReply,
+  deleteUserQuestion,
+  fetchUnansweredUserQuestions,
+  type UserQuestion,
+} from "@/lib/supabase/userQuestions";
 import { createSignedProofUrl } from "@/lib/supabase/signedProofUrl";
 import {
   addStoryReplyAdmin,
@@ -55,6 +61,7 @@ type Tab =
   | "bondingQuestions"
   | "stories"
   | "recommendations"
+  | "unansweredQuestions"
   | "sellers"
   | "buyers"
   | "users"
@@ -124,6 +131,10 @@ export default function AdminPanelContent() {
   const [approvedStories, setApprovedStories] = useState<ArmyStory[]>([]);
   const [storyReplyEdit, setStoryReplyEdit] = useState<{ id: string; title: string; reply: string } | null>(null); // modal for adding admin reply
   const [recommendations, setRecommendations] = useState<AdminRecommendation[]>([]);
+  const [unansweredQuestions, setUnansweredQuestions] = useState<UserQuestion[]>([]);
+  const [questionReplyModal, setQuestionReplyModal] = useState<{ questionId: string; text: string } | null>(null);
+  const [questionReplyDraft, setQuestionReplyDraft] = useState("");
+  const [questionReplySaving, setQuestionReplySaving] = useState(false);
 
   const [armyProfileQuestions, setArmyProfileQuestions] = useState<
     Array<{ key: string; prompt: string; active: boolean; position: number }>
@@ -147,6 +158,7 @@ export default function AdminPanelContent() {
       { id: "bondingQuestions", label: "Connection bonding questions" },
       { id: "stories", label: "ARMY Stories & Feedback" },
       { id: "recommendations", label: "Recommendations" },
+      { id: "unansweredQuestions", label: "Unanswered questions" },
       { id: "sellers", label: "Sellers" },
       { id: "buyers", label: "Buyers" },
       { id: "users", label: "All users" },
@@ -288,6 +300,15 @@ export default function AdminPanelContent() {
     else setRecommendations(data);
   }, []);
 
+  const loadUnansweredQuestions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchUnansweredUserQuestions({ limit: 100, offset: 0 });
+    setLoading(false);
+    if (e) setError(e);
+    else setUnansweredQuestions(data ?? []);
+  }, []);
+
   const loadArmyProfileQuestions = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -330,6 +351,7 @@ export default function AdminPanelContent() {
     if (tab === "bondingQuestions") void loadBondingQuestions();
     if (tab === "stories") void loadStories();
     if (tab === "recommendations") void loadRecommendations();
+    if (tab === "unansweredQuestions") void loadUnansweredQuestions();
     if (tab === "sellers") void loadSellers();
     if (tab === "buyers") void loadBuyers();
     if (tab === "users") void loadAllUsers();
@@ -347,6 +369,7 @@ export default function AdminPanelContent() {
     loadListingReports,
     loadListings,
     loadRecommendations,
+    loadUnansweredQuestions,
     loadSellers,
     loadStories,
     loadUserReports,
@@ -589,6 +612,42 @@ export default function AdminPanelContent() {
       setLoading(false);
     }
   }, [loadRecommendations]);
+
+  const removeQuestion = useCallback(async (questionId: string) => {
+    if (!confirm("Remove this question? Replies will be deleted too.")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: e } = await deleteUserQuestion(questionId);
+      if (e) setFeedback(`Error: ${e}`);
+      else setFeedback("Question removed.");
+      await loadUnansweredQuestions();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadUnansweredQuestions]);
+
+  const submitQuestionReply = useCallback(async () => {
+    if (!user || !questionReplyModal || !questionReplyDraft.trim()) return;
+    setQuestionReplySaving(true);
+    setError(null);
+    try {
+      const { error: e } = await addUserQuestionReply({
+        questionId: questionReplyModal.questionId,
+        userId: user.id,
+        text: questionReplyDraft.trim(),
+      });
+      if (e) setFeedback(`Error: ${e}`);
+      else {
+        setFeedback("Reply posted.");
+        setQuestionReplyModal(null);
+        setQuestionReplyDraft("");
+        await loadUnansweredQuestions();
+      }
+    } finally {
+      setQuestionReplySaving(false);
+    }
+  }, [user, questionReplyModal, questionReplyDraft, loadUnansweredQuestions]);
 
   const addBondingQuestion = useCallback(async () => {
     const prompt = newBondingPrompt.trim();
@@ -1499,6 +1558,49 @@ export default function AdminPanelContent() {
             </div>
           )}
 
+          {questionReplyModal && (
+            <div
+              className="fixed inset-0 z-[100] flex cursor-pointer items-center justify-center bg-black/50 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="question-reply-title"
+              onClick={() => { setQuestionReplyModal(null); setQuestionReplyDraft(""); }}
+            >
+              <div
+                className="w-full max-w-lg cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 id="question-reply-title" className="font-display text-lg font-bold text-army-purple">Reply to question</h3>
+                <p className="mt-1 max-h-24 overflow-y-auto text-sm text-neutral-600 dark:text-neutral-400">{questionReplyModal.text}</p>
+                <textarea
+                  className="input-army mt-3 min-h-[120px] w-full resize-y"
+                  placeholder="Your reply (shown on the Questions page)"
+                  value={questionReplyDraft}
+                  onChange={(e) => setQuestionReplyDraft(e.target.value)}
+                  rows={4}
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="btn-army-outline"
+                    onClick={() => { setQuestionReplyModal(null); setQuestionReplyDraft(""); }}
+                    disabled={questionReplySaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-army"
+                    onClick={submitQuestionReply}
+                    disabled={questionReplySaving || !questionReplyDraft.trim()}
+                  >
+                    {questionReplySaving ? "Sending…" : "Post reply"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {tab === "recommendations" && (
             <section>
               <h2 className="mb-2 font-display text-xl font-bold text-army-purple">Recommendations</h2>
@@ -1548,6 +1650,72 @@ export default function AdminPanelContent() {
                                   disabled={loading}
                                 >
                                   Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "unansweredQuestions" && (
+            <section>
+              <h2 className="mb-2 font-display text-xl font-bold text-army-purple">Unanswered questions</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">Questions from the Questions page with no admin reply yet. Reply here or remove if inappropriate.</p>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : unansweredQuestions.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No unanswered questions.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[600px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Author</th>
+                          <th className="min-w-[280px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Question</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {unansweredQuestions.map((q) => (
+                          <tr key={q.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(q.createdAt)}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{q.authorLabel}</td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="max-h-24 overflow-y-auto whitespace-pre-wrap rounded border border-army-purple/15 bg-neutral-50/80 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300">
+                                {q.text}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => {
+                                    setQuestionReplyModal({ questionId: q.id, text: q.text });
+                                    setQuestionReplyDraft("");
+                                  }}
+                                  disabled={loading}
+                                >
+                                  Reply
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => removeQuestion(q.id)}
+                                  disabled={loading}
+                                >
+                                  Remove
                                 </button>
                               </div>
                             </td>

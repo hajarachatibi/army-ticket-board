@@ -18,6 +18,18 @@ export type UserQuestionReply = {
   role: string;
 };
 
+function mapQuestionRows(
+  rows: Array<{ id: string; user_id: string; text: string; created_at: string; author_label: string }>
+): UserQuestion[] {
+  return rows.map((r) => ({
+    id: String(r.id),
+    userId: String(r.user_id),
+    text: String(r.text ?? ""),
+    createdAt: String(r.created_at),
+    authorLabel: String(r.author_label ?? "User"),
+  }));
+}
+
 export async function fetchUserQuestions(params?: {
   limit?: number;
   offset?: number;
@@ -34,16 +46,31 @@ export async function fetchUserQuestions(params?: {
     created_at: string;
     author_label: string;
   }>;
-  return {
-    data: rows.map((r) => ({
-      id: String(r.id),
-      userId: String(r.user_id),
-      text: String(r.text ?? ""),
-      createdAt: String(r.created_at),
-      authorLabel: String(r.author_label ?? "User"),
-    })),
-    error: null,
-  };
+  return { data: mapQuestionRows(rows), error: null };
+}
+
+export async function fetchUnansweredUserQuestions(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: UserQuestion[]; error: string | null }> {
+  const { data, error } = await supabase.rpc("fetch_unanswered_user_questions", {
+    p_limit: params?.limit ?? 50,
+    p_offset: params?.offset ?? 0,
+  });
+  if (error) return { data: [], error: error.message };
+  const rows = ((data as { data?: unknown[] })?.data ?? []) as Array<{
+    id: string;
+    user_id: string;
+    text: string;
+    created_at: string;
+    author_label: string;
+  }>;
+  return { data: mapQuestionRows(rows), error: null };
+}
+
+export async function deleteUserQuestion(questionId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("user_questions").delete().eq("id", questionId);
+  return { error: error?.message ?? null };
 }
 
 export async function createUserQuestion(params: {
