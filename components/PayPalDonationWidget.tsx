@@ -126,7 +126,7 @@ export default function PayPalDonationWidget() {
     <div className="mt-6">
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="btn-army" onClick={() => setOpen(true)}>
-          Donate
+          Support the board
         </button>
         <p className="text-xs text-neutral-600 dark:text-neutral-400">
           Optional · Securely processed via PayPal
@@ -151,18 +151,17 @@ export default function PayPalDonationWidget() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="donation-modal-title" className="font-display text-xl font-bold text-army-purple">
-              Confirm donation
+              Confirm your support
             </h2>
             <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-              You are donating <strong>{amountLabel}</strong>{" "}
-              <span className="font-semibold text-army-purple">(USD)</span> to support the app. This is optional and
-              securely processed via PayPal.
+              You are contributing <strong>{amountLabel}</strong>{" "}
+              <span className="font-semibold text-army-purple">(USD)</span> to help cover hosting and maintenance costs.
             </p>
 
             {cfg?.mode === "tiers" && cfg?.tiers?.length ? (
               <div className="mt-4">
                 <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-tier">
-                  Donation amount (USD)
+                  Contribution amount (USD)
                 </label>
                 <select
                   id="donation-tier"
@@ -186,7 +185,7 @@ export default function PayPalDonationWidget() {
             {cfg?.mode === "custom" ? (
               <div className="mt-4">
                 <label className="block text-sm font-semibold text-army-purple" htmlFor="donation-amount">
-                  Donation amount (USD)
+                  Contribution amount (USD)
                 </label>
                 <div className="mt-1 flex items-center gap-2">
                   <input
@@ -204,15 +203,12 @@ export default function PayPalDonationWidget() {
             ) : null}
 
             <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 text-sm text-neutral-700 dark:border-army-purple/25 dark:bg-army-purple/10 dark:text-neutral-300">
-              <p className="font-semibold text-army-purple">Payment methods</p>
+              <p className="font-semibold text-army-purple">Ways to contribute</p>
               <ul className="mt-2 list-disc pl-5 text-xs text-neutral-600 dark:text-neutral-400">
-                <li>Pay with your PayPal account</li>
-                <li>Pay with major credit/debit cards (no PayPal account required)</li>
+                <li>Contribute with your PayPal account</li>
+                <li>Use a major credit/debit card (no PayPal account required)</li>
                 <li>Apple Pay / Google Pay may appear if your device/account is eligible</li>
               </ul>
-              <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">
-                <strong className="text-neutral-700 dark:text-neutral-300">Card form:</strong> Tap or click into each field to enter your details—they are active even if they look light. On supported phones, a &quot;Scan card&quot; option may appear in the form. No shipping needed; only card details (and sometimes billing) are requested.
-              </p>
             </div>
 
             {error && (
@@ -241,7 +237,7 @@ export default function PayPalDonationWidget() {
                   {/* PayPal button */}
                   <PayPalButtons
                     fundingSource={FUNDING.PAYPAL}
-                    style={{ layout: "vertical", shape: "rect", label: "donate" }}
+                    style={{ layout: "vertical", shape: "rect" }}
                     disabled={submitting}
                     createOrder={async () => {
                       setSubmitting(true);

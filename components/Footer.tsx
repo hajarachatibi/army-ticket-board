@@ -27,7 +27,7 @@ export default function Footer() {
             </Link>
             {showSupportLink && (
               <Link href="/support" className="text-army-purple hover:underline dark:text-army-300">
-                Support us 💜
+                Support the board 💜
               </Link>
             )}
           </div>

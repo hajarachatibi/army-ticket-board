@@ -143,7 +143,7 @@ export default function Header() {
       base.push({ href: "/channel", label: "Admin Channel" });
     }
     if (showSupportLink) {
-      base.push({ href: "/support", label: "Support us 💜" });
+      base.push({ href: "/support", label: "Support the board 💜" });
     }
     if (showAdmin) {
       base.push({ href: "/admin", label: "Admin" });
@@ -296,9 +296,9 @@ export default function Header() {
               <Link
                 href="/support"
                 className="hidden rounded-lg border border-army-purple/30 bg-army-purple/10 px-3 py-2 text-sm font-semibold text-army-purple hover:bg-army-purple/15 dark:border-army-purple/40 dark:bg-army-purple/20 dark:text-army-300 sm:inline-flex"
-                aria-label="Support us"
+                aria-label="Support the board"
               >
-                Support us 💜
+                Support the board 💜
               </Link>
             )}
             {isLoggedIn && user ? (
