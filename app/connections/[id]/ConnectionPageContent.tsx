@@ -789,13 +789,13 @@ export default function ConnectionPageContent() {
                           <div className="mt-3 space-y-2 text-sm text-neutral-800 dark:text-neutral-200">
                             <p className="font-semibold text-army-purple">ARMY profile</p>
                             <p className="whitespace-pre-wrap break-words">
-                              <span className="font-semibold">Bias:</span> {String(p?.armyBiasAnswer ?? "—")}
+                              <span className="font-semibold">{String((p as any)?.armyBiasPrompt ?? "Bias")}:</span> {String(p?.armyBiasAnswer ?? "—")}
                             </p>
                             <p className="whitespace-pre-wrap break-words">
-                              <span className="font-semibold">Years ARMY:</span> {String(p?.armyYearsArmy ?? "—")}
+                              <span className="font-semibold">{String((p as any)?.armyYearsArmyPrompt ?? "Years ARMY")}:</span> {String(p?.armyYearsArmy ?? "—")}
                             </p>
                             <p className="whitespace-pre-wrap break-words">
-                              <span className="font-semibold">Favorite album:</span> {String(p?.armyFavoriteAlbum ?? "—")}
+                              <span className="font-semibold">{String((p as any)?.armyFavoriteAlbumPrompt ?? "Favorite album")}:</span> {String(p?.armyFavoriteAlbum ?? "—")}
                             </p>
                           </div>
 

@@ -29,6 +29,12 @@ export type LiteProfile = {
   armyYearsArmy?: string;
   /** Admin-only. Empty string for non-admin viewers. */
   armyFavoriteAlbum?: string;
+  /** Current question text from army_profile_questions (e.g. "Who is your bias?") */
+  armyBiasPrompt?: string;
+  /** Current question text (e.g. "How many years have you been ARMY?") */
+  armyYearsArmyPrompt?: string;
+  /** Current question text (e.g. "How did you become an ARMY?") */
+  armyFavoriteAlbumPrompt?: string;
   forumAnswers: LiteForumAnswer[];
 };
 
@@ -52,6 +58,9 @@ export async function fetchLiteProfile(userId: string): Promise<{ data: LiteProf
       armyBiasAnswer: d.army_bias_answer != null ? String(d.army_bias_answer) : "",
       armyYearsArmy: d.army_years_army != null ? String(d.army_years_army) : "",
       armyFavoriteAlbum: d.army_favorite_album != null ? String(d.army_favorite_album) : "",
+      armyBiasPrompt: d.army_bias_prompt != null ? String(d.army_bias_prompt) : "Bias",
+      armyYearsArmyPrompt: d.army_years_army_prompt != null ? String(d.army_years_army_prompt) : "Years ARMY",
+      armyFavoriteAlbumPrompt: d.army_favorite_album_prompt != null ? String(d.army_favorite_album_prompt) : "Favorite album",
       forumAnswers: Array.isArray(d.forum_answers)
         ? d.forum_answers.map((a: any) => ({
             id: String(a.id),

@@ -101,10 +101,11 @@ flowchart TB
   end
 
   subgraph timeouts["TIMEOUTS"]
-    T1["pending_seller: 24h → expired"]
-    T2["bonding / preview / social / agreement: 24h → expired (listing unlocked)"]
-    T3["chat_open: 24h no message → ended (cron), listing unlocked"]
-    T4["Listing lock: 24h from accept (lock_expires_at)"]
+    T1["pending_seller: 24h from request → expired (cron)"]
+    T2["Waiting list: same 24h from when buyer sent request; no extend"]
+    T3["bonding / preview / social / agreement: 24h → expired (listing unlocked)"]
+    T4["chat_open: 24h no message → ended (cron), listing unlocked"]
+    T5["Listing lock: 24h from accept (lock_expires_at)"]
   end
 ```
 
@@ -118,7 +119,7 @@ flowchart TB
 | **Buyer: per listing** | At most one connection per listing in those stages (unique on `(listing_id, buyer_id)` where stage is active). |
 | **Seller: one active deal per listing** | Per listing, the seller can have only one connection in bonding→chat_open at a time. Other requests for that listing stay in waiting list (pending_seller). A seller can have one active deal on listing A and another on listing B. |
 | **Listing lock** | When seller accepts, listing becomes `locked` and `locked_by = buyer`. Only that buyer’s connection progresses; others stay pending_seller. |
-| **Stage timeouts** | pending_seller, bonding, preview, social, agreement: 24h each. After timeout, connection goes to expired (or ended) and listing is unlocked if it was locked. |
+| **Stage timeouts** | pending_seller, bonding, preview, social, agreement: 24h each. After timeout, connection goes to expired (or ended) and listing is unlocked if it was locked. **Waiting list:** each request’s 24h runs from when the buyer sent it; if the seller never accepts or declines, that request expires after 24h (cron sets stage = expired). |
 | **Chat inactivity** | If chat_open and no message for 24h, cron can set connection to ended and unlock listing. |
 | **End / release** | Buyer or seller can end connection (release); listing unlocks if it was locked by that connection. |
 

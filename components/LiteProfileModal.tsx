@@ -56,9 +56,9 @@ export default function LiteProfileModal({
     const p = profile;
     if (!p) return [];
     return [
-      { label: "Bias", value: (p.armyBiasAnswer ?? "").trim() },
-      { label: "Years ARMY", value: (p.armyYearsArmy ?? "").trim() },
-      { label: "Favorite album", value: (p.armyFavoriteAlbum ?? "").trim() },
+      { label: p.armyBiasPrompt ?? "Bias", value: (p.armyBiasAnswer ?? "").trim() },
+      { label: p.armyYearsArmyPrompt ?? "Years ARMY", value: (p.armyYearsArmy ?? "").trim() },
+      { label: p.armyFavoriteAlbumPrompt ?? "Favorite album", value: (p.armyFavoriteAlbum ?? "").trim() },
     ];
   }, [profile]);
 
