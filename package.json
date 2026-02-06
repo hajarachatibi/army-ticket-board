@@ -17,6 +17,8 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.1",
     "botid": "^1.5.10",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.6.1",
     "next": "16.1.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",

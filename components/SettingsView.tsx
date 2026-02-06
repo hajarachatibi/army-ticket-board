@@ -3,13 +3,62 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
+import { ARIRANG_CITIES, ARIRANG_CONTINENTS } from "@/lib/data/arirang";
+import { requestNotificationPermissionAndGetToken, isPushSupported } from "@/lib/firebase";
+import {
+  getListingAlertPreferences,
+  getNotificationPreferences,
+  registerPushToken,
+  updateListingAlertPreferences,
+  updateNotificationPreferences,
+  type ListingAlertPreferences,
+  type NotificationPushPreferences,
+} from "@/lib/supabase/pushNotifications";
 import { fetchProfile } from "@/lib/data/user_profiles";
 import { validateAllSocials } from "@/lib/security/socialValidation";
 import { supabase } from "@/lib/supabaseClient";
 import { useTheme } from "@/lib/ThemeContext";
 
+const PUSH_NOTIFICATION_TYPES = [
+  "connection_request_received",
+  "connection_request_accepted",
+  "connection_request_declined",
+  "connection_on_waiting_list",
+  "connection_bonding_submitted",
+  "connection_preview_ready",
+  "connection_comfort_updated",
+  "connection_social_updated",
+  "connection_agreement_updated",
+  "connection_match_confirmed",
+  "connection_ended",
+  "connection_expired",
+  "listing_removed_3_reports",
+  "listing_removed_by_admin",
+  "story_published",
+  "story_admin_replied",
+] as const;
+
+const PUSH_TYPE_LABELS: Record<string, string> = {
+  connection_request_received: "Connection request received",
+  connection_request_accepted: "Connection request accepted",
+  connection_request_declined: "Connection request declined",
+  connection_on_waiting_list: "On waiting list",
+  connection_bonding_submitted: "Bonding answers submitted",
+  connection_preview_ready: "Preview ready",
+  connection_comfort_updated: "Comfort updated",
+  connection_social_updated: "Social share updated",
+  connection_agreement_updated: "Agreement updated",
+  connection_match_confirmed: "Match confirmed",
+  connection_ended: "Connection ended",
+  connection_expired: "Connection expired",
+  listing_removed_3_reports: "Listing removed (reports)",
+  listing_removed_by_admin: "Listing removed by admin",
+  story_published: "Story published",
+  story_admin_replied: "Story admin reply",
+};
+
 export default function SettingsView() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { dark, toggle } = useTheme();
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -23,6 +72,24 @@ export default function SettingsView() {
   const [socialsSaving, setSocialsSaving] = useState(false);
   const [socialsError, setSocialsError] = useState<string | null>(null);
   const [socialsSaved, setSocialsSaved] = useState<string | null>(null);
+
+  // Notifications (push + listing alerts)
+  const [pushPrefsLoading, setPushPrefsLoading] = useState(true);
+  const [pushPrefs, setPushPrefs] = useState<NotificationPushPreferences>({});
+  const [pushPrefsError, setPushPrefsError] = useState<string | null>(null);
+  const [pushPrefsSaving, setPushPrefsSaving] = useState(false);
+  const [enablePushLoading, setEnablePushLoading] = useState(false);
+  const [enablePushMessage, setEnablePushMessage] = useState<string | null>(null);
+  const [listingAlertLoading, setListingAlertLoading] = useState(true);
+  const [listingAlertPrefs, setListingAlertPrefs] = useState<ListingAlertPreferences>({
+    continent: null,
+    city: null,
+    listingType: null,
+    concertDate: null,
+    enabled: false,
+  });
+  const [listingAlertError, setListingAlertError] = useState<string | null>(null);
+  const [listingAlertSaving, setListingAlertSaving] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -89,6 +156,86 @@ export default function SettingsView() {
     // Refresh so we pick up socials_last_changed_at.
     void loadProfile();
   }, [facebook, instagram, snapchat, supabase, tiktok, user?.id]);
+
+  const loadPushPrefs = useCallback(async () => {
+    if (!user?.id) return;
+    setPushPrefsLoading(true);
+    setPushPrefsError(null);
+    const { data, error } = await getNotificationPreferences();
+    setPushPrefsLoading(false);
+    if (error) setPushPrefsError(error);
+    else if (data) setPushPrefs(data);
+  }, [user?.id]);
+
+  const loadListingAlertPrefs = useCallback(async () => {
+    if (!user?.id) return;
+    setListingAlertLoading(true);
+    setListingAlertError(null);
+    const { data, error } = await getListingAlertPreferences();
+    setListingAlertLoading(false);
+    if (error) setListingAlertError(error);
+    else if (data) setListingAlertPrefs(data);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      void loadPushPrefs();
+      void loadListingAlertPrefs();
+    } else {
+      setPushPrefsLoading(false);
+      setListingAlertLoading(false);
+    }
+  }, [user?.id, loadPushPrefs, loadListingAlertPrefs]);
+
+  const handleEnablePush = useCallback(async () => {
+    setEnablePushMessage(null);
+    setEnablePushLoading(true);
+    try {
+      const token = await requestNotificationPermissionAndGetToken();
+      if (!token) {
+        setEnablePushMessage("Permission denied or push not available.");
+        return;
+      }
+      const { error } = await registerPushToken(token);
+      if (error) {
+        setEnablePushMessage(error);
+        return;
+      }
+      setEnablePushMessage("Push notifications enabled.");
+    } finally {
+      setEnablePushLoading(false);
+    }
+  }, []);
+
+  const setPushTypeEnabled = useCallback((type: string, enabled: boolean) => {
+    setPushPrefs((prev) => ({ ...prev, [type]: enabled }));
+  }, []);
+
+  const savePushPrefs = useCallback(async () => {
+    if (!user?.id) return;
+    setPushPrefsSaving(true);
+    setPushPrefsError(null);
+    const { error } = await updateNotificationPreferences(pushPrefs);
+    setPushPrefsSaving(false);
+    if (error) setPushPrefsError(error);
+  }, [user?.id, pushPrefs]);
+
+  const saveListingAlertPrefs = useCallback(async () => {
+    if (!user?.id) return;
+    setListingAlertSaving(true);
+    setListingAlertError(null);
+    const { error } = await updateListingAlertPreferences(listingAlertPrefs);
+    setListingAlertSaving(false);
+    if (error) setListingAlertError(error);
+  }, [user?.id, listingAlertPrefs]);
+
+  const LISTING_TYPES = [
+    { value: "", label: "Any" },
+    { value: "standard", label: "Standard" },
+    { value: "vip", label: "VIP" },
+    { value: "loge", label: "Loge" },
+    { value: "suite", label: "Suite" },
+  ] as const;
 
   return (
     <div className="space-y-8">
@@ -186,6 +333,217 @@ export default function SettingsView() {
           </span>
         </div>
       </section>
+
+      {isAdmin && (
+      <section className="rounded-xl border border-army-purple/15 bg-white p-6 dark:border-army-purple/25 dark:bg-neutral-900">
+        <h2 className="font-display text-lg font-bold text-army-purple">Notifications</h2>
+
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+          <p className="font-semibold">Important</p>
+          <ul className="mt-2 list-inside list-disc space-y-1">
+            <li>Allow notifications for this site in your browser to receive push notifications.</li>
+            <li>On iOS: add this site to your Home Screen (Add to Home Screen) for push to work.</li>
+            <li>Delivery is not 100% guaranteed; your device or OS may suppress or delay notifications.</li>
+          </ul>
+        </div>
+
+        {isPushSupported() && (
+          <div className="mt-4">
+            <button
+              type="button"
+              className="btn-army"
+              onClick={handleEnablePush}
+              disabled={enablePushLoading}
+            >
+              {enablePushLoading ? "Enabling…" : "Enable push notifications"}
+            </button>
+            {enablePushMessage && (
+              <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{enablePushMessage}</p>
+            )}
+          </div>
+        )}
+
+        {!isPushSupported() && (
+          <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
+            Push notifications are not supported in this browser.
+          </p>
+        )}
+
+        <div className="mt-6">
+          <h3 className="font-display text-base font-semibold text-army-purple">Notification types</h3>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            Choose which events trigger a push notification.
+          </p>
+          {pushPrefsError && (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{pushPrefsError}</p>
+          )}
+          {pushPrefsLoading ? (
+            <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">Loading…</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {PUSH_NOTIFICATION_TYPES.map((type) => (
+                <div key={type} className="flex items-center justify-between gap-4">
+                  <label className="text-sm text-neutral-700 dark:text-neutral-300" htmlFor={`push-${type}`}>
+                    {PUSH_TYPE_LABELS[type] ?? type}
+                  </label>
+                  <button
+                    id={`push-${type}`}
+                    type="button"
+                    role="switch"
+                    aria-checked={Boolean(pushPrefs[type])}
+                    className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
+                      pushPrefs[type] ? "bg-army-purple" : "bg-neutral-300 dark:bg-neutral-600"
+                    }`}
+                    onClick={() => setPushTypeEnabled(type, !pushPrefs[type])}
+                  >
+                    <span
+                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        pushPrefs[type] ? "left-6" : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {!pushPrefsLoading && (
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="btn-army"
+                onClick={savePushPrefs}
+                disabled={pushPrefsSaving || !user?.id}
+              >
+                {pushPrefsSaving ? "Saving…" : "Save notification types"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 border-t border-army-purple/15 pt-6 dark:border-army-purple/25">
+          <h3 className="font-display text-base font-semibold text-army-purple">Listing alerts</h3>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            Get a push when a new or newly available listing matches your criteria.
+          </p>
+          {listingAlertError && (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{listingAlertError}</p>
+          )}
+          {listingAlertLoading ? (
+            <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">Loading…</p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Enable listing alerts
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={listingAlertPrefs.enabled}
+                  className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
+                    listingAlertPrefs.enabled ? "bg-army-purple" : "bg-neutral-300 dark:bg-neutral-600"
+                  }`}
+                  onClick={() =>
+                    setListingAlertPrefs((p) => ({ ...p, enabled: !p.enabled }))
+                  }
+                >
+                  <span
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      listingAlertPrefs.enabled ? "left-6" : "left-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-semibold text-army-purple">Continent</label>
+                  <select
+                    className="input-army mt-2"
+                    value={listingAlertPrefs.continent ?? ""}
+                    onChange={(e) =>
+                      setListingAlertPrefs((p) => ({
+                        ...p,
+                        continent: e.target.value || null,
+                      }))
+                    }
+                  >
+                    <option value="">Any</option>
+                    {ARIRANG_CONTINENTS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-army-purple">City</label>
+                  <select
+                    className="input-army mt-2"
+                    value={listingAlertPrefs.city ?? ""}
+                    onChange={(e) =>
+                      setListingAlertPrefs((p) => ({
+                        ...p,
+                        city: e.target.value || null,
+                      }))
+                    }
+                  >
+                    <option value="">Any</option>
+                    {ARIRANG_CITIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-army-purple">Type</label>
+                  <select
+                    className="input-army mt-2"
+                    value={listingAlertPrefs.listingType ?? ""}
+                    onChange={(e) =>
+                      setListingAlertPrefs((p) => ({
+                        ...p,
+                        listingType: (e.target.value || null) as ListingAlertPreferences["listingType"],
+                      }))
+                    }
+                  >
+                    {LISTING_TYPES.map(({ value, label }) => (
+                      <option key={value || "any"} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-army-purple">Concert date</label>
+                  <input
+                    type="date"
+                    className="input-army mt-2"
+                    value={listingAlertPrefs.concertDate ?? ""}
+                    onChange={(e) =>
+                      setListingAlertPrefs((p) => ({
+                        ...p,
+                        concertDate: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="btn-army"
+                  onClick={saveListingAlertPrefs}
+                  disabled={listingAlertSaving || !user?.id}
+                >
+                  {listingAlertSaving ? "Saving…" : "Save listing alerts"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+      )}
     </div>
   );
 }
