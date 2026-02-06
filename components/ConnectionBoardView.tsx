@@ -8,6 +8,7 @@ import RequireAuth from "@/components/RequireAuth";
 import ConnectionTicketDetailsModal from "@/components/ConnectionTicketDetailsModal";
 import ListingReportModal from "@/components/ListingReportModal";
 import PostListingModal from "@/components/PostListingModal";
+import { ARIRANG_CONTINENTS, getContinentForCity } from "@/lib/data/arirang";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
 import { connectToListing, endConnection, fetchBrowseListingSellerDetails, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type BrowseListingSellerDetails, type MyListing } from "@/lib/supabase/listings";
@@ -61,6 +62,7 @@ export default function ConnectionBoardView() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterCity, setFilterCity] = useState("");
+  const [filterContinent, setFilterContinent] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterPriceMin, setFilterPriceMin] = useState("");
@@ -249,7 +251,7 @@ export default function ConnectionBoardView() {
       if (max != null && Number.isFinite(max) && price > max) return false;
       return true;
     });
-  }, [browse, filterCity, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterQuantity, filterStatus, filterVip]);
+  }, [browse, filterCity, filterContinent, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterQuantity, filterStatus, filterVip]);
 
   const connect = async (listingId: string) => {
     if (!user) return;
@@ -564,6 +566,17 @@ export default function ConnectionBoardView() {
               {filtersOpen && (
                 <div className="mb-4 rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">Continent</label>
+                      <select className="input-army mt-2" value={filterContinent} onChange={(e) => setFilterContinent(e.target.value)}>
+                        <option value="">All continents</option>
+                        {ARIRANG_CONTINENTS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wide text-army-purple/70">City</label>
                       <select className="input-army mt-2" value={filterCity} onChange={(e) => setFilterCity(e.target.value)}>

@@ -49,3 +49,59 @@ export const ARIRANG_CITIES = [
 
 export type ArirangEvent = (typeof ARIRANG_EVENTS)[number];
 export type ArirangCity = (typeof ARIRANG_CITIES)[number];
+
+/** Continent for each Arirang city (for listing filters). */
+export const ARIRANG_CITY_CONTINENT: Record<string, string> = {
+  Arlington: "North America",
+  Bangkok: "Asia",
+  Baltimore: "North America",
+  Bogotá: "South America",
+  Brussels: "Europe",
+  Busan: "Asia",
+  "Buenos Aires": "South America",
+  Chicago: "North America",
+  "East Rutherford": "North America",
+  "El Paso": "North America",
+  Foxborough: "North America",
+  Goyang: "Asia",
+  "Hong Kong": "Asia",
+  Jakarta: "Asia",
+  Kaohsiung: "Asia",
+  "Kuala Lumpur": "Asia",
+  "Las Vegas": "North America",
+  Lima: "South America",
+  London: "Europe",
+  "Los Angeles": "North America",
+  Madrid: "Europe",
+  Manila: "Asia",
+  Melbourne: "Oceania",
+  "Mexico City": "North America",
+  Munich: "Europe",
+  Paris: "Europe",
+  Santiago: "South America",
+  Singapore: "Asia",
+  "São Paulo": "South America",
+  Stanford: "North America",
+  Sydney: "Oceania",
+  Tampa: "North America",
+  Tokyo: "Asia",
+  Toronto: "North America",
+};
+
+/** Unique continents for Arirang cities, sorted. */
+export const ARIRANG_CONTINENTS = [
+  "Asia",
+  "Europe",
+  "North America",
+  "Oceania",
+  "South America",
+] as const;
+
+export type ArirangContinent = (typeof ARIRANG_CONTINENTS)[number];
+
+/** Get continent for a city name (e.g. from a listing). */
+export function getContinentForCity(city: string): string | null {
+  if (!city || typeof city !== "string") return null;
+  const t = city.trim();
+  return ARIRANG_CITY_CONTINENT[t] ?? null;
+}
