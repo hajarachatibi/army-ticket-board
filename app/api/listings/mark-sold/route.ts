@@ -72,24 +72,43 @@ export async function POST(request: NextRequest) {
       .in("stage", ["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
 
     for (const c of (conns ?? []) as any[]) {
-      await supabase.rpc("end_connection", { p_connection_id: c.id });
+      await supabase.rpc("end_connection", {
+        p_connection_id: c.id,
+        p_ended_reason: "The listing was marked as sold.",
+      });
     }
 
     return response;
   }
 
-  // Mark sold: end ALL active connections/requests for this listing.
+  // Mark sold: end ALL active connections/requests for this listing. Notify each buyer (seller already knows).
   const { data: conns } = await service
     .from("connections")
-    .select("id, chat_id")
+    .select("id, buyer_id, chat_id")
     .eq("listing_id", listingId)
     .in("stage", ["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
 
-  for (const c of (conns ?? []) as any[]) {
+  const { data: listRow } = await service
+    .from("listings")
+    .select("concert_city, concert_date")
+    .eq("id", listingId)
+    .single();
+  const listingSummary =
+    [listRow?.concert_city, listRow?.concert_date].filter(Boolean).join(" · ") || "Listing";
+
+  for (const c of (conns ?? []) as { id: string; buyer_id: string; chat_id?: string }[]) {
     if (c.chat_id) {
       await service.from("chats").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", c.chat_id);
     }
     await service.from("connections").update({ stage: "ended", stage_expires_at: new Date().toISOString() }).eq("id", c.id);
+    await service.from("user_notifications").insert({
+      user_id: c.buyer_id,
+      type: "connection_ended",
+      message: "The listing was marked as sold.",
+      listing_id: listingId,
+      listing_summary: listingSummary,
+      connection_id: c.id,
+    });
   }
 
   const { error: upErr } = await service

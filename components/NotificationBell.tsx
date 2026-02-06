@@ -93,6 +93,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [reportPopup, setReportPopup] = useState<Notification | null>(null);
   const [listingRemovedPopup, setListingRemovedPopup] = useState<Notification | null>(null);
+  const [connectionEndedPopup, setConnectionEndedPopup] = useState<Notification | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const markRelatedRead = (n: Notification) => {
@@ -117,6 +118,12 @@ export default function NotificationBell() {
     markRelatedRead(n);
     setOpen(false);
     setListingRemovedPopup(n);
+  };
+
+  const handleConnectionEndedClick = (n: Notification) => {
+    markRelatedRead(n);
+    setOpen(false);
+    setConnectionEndedPopup(n);
   };
 
   return (
@@ -194,6 +201,26 @@ export default function NotificationBell() {
                         <button
                           type="button"
                           onClick={() => handleListingRemovedClick(n)}
+                          className={`block w-full border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
+                            !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
+                          }`}
+                        >
+                          <p className="font-semibold text-army-purple">{label(n.type, n)}</p>
+                          {n.message && (
+                            <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
+                              {n.message}
+                            </p>
+                          )}
+                          {n.listingSummary && (
+                            <p className="mt-1 text-xs text-neutral-500">{n.listingSummary}</p>
+                          )}
+                        </button>
+                      </li>
+                    ) : n.type === "connection_ended" ? (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleConnectionEndedClick(n)}
                           className={`block w-full border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
                             !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
                           }`}
@@ -354,6 +381,56 @@ export default function NotificationBell() {
                 <button
                   type="button"
                   onClick={() => setListingRemovedPopup(null)}
+                  className="btn-army-outline rounded-lg px-4 py-2 text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {connectionEndedPopup &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="modal-backdrop fixed inset-0 z-[100] flex cursor-pointer items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="connection-ended-title"
+            onClick={() => setConnectionEndedPopup(null)}
+          >
+            <div
+              className="modal-panel max-h-[90vh] w-full max-w-md cursor-default overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-5 shadow-xl dark:bg-neutral-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="connection-ended-title" className="font-display text-lg font-bold text-army-purple">
+                {label(connectionEndedPopup.type, connectionEndedPopup)}
+              </h2>
+              {connectionEndedPopup.listingSummary && (
+                <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Listing: {connectionEndedPopup.listingSummary}
+                </p>
+              )}
+              {connectionEndedPopup.message && (
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+                  {connectionEndedPopup.message}
+                </p>
+              )}
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                {connectionEndedPopup.connectionId && (
+                  <Link
+                    href={`/connections/${encodeURIComponent(connectionEndedPopup.connectionId)}`}
+                    className="btn-army rounded-lg px-4 py-2 text-sm"
+                    onClick={() => setConnectionEndedPopup(null)}
+                  >
+                    View connection
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setConnectionEndedPopup(null)}
                   className="btn-army-outline rounded-lg px-4 py-2 text-sm"
                 >
                   Close
