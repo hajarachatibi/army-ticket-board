@@ -87,9 +87,10 @@ flowchart TB
   end
 
   subgraph seller["SELLER limits"]
-    S1["Only 1 active accepted connection at a time (across all their listings)"]
-    S2["To accept a new request: must end or finish current bonding→chat_open connection first"]
-    S3["Can have many pending_seller (waiting list) on same listing"]
+    S1["Only 1 active accepted connection per listing"]
+    S2["To accept another request for the same listing: must end or finish current bonding→chat_open connection first"]
+    S3["Can have an active connection on listing A and another on listing B at the same time"]
+    S4["Can have many pending_seller (waiting list) on same listing"]
   end
 
   subgraph listing["LISTING state"]
@@ -115,7 +116,7 @@ flowchart TB
 |------|--------|
 | **Buyer: max active requests** | 3 total (any mix of pending_seller, bonding, preview, comfort, social, agreement, chat_open). |
 | **Buyer: per listing** | At most one connection per listing in those stages (unique on `(listing_id, buyer_id)` where stage is active). |
-| **Seller: one active deal** | Seller can have only one connection in bonding→chat_open at a time. Other requests stay in waiting list (pending_seller). |
+| **Seller: one active deal per listing** | Per listing, the seller can have only one connection in bonding→chat_open at a time. Other requests for that listing stay in waiting list (pending_seller). A seller can have one active deal on listing A and another on listing B. |
 | **Listing lock** | When seller accepts, listing becomes `locked` and `locked_by = buyer`. Only that buyer’s connection progresses; others stay pending_seller. |
 | **Stage timeouts** | pending_seller, bonding, preview, social, agreement: 24h each. After timeout, connection goes to expired (or ended) and listing is unlocked if it was locked. |
 | **Chat inactivity** | If chat_open and no message for 24h, cron can set connection to ended and unlock listing. |
