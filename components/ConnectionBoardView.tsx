@@ -222,6 +222,7 @@ export default function ConnectionBoardView() {
 
   const filteredBrowse = useMemo(() => {
     const city = filterCity.trim();
+    const continent = filterContinent.trim();
     const min = filterPriceMin.trim() ? Number(filterPriceMin) : null;
     const max = filterPriceMax.trim() ? Number(filterPriceMax) : null;
     const from = filterDateFrom.trim();
@@ -238,6 +239,7 @@ export default function ConnectionBoardView() {
       if (vipFilter === "loge" && !l.loge) return false;
       if (qty != null && Number.isFinite(qty) && (l.quantity ?? 1) !== qty) return false;
       if (city && String(l.concertCity ?? "") !== city) return false;
+      if (continent && getContinentForCity(String(l.concertCity ?? "")) !== continent) return false;
       const seatCurrencies = (l.seats ?? []).map((s) => String(s.currency ?? "").trim());
       if (currency && (seatCurrencies.length === 0 || !seatCurrencies.includes(currency))) return false;
 
