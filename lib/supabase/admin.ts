@@ -35,6 +35,7 @@ export type AdminListingReport = {
   reason: string;
   details: string | null;
   createdAt: string;
+  resolvedAt: string | null;
   concertCity: string;
   concertDate: string;
   listingStatus: string;
@@ -71,6 +72,7 @@ export type AdminUserReport = {
   details: string | null;
   imagePath: string | null;
   createdAt: string;
+  resolvedAt: string | null;
 };
 
 export type AdminTicket = {
@@ -206,6 +208,7 @@ export async function fetchAdminListingReports(): Promise<{
         reason: String(r.reason ?? ""),
         details: r.details != null ? String(r.details) : null,
         createdAt: String(r.created_at ?? ""),
+        resolvedAt: r.resolved_at != null ? String(r.resolved_at) : null,
         concertCity: String(r.concert_city ?? ""),
         concertDate: String(r.concert_date ?? ""),
         listingStatus: String(r.listing_status ?? ""),
@@ -228,6 +231,21 @@ export async function adminDeleteListingReport(reportId: string): Promise<{ erro
     return { error: error?.message ?? null };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to delete listing report" };
+  }
+}
+
+export async function adminSetListingReportResolved(
+  reportId: string,
+  resolved: boolean
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_set_listing_report_resolved", {
+      p_report_id: reportId,
+      p_resolved: resolved,
+    });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to set listing report resolved" };
   }
 }
 
@@ -305,6 +323,7 @@ export async function fetchAdminUserReports(): Promise<{
       details: string | null;
       image_url: string | null;
       created_at: string;
+      resolved_at: string | null;
     }>;
     return {
       data: rows.map((r) => ({
@@ -318,11 +337,27 @@ export async function fetchAdminUserReports(): Promise<{
         details: r.details ?? null,
         imagePath: r.image_url ? String(r.image_url) : null,
         createdAt: r.created_at,
+        resolvedAt: r.resolved_at ?? null,
       })),
       error: null,
     };
   } catch (e) {
     return { data: [], error: e instanceof Error ? e.message : "Failed to fetch user reports" };
+  }
+}
+
+export async function adminSetUserReportResolved(
+  reportId: string,
+  resolved: boolean
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_set_user_report_resolved", {
+      p_report_id: reportId,
+      p_resolved: resolved,
+    });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to set user report resolved" };
   }
 }
 

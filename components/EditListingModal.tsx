@@ -154,7 +154,14 @@ export default function EditListingModal({
 
         {error && (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-            {error}
+            {error.includes("already exists") && error.includes("under your listings") ? (
+              <>
+                <p className="font-semibold">Duplicate listing</p>
+                <p className="mt-1">{error}</p>
+              </>
+            ) : (
+              error
+            )}
           </div>
         )}
 

@@ -30,6 +30,8 @@ import {
   adminDeleteListingReport,
   adminReleaseUserListings,
   adminRemoveListing,
+  adminSetListingReportResolved,
+  adminSetUserReportResolved,
   adminUnbanUser,
   fetchAdminAllUsersPage,
   fetchAdminBannedUsers,
@@ -459,6 +461,42 @@ export default function AdminPanelContent() {
       setLoading(false);
     }
   }, []);
+
+  const setListingReportResolved = useCallback(
+    async (reportId: string, resolved: boolean) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminSetListingReportResolved(reportId, resolved);
+        if (e) setFeedback(`Error: ${e}`);
+        else {
+          setFeedback(resolved ? "Report marked resolved." : "Report marked unresolved.");
+          await loadListingReports();
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadListingReports]
+  );
+
+  const setUserReportResolved = useCallback(
+    async (reportId: string, resolved: boolean) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminSetUserReportResolved(reportId, resolved);
+        if (e) setFeedback(`Error: ${e}`);
+        else {
+          setFeedback(resolved ? "Report marked resolved." : "Report marked unresolved.");
+          await loadUserReports();
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadUserReports]
+  );
 
   const openRemoveListingModal = useCallback((listingId: string) => {
     setRemoveListingModal({ listingId });
@@ -909,6 +947,15 @@ export default function AdminPanelContent() {
                                 <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => openRemoveListingModal(r.listingId)}>
                                   Remove listing
                                 </button>
+                                {r.resolvedAt ? (
+                                  <button type="button" className="rounded bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-500" onClick={() => setListingReportResolved(r.id, false)}>
+                                    Unresolve
+                                  </button>
+                                ) : (
+                                  <button type="button" className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50" onClick={() => setListingReportResolved(r.id, true)}>
+                                    Resolve
+                                  </button>
+                                )}
                                 <button type="button" className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40" onClick={() => deleteListingReport(r.id)}>
                                   Delete report
                                 </button>
@@ -940,6 +987,7 @@ export default function AdminPanelContent() {
                       <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
                         <tr>
                           <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Status</th>
                           <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reporter</th>
                           <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reported</th>
                           <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reason</th>
@@ -950,8 +998,15 @@ export default function AdminPanelContent() {
                       </thead>
                       <tbody>
                         {userReports.map((r) => (
-                          <tr key={r.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <tr key={r.id} className={`border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10 ${r.resolvedAt ? "opacity-75" : ""}`}>
                             <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(r.createdAt)}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                              {r.resolvedAt ? (
+                                <span className="rounded bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-600 dark:text-neutral-300">Resolved</span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
                             <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.reporterEmail ?? r.reporterUsername ?? "—"}</td>
                             <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.reportedEmail ?? "—"}</td>
                             <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{r.reason}</td>
@@ -995,6 +1050,15 @@ export default function AdminPanelContent() {
                                 >
                                   Ban reported
                                 </button>
+                                {r.resolvedAt ? (
+                                  <button type="button" className="rounded bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-500" onClick={() => setUserReportResolved(r.id, false)}>
+                                    Unresolve
+                                  </button>
+                                ) : (
+                                  <button type="button" className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50" onClick={() => setUserReportResolved(r.id, true)}>
+                                    Resolve
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
