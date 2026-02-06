@@ -28,6 +28,8 @@ function label(type: NotificationType, n?: Notification): string {
       return "Connection accepted";
     case "connection_request_declined":
       return "Connection declined";
+    case "connection_on_waiting_list":
+      return "You're on the waiting list";
     case "connection_bonding_submitted":
       return "Bonding answers submitted";
     case "connection_preview_ready":
@@ -94,6 +96,7 @@ export default function NotificationBell() {
   const [reportPopup, setReportPopup] = useState<Notification | null>(null);
   const [listingRemovedPopup, setListingRemovedPopup] = useState<Notification | null>(null);
   const [connectionEndedPopup, setConnectionEndedPopup] = useState<Notification | null>(null);
+  const [waitingListPopup, setWaitingListPopup] = useState<Notification | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const markRelatedRead = (n: Notification) => {
@@ -124,6 +127,12 @@ export default function NotificationBell() {
     markRelatedRead(n);
     setOpen(false);
     setConnectionEndedPopup(n);
+  };
+
+  const handleWaitingListClick = (n: Notification) => {
+    markRelatedRead(n);
+    setOpen(false);
+    setWaitingListPopup(n);
   };
 
   return (
@@ -201,6 +210,26 @@ export default function NotificationBell() {
                         <button
                           type="button"
                           onClick={() => handleListingRemovedClick(n)}
+                          className={`block w-full border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
+                            !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
+                          }`}
+                        >
+                          <p className="font-semibold text-army-purple">{label(n.type, n)}</p>
+                          {n.message && (
+                            <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400">
+                              {n.message}
+                            </p>
+                          )}
+                          {n.listingSummary && (
+                            <p className="mt-1 text-xs text-neutral-500">{n.listingSummary}</p>
+                          )}
+                        </button>
+                      </li>
+                    ) : n.type === "connection_on_waiting_list" ? (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleWaitingListClick(n)}
                           className={`block w-full border-b border-army-purple/10 px-3 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-army-purple/5 dark:border-army-purple/15 ${
                             !n.read ? "bg-army-purple/5 dark:bg-army-purple/10" : ""
                           }`}
@@ -431,6 +460,55 @@ export default function NotificationBell() {
                 <button
                   type="button"
                   onClick={() => setConnectionEndedPopup(null)}
+                  className="btn-army-outline rounded-lg px-4 py-2 text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {waitingListPopup &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="modal-backdrop fixed inset-0 z-[100] flex cursor-pointer items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="waiting-list-title"
+            onClick={() => setWaitingListPopup(null)}
+          >
+            <div
+              className="modal-panel max-h-[90vh] w-full max-w-md cursor-default overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-5 shadow-xl dark:bg-neutral-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="waiting-list-title" className="font-display text-lg font-bold text-army-purple">
+                {label(waitingListPopup.type, waitingListPopup)}
+              </h2>
+              {waitingListPopup.listingSummary && (
+                <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Listing: {waitingListPopup.listingSummary}
+                </p>
+              )}
+              <div className="mt-3 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+                <p>The seller has accepted another buyer&apos;s request. You are now on the waiting list.</p>
+                <p>If that deal doesn&apos;t work out, the seller can release the connection and accept another buyer. You can remain on the waiting list, or end your request anytime from My connections.</p>
+              </div>
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                {waitingListPopup.connectionId && (
+                  <Link
+                    href={`/connections/${encodeURIComponent(waitingListPopup.connectionId)}`}
+                    className="btn-army rounded-lg px-4 py-2 text-sm"
+                    onClick={() => setWaitingListPopup(null)}
+                  >
+                    View my connection
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setWaitingListPopup(null)}
                   className="btn-army-outline rounded-lg px-4 py-2 text-sm"
                 >
                   Close

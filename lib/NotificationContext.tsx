@@ -21,6 +21,7 @@ export type NotificationType =
   | "connection_request_received"
   | "connection_request_accepted"
   | "connection_request_declined"
+  | "connection_on_waiting_list"
   | "connection_bonding_submitted"
   | "connection_preview_ready"
   | "connection_comfort_updated"
