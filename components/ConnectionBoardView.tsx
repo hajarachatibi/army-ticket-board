@@ -772,7 +772,8 @@ export default function ConnectionBoardView() {
                                   : `${l.concertCity} · ${l.concertDate}`,
                             })
                           }
-                          disabled={String(l.status) === "sold"}
+                          disabled={String(l.status) === "sold" || String(l.status) === "locked"}
+                          title={String(l.status) === "locked" ? "Only available listings can be reported" : String(l.status) === "sold" ? "Sold listings cannot be reported" : "Report listing"}
                         >
                           Report
                         </button>

@@ -142,7 +142,6 @@ export default function Header() {
     ];
     if (isLoggedIn) {
       base.push({ href: "/channel", label: "Admin Channel" });
-      base.push({ href: "/questions", label: "Questions" });
     }
     if (showSupportLink) {
       base.push({ href: "/support", label: "Support the board 💜" });
