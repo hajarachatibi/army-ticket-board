@@ -953,7 +953,7 @@ export default function AdminPanelContent() {
                                   </button>
                                 ) : (
                                   <button type="button" className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50" onClick={() => setListingReportResolved(r.id, true)}>
-                                    Resolve
+                                    Set as resolved
                                   </button>
                                 )}
                                 <button type="button" className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40" onClick={() => deleteListingReport(r.id)}>
@@ -1056,7 +1056,7 @@ export default function AdminPanelContent() {
                                   </button>
                                 ) : (
                                   <button type="button" className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50" onClick={() => setUserReportResolved(r.id, true)}>
-                                    Resolve
+                                    Set as resolved
                                   </button>
                                 )}
                               </div>
