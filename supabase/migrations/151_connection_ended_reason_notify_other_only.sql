@@ -1,6 +1,8 @@
 -- Connection ended: notify only the party who didn't end it, with a reason they can see when they click.
 
 -- 1) Trigger: stop notifying both sides when stage = 'ended'. Notifications are sent by end_connection RPC or by admin_remove_listing.
+-- Drop trigger first (it depends on the function), then replace the function, then recreate the trigger.
+DROP TRIGGER IF EXISTS connections_notify_user_notifications_trigger ON public.connections;
 DROP FUNCTION IF EXISTS public.connections_notify_user_notifications();
 CREATE OR REPLACE FUNCTION public.connections_notify_user_notifications()
 RETURNS trigger
@@ -304,6 +306,11 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+CREATE TRIGGER connections_notify_user_notifications_trigger
+  AFTER INSERT OR UPDATE ON public.connections
+  FOR EACH ROW
+  EXECUTE FUNCTION public.connections_notify_user_notifications();
 
 -- 2) end_connection: notify only the other party (the one who didn't end it), with optional reason.
 DROP FUNCTION IF EXISTS public.end_connection(uuid);
