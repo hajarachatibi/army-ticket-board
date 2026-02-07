@@ -153,6 +153,14 @@ export default function AdminPanelContent() {
   const [cronResult, setCronResult] = useState<Record<string, unknown> | null>(null);
   const [cronLoading, setCronLoading] = useState(false);
   const [cronError, setCronError] = useState<string | null>(null);
+  const [pushStats, setPushStats] = useState<{
+    pendingNotifications: number;
+    totalPushTokens: number;
+    usersWithPushTokens: number;
+    enabledListingAlerts: number;
+    listingsInWindow: number;
+  } | null>(null);
+  const [pushStatsLoading, setPushStatsLoading] = useState(false);
 
   const TABS: { id: Tab; label: string }[] = useMemo(
     () => [
@@ -349,9 +357,24 @@ export default function AdminPanelContent() {
     }
   }, []);
 
+  const loadPushStats = useCallback(async () => {
+    setPushStatsLoading(true);
+    try {
+      const res = await fetch("/api/admin/push-stats");
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) setPushStats(data);
+      else setPushStats(null);
+    } catch {
+      setPushStats(null);
+    } finally {
+      setPushStatsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user?.id || !isAdmin) return;
     if (tab === "dashboard") void loadDashboard();
+    if (tab === "cron") void loadPushStats();
     if (tab === "listingReports") void loadListingReports();
     if (tab === "userReports") void loadUserReports();
     if (tab === "listings") void loadListings();
@@ -372,6 +395,7 @@ export default function AdminPanelContent() {
     loadArmyProfileQuestions,
     loadBondingQuestions,
     loadBanned,
+    loadPushStats,
     loadBuyers,
     loadDashboard,
     loadListingReports,
@@ -880,6 +904,26 @@ export default function AdminPanelContent() {
               <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
                 Push notifications and listing alerts run when the cron job calls <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-700">/api/notifications/process-push</code>. Use the button below to run that job now and see the result (same as what the cron runs every 5 minutes).
               </p>
+
+              <h3 className="mb-2 font-display text-sm font-semibold text-army-purple">Why might &quot;sent&quot; be 0?</h3>
+              {pushStatsLoading ? (
+                <p className="mb-4 text-sm text-neutral-500">Loading stats…</p>
+              ) : pushStats ? (
+                <div className="mb-4 rounded-xl border border-army-purple/20 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <ul className="space-y-1 text-sm text-neutral-700 dark:text-neutral-300">
+                    <li><strong>Pending notifications</strong> (not yet sent): {pushStats.pendingNotifications} — If 0, there are no connection/listing notifications waiting. New ones are created when e.g. someone accepts a connection.</li>
+                    <li><strong>Users with push tokens</strong>: {pushStats.usersWithPushTokens} ({pushStats.totalPushTokens} total tokens) — If 0, no one has tapped &quot;Allow notifications&quot; in Settings. Push can only be sent to devices that registered a token.</li>
+                    <li><strong>Listing alerts enabled</strong>: {pushStats.enabledListingAlerts} users — Users must enable listing alerts in Settings and tap Save.</li>
+                    <li><strong>Listings in last 24h</strong> (candidate for alerts): {pushStats.listingsInWindow} — Only listings created/updated in the last 24 hours trigger alerts; each (listing, user) is sent at most once.</li>
+                  </ul>
+                  <button type="button" onClick={() => void loadPushStats()} className="mt-2 text-xs font-semibold text-army-purple hover:underline">
+                    Refresh stats
+                  </button>
+                </div>
+              ) : (
+                <p className="mb-4 text-sm text-neutral-500">Could not load stats.</p>
+              )}
+
               <button
                 type="button"
                 onClick={async () => {
@@ -898,6 +942,7 @@ export default function AdminPanelContent() {
                       return;
                     }
                     setCronResult(data);
+                    void loadPushStats();
                   } catch (e) {
                     setCronError(e instanceof Error ? e.message : String(e));
                   } finally {
