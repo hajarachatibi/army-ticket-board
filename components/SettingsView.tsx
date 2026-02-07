@@ -401,9 +401,37 @@ export default function SettingsView() {
         )}
 
         {!isPushSupported() && (
-          <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
-            Push notifications are not supported in this browser.
-          </p>
+          <div className="mt-4 space-y-3 text-sm text-neutral-600 dark:text-neutral-400">
+            <p>Push notifications are not supported in this browser or context.</p>
+            {isIos && (
+              <>
+                <p>
+                  <strong>On iPhone/iPad:</strong> Safari only supports push when the site is <strong>added to your Home Screen</strong> and you open the app from there (not from a normal Safari tab). Add to Home Screen using the steps below, then open the app from your home screen and return to Settings to enable notifications.
+                </p>
+                <div>
+                  <button
+                    type="button"
+                    className="btn-army-outline"
+                    onClick={() => setShowIosAddToHomeScreen((v) => !v)}
+                  >
+                    {showIosAddToHomeScreen ? "Hide steps" : "How to add to Home Screen (iOS)"}
+                  </button>
+                  {showIosAddToHomeScreen && (
+                    <div className="mt-3 rounded-lg border border-army-purple/20 bg-army-purple/5 p-4 text-sm text-neutral-700 dark:text-neutral-300">
+                      <ol className="list-inside list-decimal space-y-1">
+                        <li>Tap the <strong>Share</strong> button (square with arrow) at the bottom of Safari.</li>
+                        <li>Scroll and tap <strong>Add to Home Screen</strong>.</li>
+                        <li>Tap <strong>Add</strong> in the top right.</li>
+                      </ol>
+                      <p className="mt-2 text-neutral-500 dark:text-neutral-400">
+                        Then open the app from your Home Screen and allow notifications when prompted.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         )}
 
         <div className="mt-6">
