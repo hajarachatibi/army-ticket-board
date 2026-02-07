@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   if (notifications?.length) {
     const prefsMap = new Map<string, Record<string, boolean>>();
     const tokensMap = new Map<string, string[]>();
-    const subsMap = new Map<string, { endpoint: string; p256dh: string; auth: string }[]>();
+    const subsMap = new Map<string, { endpoint: string; keys: { p256dh: string; auth: string } }[]>();
 
     for (const n of notifications) {
       const uid = n.user_id;
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
           .eq("user_id", uid);
         subsMap.set(
           uid,
-          (subs ?? []).map((s) => ({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }))
+          (subs ?? []).map((s) => ({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }))
         );
       }
       if (!prefsMap.has(uid)) {
@@ -162,14 +162,15 @@ export async function POST(request: Request) {
           .from("push_subscriptions")
           .select("endpoint, p256dh, auth")
           .eq("user_id", prefs.user_id);
-        for (const sub of subs ?? []) {
+        for (const s of subs ?? []) {
           if (!WEB_PUSH_OK) continue;
+          const sub = { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } };
           const r = await sendWebPush(sub, { title, body, data: alertData });
           if (r.success) alertSent++;
           else {
             alertErrors++;
             if (r.error === "invalid_subscription") {
-              await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+              await supabase.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
             }
           }
         }
