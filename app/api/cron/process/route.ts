@@ -7,7 +7,7 @@ function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-export async function POST(request: NextRequest) {
+async function runCron(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return unauthorized();
 
@@ -40,5 +40,13 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, results });
+}
+
+export async function GET(request: NextRequest) {
+  return runCron(request);
+}
+
+export async function POST(request: NextRequest) {
+  return runCron(request);
 }
 

@@ -154,6 +154,30 @@ export default function UserManualPage() {
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
+              Home screen app — updates and limitations
+            </h2>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              When you <strong>Add to Home Screen</strong>, your device saves the app icon and opens the site in a standalone window. New deployments don’t reach you “instantly”; here’s what to expect.
+            </p>
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              When do I get updates?
+            </h3>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-neutral-700 dark:text-neutral-300">
+              <li><strong>App content (pages, features, fixes):</strong> When we deploy a new version, the app <strong>checks in the background</strong>. If you have the app open, a <strong>“New version available”</strong> banner appears at the bottom — tap <strong>Refresh</strong> to load the update. We also check when you focus the app or bring it back to the foreground, and about once a minute while you’re using it.</li>
+              <li><strong>Icon or name:</strong> Your phone caches these when you add to home screen. To see a new icon or name, <strong>remove the app from the home screen</strong> and <strong>Add to Home Screen</strong> again from the browser.</li>
+            </ul>
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              Limitations of the home screen app
+            </h3>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-neutral-700 dark:text-neutral-300">
+              <li><strong>iOS:</strong> Push notifications only work when you open the app from the <strong>Home Screen</strong>, not from a normal Safari tab. The app is still the website; it doesn’t install like a native app.</li>
+              <li><strong>Caching:</strong> The browser may cache some assets. If something looks outdated, close the app completely and reopen it, or open the site in a normal browser tab to force a fresh load.</li>
+              <li><strong>Refresh when prompted:</strong> When you see <strong>“New version available”</strong>, tap <strong>Refresh</strong> to get the latest app. You can tap <strong>Later</strong> to dismiss the banner; it may appear again when we check next.</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
+            <h2 className="font-display text-xl font-bold text-army-purple">
               Disclaimers
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">

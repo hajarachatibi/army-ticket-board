@@ -52,9 +52,5 @@ export async function sendFcmToToken(
 }
 
 export function isFcmConfigured(): boolean {
-  return !!(
-    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
-    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-  );
+  return !!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS);
 }

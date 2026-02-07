@@ -12,7 +12,12 @@ export async function POST(request: Request) {
   if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (!isFcmConfigured()) {
-    return NextResponse.json({ ok: true, push: "skipped", listingAlerts: "skipped" });
+    return NextResponse.json({
+      ok: true,
+      push: "skipped",
+      listingAlerts: "skipped",
+      reason: "FCM not configured: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS",
+    });
   }
 
   const supabase = createServiceClient();
@@ -80,7 +85,8 @@ export async function POST(request: Request) {
   results.push = { sent: pushSent, errors: pushErrors };
 
   const now = new Date().toISOString();
-  const windowStart = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  // Consider listings created or updated in the last 24h so we don't miss alerts when cron runs less often
+  const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: listingsRaw } = await supabase
     .from("listings")
     .select("id, concert_city, concert_date, vip, loge, suite, created_at, processing_until, updated_at")

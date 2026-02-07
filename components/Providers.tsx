@@ -8,6 +8,7 @@ import { NotificationProvider } from "@/lib/NotificationContext";
 import { RequestProvider } from "@/lib/RequestContext";
 import { ThemeProvider } from "@/lib/ThemeContext";
 
+import AppVersionChecker from "@/components/AppVersionChecker";
 import ChatModal from "@/components/ChatModal";
 import SyncDbNotifications from "@/components/SyncDbNotifications";
 import SyncPendingNotifications from "@/components/SyncPendingNotifications";
@@ -21,6 +22,7 @@ export default function Providers({ children }: { children: ReactNode }) {
             <ChatProvider>
               <SyncPendingNotifications />
               <SyncDbNotifications />
+              <AppVersionChecker />
               {children}
               <ChatModal />
             </ChatProvider>

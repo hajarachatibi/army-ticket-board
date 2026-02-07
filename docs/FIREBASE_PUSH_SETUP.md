@@ -116,6 +116,16 @@ After changing env vars, restart the dev server (`npm run dev`).
 
 ---
 
-## 6. iOS Safari
+## 6. Cron (required for push and listing alerts)
+
+Push notifications and **listing alerts** are sent when the cron runs. The repo includes `vercel.json` so that **Vercel Cron** calls `/api/cron/process` every 5 minutes.
+
+- Set **`CRON_SECRET`** in your Vercel project (Project → Settings → Environment Variables): a random string (e.g. 32 chars). Vercel sends it as `Authorization: Bearer <CRON_SECRET>` when invoking the cron; the API rejects requests without it.
+- Without `CRON_SECRET`, the cron endpoint returns 401 and push/listing alerts never run.
+- Push is only sent when **`FIREBASE_SERVICE_ACCOUNT_JSON`** (or `GOOGLE_APPLICATION_CREDENTIALS`) is set. If it’s missing, the process-push response will include `"reason": "FCM not configured: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS"`.
+
+---
+
+## 7. iOS Safari
 
 On **iPhone/iPad**, FCM web push only works when the site is **added to the Home Screen** and opened from there (not from a normal Safari tab). Users should use **Share → Add to Home Screen**, then open the app from the home screen and allow notifications.
