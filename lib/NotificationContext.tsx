@@ -58,6 +58,8 @@ type NotificationContextValue = {
   notifications: Notification[];
   unreadCount: number;
   add: (n: Omit<Notification, "id" | "read" | "createdAt">) => void;
+  /** Replace the in-app list with notifications from the DB (e.g. after refetch so list stays in sync). */
+  replaceWithDbList: (list: Notification[]) => void;
   markRead: (id: string) => void;
   markAllRead: () => void;
 };
@@ -96,9 +98,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, []);
 
+  const replaceWithDbList = useCallback((list: Notification[]) => {
+    setNotifications(list.slice(0, 50));
+  }, []);
+
   const value = useMemo(
-    () => ({ notifications, unreadCount, add, markRead, markAllRead }),
-    [notifications, unreadCount, add, markRead, markAllRead]
+    () => ({ notifications, unreadCount, add, replaceWithDbList, markRead, markAllRead }),
+    [notifications, unreadCount, add, replaceWithDbList, markRead, markAllRead]
   );
 
   return (

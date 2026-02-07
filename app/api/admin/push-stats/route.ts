@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
   const pushCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const windowStart = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
 
   const [

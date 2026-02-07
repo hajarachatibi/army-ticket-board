@@ -27,14 +27,15 @@ export async function POST(request: Request) {
   const supabase = createServiceClient();
   const results: { push?: { sent: number; errors: number }; listingAlerts?: { sent: number; errors: number } } = {};
 
-  // Only push for notifications from the last 30 days so we don't flood users with old notifications after deploy
+  // Only push for notifications from the last 30 days so we don't flood users with old notifications after deploy.
+  // Process in small batches to avoid FUNCTION_INVOCATION_TIMEOUT (504) on Vercel (e.g. 10s on Hobby).
   const pushCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: notifications } = await supabase
     .from("user_notifications")
     .select("id, user_id, type, message, listing_id, listing_summary, connection_id")
     .eq("push_sent", false)
     .gte("created_at", pushCutoff)
-    .limit(200);
+    .limit(50);
 
   let pushSent = 0;
   let pushErrors = 0;
@@ -108,8 +109,8 @@ export async function POST(request: Request) {
   results.push = { sent: pushSent, errors: pushErrors };
 
   const now = new Date().toISOString();
-  // Consider listings created or updated in the last 24h so we don't miss alerts when cron runs less often
-  const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // Listing alerts only for listings created/updated in the last 6 hours
+  const windowStart = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
   const { data: listingsRaw } = await supabase
     .from("listings")
     .select("id, concert_city, concert_date, vip, loge, suite, created_at, processing_until, updated_at")

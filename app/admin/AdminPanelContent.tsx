@@ -903,7 +903,7 @@ export default function AdminPanelContent() {
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Cron &amp; Push</h2>
               <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-                Push notifications and listing alerts run when the cron job calls <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-700">/api/notifications/process-push</code>. Use the button below to run that job now and see the result (same as what the cron runs every 5 minutes).
+                Push notifications and listing alerts run when the cron job calls <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-700">/api/notifications/process-push</code>. Use the button below to run that job now and see the result (same as what the cron runs every 15 minutes).
               </p>
 
               <h3 className="mb-2 font-display text-sm font-semibold text-army-purple">Why might &quot;sent&quot; be 0?</h3>
@@ -915,7 +915,7 @@ export default function AdminPanelContent() {
                     <li><strong>Pending notifications</strong> (not yet sent): {pushStats.pendingNotifications} — If 0, there are no connection/listing notifications waiting. New ones are created when e.g. someone accepts a connection.</li>
                     <li><strong>Users with push tokens</strong>: {pushStats.usersWithPushTokens} ({pushStats.totalPushTokens} FCM tokens, {pushStats.totalWebPushSubscriptions} Web Push) — If 0, no one has tapped &quot;Allow notifications&quot; in Settings. Push can only be sent to devices that registered.</li>
                     <li><strong>Listing alerts enabled</strong>: {pushStats.enabledListingAlerts} users — Users must enable listing alerts in Settings and tap Save.</li>
-                    <li><strong>Listings in last 24h</strong> (candidate for alerts): {pushStats.listingsInWindow} — Only listings created/updated in the last 24 hours trigger alerts; each (listing, user) is sent at most once.</li>
+                    <li><strong>Listings in last 6h</strong> (candidate for alerts): {pushStats.listingsInWindow} — Only listings created/updated in the last 6 hours trigger alerts; each (listing, user) is sent at most once.</li>
                   </ul>
                   <button type="button" onClick={() => void loadPushStats()} className="mt-2 text-xs font-semibold text-army-purple hover:underline">
                     Refresh stats

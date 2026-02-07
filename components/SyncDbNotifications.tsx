@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
-import type { NotificationType } from "@/lib/NotificationContext";
+import type { Notification, NotificationType } from "@/lib/NotificationContext";
 import { supabase } from "@/lib/supabaseClient";
 
 const SUPPORTED_TYPES = [
@@ -46,9 +46,41 @@ type DbNotificationRow = {
   created_at: string;
 };
 
+function dbRowToNotification(r: DbNotificationRow): { id: string; type: NotificationType; read: boolean; createdAt: number; [k: string]: unknown } {
+  return {
+    id: r.id,
+    type: r.type as NotificationType,
+    read: r.delivered,
+    createdAt: new Date(r.created_at).getTime(),
+    ticketId: r.ticket_id ?? undefined,
+    ticketSummary: r.ticket_summary ?? undefined,
+    listingId: r.listing_id ?? undefined,
+    listingSummary: r.listing_summary ?? undefined,
+    connectionId: r.connection_id ?? undefined,
+    storyId: r.story_id ?? undefined,
+    message: r.message ?? undefined,
+    reportReasons: r.report_reasons ?? undefined,
+  };
+}
+
 export default function SyncDbNotifications() {
   const { user } = useAuth();
-  const { add } = useNotifications();
+  const { add, replaceWithDbList } = useNotifications();
+
+  const fetchRecentForDisplay = useCallback(async () => {
+    const uid = user?.id ?? null;
+    if (!uid) return;
+    const { data, error } = await supabase
+      .from("user_notifications")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) return;
+    const rows = (data ?? []) as DbNotificationRow[];
+    const supported = rows.filter((r) => SUPPORTED_SET.has(r.type));
+    replaceWithDbList(supported.map(dbRowToNotification));
+  }, [user?.id, replaceWithDbList]);
 
   useEffect(() => {
     const uid = user?.id ?? null;
@@ -101,32 +133,17 @@ export default function SyncDbNotifications() {
       if (rows.length === 0) return;
 
       const deliveredSet = getDeliveredSet();
-      const toShow = rows.filter((r) => !deliveredSet.has(r.id));
-      if (toShow.length === 0) return;
-
-      toShow.forEach((r) => {
-        if (!SUPPORTED_SET.has(r.type)) return;
-        add({
-          // These rows are server-created with a strict CHECK constraint (see migrations),
-          // but we still keep the client defensive by treating unknown types as a no-op.
-          type: r.type as SupportedType,
-          ticketId: r.ticket_id ?? undefined,
-          ticketSummary: r.ticket_summary ?? undefined,
-          listingId: r.listing_id ?? undefined,
-          listingSummary: r.listing_summary ?? undefined,
-          connectionId: r.connection_id ?? undefined,
-          storyId: r.story_id ?? undefined,
-          message: r.message ?? undefined,
-          reportReasons: r.report_reasons ?? undefined,
-        });
-        deliveredSet.add(r.id);
-      });
-
+      const toMark = rows.filter((r) => !deliveredSet.has(r.id));
+      if (toMark.length === 0) return;
+      toMark.forEach((r) => deliveredSet.add(r.id));
       persistDeliveredSet(deliveredSet);
-      await markDelivered(toShow.map((r) => r.id));
+      await markDelivered(toMark.map((r) => r.id));
     }
 
-    fetchUndelivered();
+    void fetchRecentForDisplay().then(() => fetchUndelivered());
+
+    const onVisible = () => void fetchRecentForDisplay();
+    document.addEventListener("visibilitychange", onVisible);
 
     const channel = supabase
       .channel(`user_notifications_${uid}`)
@@ -158,9 +175,10 @@ export default function SyncDbNotifications() {
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
       void supabase.removeChannel(channel);
     };
-  }, [user?.id, add]);
+  }, [user?.id, add, fetchRecentForDisplay]);
 
   return null;
 }
