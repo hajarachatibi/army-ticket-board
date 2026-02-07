@@ -199,12 +199,31 @@ export default function SettingsView() {
     setEnablePushMessage(null);
     setEnablePushLoading(true);
     try {
-      const token = await requestNotificationPermissionAndGetToken();
-      if (!token) {
-        setEnablePushMessage("Permission denied or push not available.");
+      const result = await requestNotificationPermissionAndGetToken();
+      if (result.reason !== "ok" || !result.token) {
+        let msg: string;
+        switch (result.reason) {
+          case "denied":
+            msg =
+              "Notifications were blocked. To enable them, open your browser or device settings for this site and allow notifications, then try again.";
+            break;
+          case "unsupported":
+            msg =
+              "Push is not supported in this browser or context. On iPhone/iPad, add this site to your Home Screen and open the app from there, then try again.";
+            break;
+          case "no_config":
+            msg = "Push is not configured for this app. Please try again later.";
+            break;
+          case "error":
+            msg = result.message?.trim() || "Something went wrong. Please try again.";
+            break;
+          default:
+            msg = "Permission denied or push not available.";
+        }
+        setEnablePushMessage(msg);
         return;
       }
-      const { error } = await registerPushToken(token);
+      const { error } = await registerPushToken(result.token);
       if (error) {
         setEnablePushMessage(error);
         return;

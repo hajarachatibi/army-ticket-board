@@ -45,16 +45,25 @@ export function getMessagingInstance(): Messaging | null {
 
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? "";
 
-/** Request notification permission and get FCM token. Returns null if unsupported or user denies. */
-export async function requestNotificationPermissionAndGetToken(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
-  const supported = await isSupported();
-  if (!supported) return null;
-  const app = getOrInitApp();
-  if (!app || !VAPID_KEY) return null;
+export type RequestPushResult =
+  | { token: string; reason: "ok" }
+  | { token: null; reason: "unsupported" }
+  | { token: null; reason: "no_config" }
+  | { token: null; reason: "denied" }
+  | { token: null; reason: "error"; message?: string };
+
+/** Request notification permission and get FCM token. Returns result with reason for UI messaging. */
+export async function requestNotificationPermissionAndGetToken(): Promise<RequestPushResult> {
+  if (typeof window === "undefined") return { token: null, reason: "unsupported" };
   try {
+    const supported = await isSupported();
+    if (!supported) return { token: null, reason: "unsupported" };
+    const app = getOrInitApp();
+    if (!app || !VAPID_KEY) return { token: null, reason: "no_config" };
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return null;
+    if (permission !== "granted") {
+      return { token: null, reason: "denied" };
+    }
     const registration = await navigator.serviceWorker.register("/api/firebase-messaging-sw", { scope: "/" });
     await registration.update();
     const messaging = getMessaging(app);
@@ -62,9 +71,11 @@ export async function requestNotificationPermissionAndGetToken(): Promise<string
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
-    return token ?? null;
-  } catch {
-    return null;
+    if (token) return { token, reason: "ok" };
+    return { token: null, reason: "error", message: "No token from browser" };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { token: null, reason: "error", message: message || "Unknown error" };
   }
 }
 
