@@ -124,6 +124,22 @@ Push notifications and **listing alerts** are sent when the cron runs. The repo 
 - Without `CRON_SECRET`, the cron endpoint returns 401 and push/listing alerts never run.
 - Push is only sent when **`FIREBASE_SERVICE_ACCOUNT_JSON`** (or `GOOGLE_APPLICATION_CREDENTIALS`) is set. If it’s missing, the process-push response will include `"reason": "FCM not configured: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS"`.
 
+### How to check if cron / push is working
+
+1. **Admin panel:** Sign in as an admin, go to **Admin → Cron & Push**. Click **Run push & listing alerts now**. The JSON result shows:
+   - **`push`:** `{ "sent": N, "errors": M }` (notifications sent) or `"skipped"` with a **`reason`** if FCM isn’t configured.
+   - **`listingAlerts`:** `{ "sent": N, "errors": M }` or `"skipped"`.
+   - If you see `"reason": "FCM not configured..."`, set **FIREBASE_SERVICE_ACCOUNT_JSON** in Vercel and redeploy.
+   - If you see `push: { sent: 0, errors: 0 }` and no pending notifications, the job ran but there was nothing to send.
+
+2. **Manual request (optional):** From your machine, run (replace with your domain and secret):
+   ```bash
+   curl -X GET "https://YOUR_DOMAIN.vercel.app/api/cron/process" -H "Authorization: Bearer YOUR_CRON_SECRET"
+   ```
+   The response includes `process_push` with the same structure as above. Vercel Cron uses GET to this URL every 5 minutes.
+
+3. **Vercel logs:** In the Vercel dashboard, **Logs** or **Functions** may show cron invocations. If there are no errors but you still get no notifications, use the Admin **Cron & Push** tab to confirm the process-push result (e.g. FCM configured, tokens present, and prefs enabled).
+
 ---
 
 ## 7. iOS Safari

@@ -55,6 +55,7 @@ import {
 
 type Tab =
   | "dashboard"
+  | "cron"
   | "listingReports"
   | "userReports"
   | "usersUnderReview"
@@ -149,9 +150,14 @@ export default function AdminPanelContent() {
   const [bondingQuestions, setBondingQuestions] = useState<Array<{ id: string; prompt: string; active: boolean; createdAt: string }>>([]);
   const [newBondingPrompt, setNewBondingPrompt] = useState("");
 
+  const [cronResult, setCronResult] = useState<Record<string, unknown> | null>(null);
+  const [cronLoading, setCronLoading] = useState(false);
+  const [cronError, setCronError] = useState<string | null>(null);
+
   const TABS: { id: Tab; label: string }[] = useMemo(
     () => [
       { id: "dashboard", label: "Dashboard" },
+      { id: "cron", label: "Cron & Push" },
       { id: "listingReports", label: "Listing reports" },
       { id: "userReports", label: "User reports" },
       { id: "usersUnderReview", label: "Users under review" },
@@ -864,6 +870,50 @@ export default function AdminPanelContent() {
                     </div>
                   )}
                 </div>
+              )}
+            </section>
+          )}
+
+          {tab === "cron" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Cron &amp; Push</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                Push notifications and listing alerts run when the cron job calls <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-700">/api/notifications/process-push</code>. Use the button below to run that job now and see the result (same as what the cron runs every 5 minutes).
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  setCronError(null);
+                  setCronResult(null);
+                  setCronLoading(true);
+                  try {
+                    const res = await fetch("/api/admin/cron-status");
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      setCronError(data.error || data.message || `HTTP ${res.status}`);
+                      return;
+                    }
+                    setCronResult(data);
+                  } catch (e) {
+                    setCronError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setCronLoading(false);
+                  }
+                }}
+                disabled={cronLoading}
+                className="btn-army rounded-lg px-4 py-2 text-sm"
+              >
+                {cronLoading ? "Running…" : "Run push & listing alerts now"}
+              </button>
+              {cronError && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  {cronError}
+                </div>
+              )}
+              {cronResult && (
+                <pre className="mt-4 max-h-96 overflow-auto rounded-lg border border-army-purple/20 bg-neutral-50 p-4 text-left text-sm dark:bg-neutral-900 dark:text-neutral-200">
+                  {JSON.stringify(cronResult, null, 2)}
+                </pre>
               )}
             </section>
           )}

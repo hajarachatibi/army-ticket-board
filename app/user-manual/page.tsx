@@ -171,7 +171,8 @@ export default function UserManualPage() {
             </h3>
             <ul className="mt-2 list-inside list-disc space-y-1 text-neutral-700 dark:text-neutral-300">
               <li><strong>iOS:</strong> Push notifications only work when you open the app from the <strong>Home Screen</strong>, not from a normal Safari tab. The app is still the website; it doesn’t install like a native app.</li>
-              <li><strong>Caching:</strong> The browser may cache some assets. If something looks outdated, close the app completely and reopen it, or open the site in a normal browser tab to force a fresh load.</li>
+              <li><strong>Manual refresh:</strong> When you open the app from the Home Screen, use the <strong>Refresh</strong> button (circular arrow) next to the logo in the header to load the latest version. Refreshing manually is a good habit so you always have the newest features and fixes.</li>
+              <li><strong>Caching:</strong> The browser may cache some assets. If something looks outdated, tap the <strong>Refresh</strong> button next to the logo, or close the app completely and reopen it.</li>
               <li><strong>Refresh when prompted:</strong> When you see <strong>“New version available”</strong>, tap <strong>Refresh</strong> to get the latest app. You can tap <strong>Later</strong> to dismiss the banner; it may appear again when we check next.</li>
             </ul>
           </div>

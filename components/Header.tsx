@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -234,13 +235,33 @@ export default function Header() {
       </div>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
-          <Link
-            href="/"
-            className="flex items-center gap-3 font-display text-xl font-bold tracking-tight text-army-purple transition-colors hover:text-army-800 dark:hover:text-army-300"
-          >
-            <span className="hidden sm:inline">Army Ticket Board</span>
-            <span className="sm:hidden">ATB</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-army-purple transition-colors hover:text-army-800 dark:hover:text-army-300"
+            >
+              <Image
+                src="/army-ticket-board-logo.png"
+                alt=""
+                width={36}
+                height={36}
+                className="h-9 w-9 shrink-0 rounded-lg object-contain"
+              />
+              <span className="hidden sm:inline">Army Ticket Board</span>
+              <span className="sm:hidden">ATB</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-army-purple/10 hover:text-army-purple dark:text-neutral-400 dark:hover:bg-army-purple/20 dark:hover:text-army-300"
+              aria-label="Refresh page"
+              title="Refresh (use this when opening the app from Home Screen to get the latest version)"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
             {navLinks.map(({ href, label }) => {
               const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
