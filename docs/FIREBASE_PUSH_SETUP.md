@@ -89,7 +89,21 @@ You need **either** `FIREBASE_SERVICE_ACCOUNT_JSON` **or** `GOOGLE_APPLICATION_C
 
 ---
 
-## 5. Summary checklist
+## 5. Web Push fallback (no Firebase)
+
+If Firebase isn’t configured or the browser can’t get an FCM token (e.g. missing `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in production), the app will try **Web Push** when the user taps “Allow notifications” in Settings. For that to work:
+
+1. Generate a VAPID key pair (once):  
+   `npx web-push generate-vapid-keys`
+2. Set in your env (and in Vercel):
+   - **Client:** `NEXT_PUBLIC_VAPID_PUBLIC_KEY` = the **public** key (so the browser can subscribe).
+   - **Server:** `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` = same public key and the **private** key (so the cron can send via the `web-push` library).
+
+Push is then sent to both FCM tokens (if configured) and Web Push subscriptions. Admin **Cron & Push** stats show “FCM tokens” and “Web Push” counts; if “Users with push tokens” is 0, no device has registered yet (try “Allow notifications” again after setting the keys).
+
+---
+
+## 6. Summary checklist
 
 Add these to `.env.local` (or your host’s env):
 
@@ -116,20 +130,20 @@ After changing env vars, restart the dev server (`npm run dev`).
 
 ---
 
-## 6. Cron (required for push and listing alerts)
+## 7. Cron (required for push and listing alerts)
 
 Push notifications and **listing alerts** are sent when the cron runs. The repo includes `vercel.json` so that **Vercel Cron** calls `/api/cron/process` every 5 minutes.
 
 - Set **`CRON_SECRET`** in your Vercel project (Project → Settings → Environment Variables): a random string (e.g. 32 chars). Vercel sends it as `Authorization: Bearer <CRON_SECRET>` when invoking the cron; the API rejects requests without it.
 - Without `CRON_SECRET`, the cron endpoint returns 401 and push/listing alerts never run.
-- Push is only sent when **`FIREBASE_SERVICE_ACCOUNT_JSON`** (or `GOOGLE_APPLICATION_CREDENTIALS`) is set. If it’s missing, the process-push response will include `"reason": "FCM not configured: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS"`.
+- Push is sent when **FCM** and/or **Web Push** is configured. If FCM is set, notifications go to FCM tokens; if `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set, they also go to Web Push subscriptions. If neither is set, the response includes a `reason` and push is skipped.
 
 ### How to check if cron / push is working
 
 1. **Admin panel:** Sign in as an admin, go to **Admin → Cron & Push**. Click **Run push & listing alerts now**. The JSON result shows:
    - **`push`:** `{ "sent": N, "errors": M }` (notifications sent) or `"skipped"` with a **`reason`** if FCM isn’t configured.
    - **`listingAlerts`:** `{ "sent": N, "errors": M }` or `"skipped"`.
-   - If you see `"reason": "FCM not configured..."`, set **FIREBASE_SERVICE_ACCOUNT_JSON** in Vercel and redeploy.
+   - If you see a `reason` like “Neither FCM nor Web Push configured”, set either **FIREBASE_SERVICE_ACCOUNT_JSON** (and client Firebase env) or **VAPID_PUBLIC_KEY** + **VAPID_PRIVATE_KEY** + **NEXT_PUBLIC_VAPID_PUBLIC_KEY** and redeploy.
    - If you see `push: { sent: 0, errors: 0 }` and no pending notifications, the job ran but there was nothing to send.
 
 2. **Manual request (optional):** From your machine, run (replace with your domain and secret):
@@ -142,6 +156,6 @@ Push notifications and **listing alerts** are sent when the cron runs. The repo 
 
 ---
 
-## 7. iOS Safari
+## 8. iOS Safari
 
 On **iPhone/iPad**, FCM web push only works when the site is **added to the Home Screen** and opened from there (not from a normal Safari tab). Users should use **Share → Add to Home Screen**, then open the app from the home screen and allow notifications.

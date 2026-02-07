@@ -5,9 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { ARIRANG_CITIES, ARIRANG_CONTINENTS } from "@/lib/data/arirang";
 import { requestNotificationPermissionAndGetToken, isPushSupported } from "@/lib/firebase";
+import { requestNotificationPermissionAndSubscribe } from "@/lib/webPush";
 import {
   getListingAlertPreferences,
   getNotificationPreferences,
+  registerPushSubscription,
   registerPushToken,
   updateListingAlertPreferences,
   updateNotificationPreferences,
@@ -199,36 +201,59 @@ export default function SettingsView() {
     setEnablePushMessage(null);
     setEnablePushLoading(true);
     try {
+      // 1) Try Firebase (FCM) first
       const result = await requestNotificationPermissionAndGetToken();
-      if (result.reason !== "ok" || !result.token) {
-        let msg: string;
-        switch (result.reason) {
-          case "denied":
-            msg =
-              "Notifications were blocked. To enable them, open your browser or device settings for this site and allow notifications, then try again.";
-            break;
-          case "unsupported":
-            msg =
-              "Push is not supported in this browser or context. On iPhone/iPad, add this site to your Home Screen and open the app from there, then try again.";
-            break;
-          case "no_config":
-            msg = "Push is not configured for this app (missing Firebase config or VAPID key). See docs/FIREBASE_PUSH_SETUP.md.";
-            break;
-          case "error":
-            msg = result.message?.trim() || "Something went wrong. Please try again.";
-            break;
-          default:
-            msg = "Permission denied or push not available.";
+      if (result.reason === "ok" && result.token) {
+        const { error } = await registerPushToken(result.token);
+        if (error) {
+          setEnablePushMessage(error);
+          return;
         }
-        setEnablePushMessage(msg);
+        setEnablePushMessage("Push notifications enabled (this device is registered).");
         return;
       }
-      const { error } = await registerPushToken(result.token);
-      if (error) {
-        setEnablePushMessage(error);
+      if (result.reason === "denied") {
+        setEnablePushMessage(
+          "Notifications were blocked. To enable them, open your browser or device settings for this site and allow notifications, then try again."
+        );
         return;
       }
-      setEnablePushMessage("Push notifications enabled.");
+      if (result.reason === "unsupported") {
+        setEnablePushMessage(
+          "Push is not supported in this browser or context. On iPhone/iPad, add this site to your Home Screen and open the app from there, then try again."
+        );
+        return;
+      }
+      // 2) FCM failed (no_config or error) — try Web Push fallback so we still save this device
+      const webResult = await requestNotificationPermissionAndSubscribe();
+      if (webResult.reason === "ok" && webResult.subscription) {
+        const { error } = await registerPushSubscription(webResult.subscription);
+        if (error) {
+          setEnablePushMessage(error);
+          return;
+        }
+        setEnablePushMessage(
+          "Push notifications enabled (Web Push). This device is registered. If Firebase is later configured, you can tap Allow again to also register for FCM."
+        );
+        return;
+      }
+      if (webResult.reason === "denied") {
+        setEnablePushMessage(
+          "Notifications were blocked. Open your browser or device settings for this site and allow notifications, then try again."
+        );
+        return;
+      }
+      if (webResult.reason === "no_config") {
+        setEnablePushMessage(
+          "Push is not configured: set Firebase (see docs/FIREBASE_PUSH_SETUP.md) or Web Push (NEXT_PUBLIC_VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY) so this device can be registered."
+        );
+        return;
+      }
+      setEnablePushMessage(
+        webResult.reason === "error" && webResult.message
+          ? webResult.message
+          : "Could not register this device for push. Try again or check app configuration."
+      );
     } finally {
       setEnablePushLoading(false);
     }

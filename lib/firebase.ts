@@ -64,7 +64,7 @@ export async function requestNotificationPermissionAndGetToken(): Promise<Reques
     if (permission !== "granted") {
       return { token: null, reason: "denied" };
     }
-    const registration = await navigator.serviceWorker.register("/api/firebase-messaging-sw", { scope: "/" });
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
     await registration.update();
     const messaging = getMessaging(app);
     const token = await getToken(messaging, {

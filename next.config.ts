@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
       { source: "/apple-icon.png", destination: "/army-ticket-board-logo.png", permanent: true },
     ];
   },
+  // Serve Firebase SW at root path so scope "/" is valid (browser rejects scope "/" when script is under /api/)
+  async rewrites() {
+    return [{ source: "/firebase-messaging-sw.js", destination: "/api/firebase-messaging-sw" }];
+  },
   experimental: {
     // Disable Turbopack dev cache; corrupt cache can cause "stuck compiling"
     turbopackFileSystemCacheForDev: false,

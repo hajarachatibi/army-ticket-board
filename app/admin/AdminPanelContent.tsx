@@ -156,6 +156,7 @@ export default function AdminPanelContent() {
   const [pushStats, setPushStats] = useState<{
     pendingNotifications: number;
     totalPushTokens: number;
+    totalWebPushSubscriptions: number;
     usersWithPushTokens: number;
     enabledListingAlerts: number;
     listingsInWindow: number;
@@ -912,7 +913,7 @@ export default function AdminPanelContent() {
                 <div className="mb-4 rounded-xl border border-army-purple/20 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
                   <ul className="space-y-1 text-sm text-neutral-700 dark:text-neutral-300">
                     <li><strong>Pending notifications</strong> (not yet sent): {pushStats.pendingNotifications} — If 0, there are no connection/listing notifications waiting. New ones are created when e.g. someone accepts a connection.</li>
-                    <li><strong>Users with push tokens</strong>: {pushStats.usersWithPushTokens} ({pushStats.totalPushTokens} total tokens) — If 0, no one has tapped &quot;Allow notifications&quot; in Settings. Push can only be sent to devices that registered a token.</li>
+                    <li><strong>Users with push tokens</strong>: {pushStats.usersWithPushTokens} ({pushStats.totalPushTokens} FCM tokens, {pushStats.totalWebPushSubscriptions} Web Push) — If 0, no one has tapped &quot;Allow notifications&quot; in Settings. Push can only be sent to devices that registered.</li>
                     <li><strong>Listing alerts enabled</strong>: {pushStats.enabledListingAlerts} users — Users must enable listing alerts in Settings and tap Save.</li>
                     <li><strong>Listings in last 24h</strong> (candidate for alerts): {pushStats.listingsInWindow} — Only listings created/updated in the last 24 hours trigger alerts; each (listing, user) is sent at most once.</li>
                   </ul>

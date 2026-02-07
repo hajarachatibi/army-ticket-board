@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/serviceClient";
 import { sendFcmToToken, isFcmConfigured } from "@/lib/fcm/send";
+import { sendWebPush, isWebPushConfigured } from "@/lib/webPush/send";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const FCM_OK = isFcmConfigured();
+const WEB_PUSH_OK = isWebPushConfigured();
 
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -11,12 +15,12 @@ export async function POST(request: Request) {
   const auth = request.headers.get("authorization") || "";
   if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!isFcmConfigured()) {
+  if (!FCM_OK && !WEB_PUSH_OK) {
     return NextResponse.json({
       ok: true,
       push: "skipped",
       listingAlerts: "skipped",
-      reason: "FCM not configured: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS",
+      reason: "Neither FCM nor Web Push configured. Set FIREBASE_SERVICE_ACCOUNT_JSON or VAPID_PUBLIC_KEY+VAPID_PRIVATE_KEY.",
     });
   }
 
@@ -38,12 +42,23 @@ export async function POST(request: Request) {
   if (notifications?.length) {
     const prefsMap = new Map<string, Record<string, boolean>>();
     const tokensMap = new Map<string, string[]>();
+    const subsMap = new Map<string, { endpoint: string; p256dh: string; auth: string }[]>();
 
     for (const n of notifications) {
       const uid = n.user_id;
       if (!tokensMap.has(uid)) {
         const { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", uid);
         tokensMap.set(uid, (tokens ?? []).map((r) => r.token));
+      }
+      if (!subsMap.has(uid)) {
+        const { data: subs } = await supabase
+          .from("push_subscriptions")
+          .select("endpoint, p256dh, auth")
+          .eq("user_id", uid);
+        subsMap.set(
+          uid,
+          (subs ?? []).map((s) => ({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }))
+        );
       }
       if (!prefsMap.has(uid)) {
         const { data: row } = await supabase
@@ -60,22 +75,30 @@ export async function POST(request: Request) {
         continue;
       }
       const tokens = tokensMap.get(uid)!;
+      const subs = subsMap.get(uid)!;
       const title = "ARMY Ticket Board";
       const body = n.message ?? n.listing_summary ?? "New notification";
       const data: Record<string, string> = { type: n.type };
       if (n.connection_id) data.connectionId = n.connection_id;
       if (n.listing_id) data.listingId = n.listing_id;
 
-      let anySent = false;
       for (const token of tokens) {
+        if (!FCM_OK) continue;
         const r = await sendFcmToToken(token, { title, body, data });
-        if (r.success) {
-          pushSent++;
-          anySent = true;
-        } else {
+        if (r.success) pushSent++;
+        else {
           pushErrors++;
-          if (r.error === "invalid_token") {
-            await supabase.from("push_tokens").delete().eq("token", token);
+          if (r.error === "invalid_token") await supabase.from("push_tokens").delete().eq("token", token);
+        }
+      }
+      for (const sub of subs) {
+        if (!WEB_PUSH_OK) continue;
+        const r = await sendWebPush(sub, { title, body, data });
+        if (r.success) pushSent++;
+        else {
+          pushErrors++;
+          if (r.error === "invalid_subscription") {
+            await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
           }
         }
       }
@@ -122,19 +145,32 @@ export async function POST(request: Request) {
         const matchDate = !prefs.concert_date || String(prefs.concert_date) === String(listingDate);
         if (!matchContinent || !matchCity || !matchType || !matchDate) continue;
 
-        const { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", prefs.user_id);
         const title = "New listing matching your criteria";
         const body = `${l.concert_city ?? ""} · ${listingDate}`;
+        const alertData = { type: "listing_alert", listingId: l.id };
+        const { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", prefs.user_id);
         for (const t of tokens ?? []) {
-          const r = await sendFcmToToken(t.token, {
-            title,
-            body,
-            data: { type: "listing_alert", listingId: l.id },
-          });
+          if (!FCM_OK) continue;
+          const r = await sendFcmToToken(t.token, { title, body, data: alertData });
           if (r.success) alertSent++;
           else {
             alertErrors++;
             if (r.error === "invalid_token") await supabase.from("push_tokens").delete().eq("token", t.token);
+          }
+        }
+        const { data: subs } = await supabase
+          .from("push_subscriptions")
+          .select("endpoint, p256dh, auth")
+          .eq("user_id", prefs.user_id);
+        for (const sub of subs ?? []) {
+          if (!WEB_PUSH_OK) continue;
+          const r = await sendWebPush(sub, { title, body, data: alertData });
+          if (r.success) alertSent++;
+          else {
+            alertErrors++;
+            if (r.error === "invalid_subscription") {
+              await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+            }
           }
         }
         await supabase.from("listing_alert_sent").insert({ listing_id: l.id, user_id: prefs.user_id });

@@ -41,11 +41,13 @@ export async function GET(request: NextRequest) {
   const [
     { count: pendingNotifications },
     { data: tokensRows },
+    { data: subsRows },
     { count: enabledListingAlerts },
     { data: listingsRaw },
   ] = await Promise.all([
     service.from("user_notifications").select("id", { count: "exact", head: true }).eq("push_sent", false).gte("created_at", pushCutoff),
     service.from("push_tokens").select("user_id"),
+    service.from("push_subscriptions").select("user_id"),
     service.from("listing_alert_preferences").select("user_id", { count: "exact", head: true }).eq("enabled", true),
     service
       .from("listings")
@@ -61,11 +63,14 @@ export async function GET(request: NextRequest) {
     return !l.processing_until || l.processing_until <= now;
   }).length;
 
-  const uniqueUsersWithTokens = new Set((tokensRows ?? []).map((r) => r.user_id)).size;
+  const tokenUserIds = new Set((tokensRows ?? []).map((r) => r.user_id));
+  const subsUserIds = new Set((subsRows ?? []).map((r) => r.user_id));
+  const uniqueUsersWithTokens = new Set([...tokenUserIds, ...subsUserIds]).size;
 
   return NextResponse.json({
     pendingNotifications: pendingNotifications ?? 0,
     totalPushTokens: tokensRows?.length ?? 0,
+    totalWebPushSubscriptions: subsRows?.length ?? 0,
     usersWithPushTokens: uniqueUsersWithTokens,
     enabledListingAlerts: enabledListingAlerts ?? 0,
     listingsInWindow,
