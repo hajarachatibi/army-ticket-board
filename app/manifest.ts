@@ -17,9 +17,9 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#ffffff",
     theme_color: "#6b21a8",
     icons: [
-      { src: "/app-icon.png", sizes: "any", type: "image/png", purpose: "any" },
-      { src: "/app-icon.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/app-icon.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/army-ticket-board-logo.png", sizes: "any", type: "image/png", purpose: "any" },
+      { src: "/army-ticket-board-logo.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/army-ticket-board-logo.png", sizes: "512x512", type: "image/png", purpose: "any" },
     ],
   };
 }
