@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   description: "Find, book, and manage BTS concert tickets with ARMY.",
   icons: {
     icon: "/icon.png",
-    apple: "/icon.png",
+    apple: [{ url: "/icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ARMY Ticket Board",
+    title: "Army ticket board",
   },
 };
 

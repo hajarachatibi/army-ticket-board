@@ -83,6 +83,77 @@ export default function UserManualPage() {
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
+              Notifications and alerts — how to activate
+            </h2>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              To get push notifications (connection updates, listing alerts, and more) on your phone or computer, you need to enable them in the app and allow your browser or device to show notifications.
+            </p>
+
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              Step-by-step: enabling notifications
+            </h3>
+            <ol className="mt-2 list-inside list-decimal space-y-2 text-neutral-700 dark:text-neutral-300">
+              <li>Sign in, then open <strong>Account</strong> in the header and go to <strong>Settings</strong>.</li>
+              <li>Scroll to the <strong>Notifications</strong> section.</li>
+              <li>Tap <strong>Allow notifications</strong>. Your browser (or device) will show a permission dialog — choose <strong>Allow</strong> so we can send push notifications to this device.</li>
+              <li>Optionally, use the <strong>Notification types</strong> toggles to choose which events trigger a push (e.g. connection request received, match confirmed, story published). Tap <strong>Save notification types</strong> after changing them.</li>
+              <li>For <strong>Listing alerts</strong>: turn on <strong>Enable listing alerts</strong>, set filters (continent, city, type, concert date) if you want, then tap <strong>Save listing alerts</strong>. You’ll get a push when a new or newly available listing matches your criteria.</li>
+            </ol>
+
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              iOS (iPhone / iPad)
+            </h3>
+            <p className="mt-2 text-neutral-700 dark:text-neutral-300">
+              Push notifications on iOS only work when the app is opened <strong>from the Home Screen</strong>, not from a normal Safari tab. You must add the site to your Home Screen first.
+            </p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-neutral-700 dark:text-neutral-300">
+              <li>In <strong>Safari</strong>, open Army Ticket Board and tap the <strong>Share</strong> button (square with arrow at the bottom).</li>
+              <li>Scroll and tap <strong>Add to Home Screen</strong>, then tap <strong>Add</strong> in the top right.</li>
+              <li>Open the app by tapping its icon on your Home Screen (do not open the site in a regular Safari tab).</li>
+              <li>Go to <strong>Settings → Notifications</strong> in the app and tap <strong>Allow notifications</strong>. When iOS asks, choose <strong>Allow</strong>.</li>
+            </ul>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              <strong>Device settings:</strong> If you blocked notifications by mistake, go to <strong>Settings → Notifications</strong> on your iPhone/iPad, find the Army Ticket Board app (or “Web” / the site name), and turn on <strong>Allow Notifications</strong>. You can also enable sounds and badges there.
+            </p>
+
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              Android
+            </h3>
+            <p className="mt-2 text-neutral-700 dark:text-neutral-300">
+              On Android you can use <strong>Chrome</strong> (or another browser that supports web push). When you tap <strong>Allow notifications</strong> in the app, Chrome will show a permission prompt — choose <strong>Allow</strong>.
+            </p>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              <strong>Device settings:</strong> If you previously blocked notifications, open <strong>Chrome → Settings → Site settings → Notifications</strong>, find Army Ticket Board, and set it to <strong>Allow</strong>. On some devices you may also need to check <strong>Settings → Apps → Chrome → Notifications</strong> and ensure notifications are enabled for the browser.
+            </p>
+
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              Possible issues and fixes
+            </h3>
+            <ul className="mt-2 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
+              <li><strong>“Notifications were blocked”</strong> — You chose “Block” or dismissed the prompt. Open your browser or device settings for this site and set notifications to <strong>Allow</strong>, then in the app tap <strong>Allow notifications</strong> again.</li>
+              <li><strong>“Push is not supported” on iPhone/iPad</strong> — You’re likely in a normal Safari tab. Add the site to your Home Screen and open the app from the Home Screen icon, then try again in Settings.</li>
+              <li><strong>No notifications arriving</strong> — Check that (1) you allowed notifications for this site in the browser/device, (2) on iOS you’re using the Home Screen app, (3) the notification types you care about are turned on in Settings, and (4) your device isn’t in Do Not Disturb or a strict battery-saver mode that blocks background delivery.</li>
+              <li><strong>Listing alerts not firing</strong> — Ensure <strong>Enable listing alerts</strong> is on and you’ve tapped <strong>Save listing alerts</strong>. Alerts only run when new or newly available listings match your filters (continent, city, type, date).</li>
+              <li><strong>Delivery not guaranteed</strong> — Browsers and operating systems can delay or suppress push notifications (e.g. to save battery). We send them, but we can’t guarantee every notification will appear on your device.</li>
+            </ul>
+
+            <h3 className="mt-6 font-display text-lg font-semibold text-army-purple">
+              Can’t see “Allow notifications” or “How to enable in iOS”?
+            </h3>
+            <p className="mt-2 text-neutral-700 dark:text-neutral-300">
+              Sometimes the Notifications section may not show the <strong>Allow notifications</strong> button or the <strong>How to enable in iOS</strong> button. You can still enable notifications from your device:
+            </p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-neutral-700 dark:text-neutral-300">
+              <li><strong>iPhone/iPad:</strong> Open <strong>Settings → Notifications</strong>. If you added the app to your Home Screen, look for the app name (or “Web” / the site name under web apps). Tap it and turn on <strong>Allow Notifications</strong>. You can also check <strong>Settings → Safari → Advanced → Website Data</strong> or <strong>Settings → Notifications</strong> for any web app entries and allow notifications there.</li>
+              <li><strong>Android:</strong> Open <strong>Settings → Apps</strong> (or <strong>Applications</strong>), select <strong>Chrome</strong> (or the browser you use), then <strong>Notifications</strong> and ensure they’re allowed. For the website itself: in Chrome go to <strong>Settings → Site settings → Notifications</strong> (or <strong>Settings → Privacy and security → Site settings → Notifications</strong>) and set Army Ticket Board to <strong>Allow</strong>.</li>
+            </ul>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              After allowing in device settings, reopen the app and go to <strong>Settings → Notifications</strong> again; the buttons may appear, or notifications may already work. On iOS, remember to use the app from your <strong>Home Screen</strong>, not from a Safari tab.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
+            <h2 className="font-display text-xl font-bold text-army-purple">
               Disclaimers
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">

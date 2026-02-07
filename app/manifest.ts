@@ -6,8 +6,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ARMY Ticket Board",
-    short_name: "Ticket Board",
+    name: "Army ticket board",
+    short_name: "Army ticket board",
     description: "Find and exchange BTS concert tickets with ARMY.",
     start_url: "/",
     scope: "/",
