@@ -90,6 +90,14 @@ export default function SettingsView() {
   });
   const [listingAlertError, setListingAlertError] = useState<string | null>(null);
   const [listingAlertSaving, setListingAlertSaving] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+  const [showIosAddToHomeScreen, setShowIosAddToHomeScreen] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setIsIos(/iPad|iPhone|iPod/.test(navigator.userAgent));
+    }
+  }, []);
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -348,17 +356,46 @@ export default function SettingsView() {
         </div>
 
         {isPushSupported() && (
-          <div className="mt-4">
-            <button
-              type="button"
-              className="btn-army"
-              onClick={handleEnablePush}
-              disabled={enablePushLoading}
-            >
-              {enablePushLoading ? "Enabling…" : "Enable push notifications"}
-            </button>
-            {enablePushMessage && (
-              <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{enablePushMessage}</p>
+          <div className="mt-4 space-y-4">
+            <div>
+              <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
+                Click below to open your browser’s &quot;Allow notifications&quot; dialog, then we’ll save this device for push.
+              </p>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={handleEnablePush}
+                disabled={enablePushLoading}
+              >
+                {enablePushLoading ? "Opening…" : "Allow notifications"}
+              </button>
+              {enablePushMessage && (
+                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{enablePushMessage}</p>
+              )}
+            </div>
+            {isIos && (
+              <div>
+                <button
+                  type="button"
+                  className="btn-army-outline"
+                  onClick={() => setShowIosAddToHomeScreen((v) => !v)}
+                >
+                  {showIosAddToHomeScreen ? "Hide iOS steps" : "How to add to Home Screen (iOS)"}
+                </button>
+                {showIosAddToHomeScreen && (
+                  <div className="mt-3 rounded-lg border border-army-purple/20 bg-army-purple/5 p-4 text-sm text-neutral-700 dark:text-neutral-300">
+                    <p className="font-semibold text-army-purple">Add this site to your Home Screen for push on iOS:</p>
+                    <ol className="mt-2 list-inside list-decimal space-y-1">
+                      <li>Tap the <strong>Share</strong> button (square with arrow) at the bottom of Safari.</li>
+                      <li>Scroll and tap <strong>Add to Home Screen</strong>.</li>
+                      <li>Tap <strong>Add</strong> in the top right.</li>
+                    </ol>
+                    <p className="mt-2 text-neutral-500 dark:text-neutral-400">
+                      Then open the app from your Home Screen and allow notifications when prompted.
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
