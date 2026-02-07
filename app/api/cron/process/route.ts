@@ -26,6 +26,19 @@ export async function POST(request: NextRequest) {
     ? { ok: false, error: inactiveChats.error.message }
     : { ok: true, data: inactiveChats.data };
 
+  // Process push notifications and listing alerts (same schedule as cron)
+  try {
+    const base = new URL(request.url).origin;
+    const pushRes = await fetch(`${base}/api/notifications/process-push`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    const pushJson = await pushRes.json().catch(() => ({}));
+    results.process_push = pushRes.ok ? pushJson : { ok: false, status: pushRes.status, body: pushJson };
+  } catch (e) {
+    results.process_push = { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+
   return NextResponse.json({ ok: true, results });
 }
 
