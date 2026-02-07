@@ -10,12 +10,37 @@ export type ListingAlertPreferences = {
   enabled: boolean;
 };
 
+/** Web Push subscription from the Push API (endpoint + keys). */
+export type PushSubscriptionPayload = {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+};
+
 export async function registerPushToken(token: string): Promise<{ error: string | null }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
   const { error } = await supabase
     .from("push_tokens")
     .upsert({ token, user_id: user.id }, { onConflict: "token" });
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+/** Register a Web Push subscription (no Firebase). */
+export async function registerPushSubscription(
+  subscription: PushSubscriptionPayload
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+  const { error } = await supabase.from("push_subscriptions").upsert(
+    {
+      user_id: user.id,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+    },
+    { onConflict: "endpoint" }
+  );
   if (error) return { error: error.message };
   return { error: null };
 }

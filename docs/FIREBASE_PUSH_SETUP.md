@@ -1,57 +1,121 @@
-# Firebase & Web Push setup
+# Firebase push notifications – env vars and where to get them
 
-This app uses **Firebase Cloud Messaging (FCM)** for web push notifications. You need a Firebase project and these environment variables.
+This app uses **Firebase Cloud Messaging (FCM)** for web push. You need a Firebase project and these environment variables. Set every one below for push to work.
 
-## 1. Create or use a Firebase project
+---
+
+## 1. Firebase project and Web app
 
 1. Go to [Firebase Console](https://console.firebase.google.com/).
-2. Create a project or select an existing one.
-3. Add a **Web app** (</> icon) if you haven’t already. You’ll get config like `apiKey`, `authDomain`, `projectId`, etc.
+2. Create a project (or use an existing one).
+3. In the project, click the **</> (Web)** icon to add a Web app. Register the app (you can skip Firebase Hosting). You’ll see a config object like:
 
-## 2. Get the Web config (client)
+   ```js
+   const firebaseConfig = {
+     apiKey: "AIza...",
+     authDomain: "your-project.firebaseapp.com",
+     projectId: "your-project",
+     storageBucket: "your-project.appspot.com",
+     messagingSenderId: "123456789",
+     appId: "1:123456789:web:abc...",
+   };
+   ```
 
-In Firebase Console:
+4. Copy each value into `.env.local` as shown in the table below.
 
-- **Project Settings** (gear) → **General** → scroll to **Your apps** → select your Web app.
-- Copy the config values into your env (see list below).
+---
 
-## 3. Get the VAPID key (Web Push)
+## 2. Env vars – client (browser)
 
-The **VAPID key** is required for the browser to request a push token.
+All of these are required so the browser can initialize Firebase and request a push token. Get them from **Firebase Console → Project Settings (gear) → General → Your apps → your Web app**.
 
-1. In Firebase Console go to **Project Settings** (gear).
+| Env variable | Where to get the value |
+|--------------|------------------------|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | In the Web app config: **apiKey** |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | In the Web app config: **authDomain** (e.g. `your-project.firebaseapp.com`) |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | In the Web app config: **projectId** |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | In the Web app config: **storageBucket** (e.g. `your-project.appspot.com`) |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | In the Web app config: **messagingSenderId** (numeric string) |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | In the Web app config: **appId** (e.g. `1:123456789:web:abc...`) |
+
+---
+
+## 3. VAPID key (Web Push) – client
+
+The browser uses this when subscribing for push. Get it from Firebase, not from `web-push`:
+
+1. **Firebase Console** → **Project Settings** (gear).
 2. Open the **Cloud Messaging** tab.
 3. Scroll to **Web configuration**.
 4. Open the **Web Push certificates** tab.
-5. If there’s no key yet, click **Generate key pair**. Copy the **Key pair** value (long string starting with something like `B...`).  
-   If a key already exists, copy that one.
+5. If there’s no key, click **Generate key pair**. Copy the **Key pair** (long string, often starting with `B...`).
+6. Put it in `.env.local`:
 
-Put it in `.env.local` as:
+| Env variable | Where to get the value |
+|--------------|------------------------|
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | **Cloud Messaging** → **Web Push certificates** → Key pair (or “Generate key pair”) |
+
+Use the **same** public key only (the one you expose to the client). The private key is not used in the browser.
+
+---
+
+## 4. Server (sending push from your API)
+
+The cron job that sends push notifications uses the Firebase Admin SDK. It needs **service account** credentials.
+
+1. **Firebase Console** → **Project Settings** (gear) → **Service accounts**.
+2. Click **Generate new private key** (or use an existing service account).
+3. A JSON file downloads. You have two options:
+
+**Option A – JSON in env (recommended for hosted apps)**
+
+- Open the JSON file. It looks like: `{ "type": "service_account", "project_id": "...", "private_key_id": "...", "private_key": "-----BEGIN PRIVATE KEY-----\n...", "client_email": "...", ... }`.
+- Put the **entire** JSON in a **single line** (no line breaks) and set:
+
+| Env variable | Where to get the value |
+|--------------|------------------------|
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | The full contents of the downloaded service account JSON, as a single-line string. In `.env.local` you can use a single line; if your host supports multi-line secrets, you can paste the JSON with newlines and the code will parse it. |
+
+**Option B – File path (e.g. local dev)**
+
+- Save the JSON file somewhere (e.g. `./firebase-service-account.json`) and **do not** commit it.
+- Set:
+
+| Env variable | Where to get the value |
+|--------------|------------------------|
+| `GOOGLE_APPLICATION_CREDENTIALS` | Absolute or relative path to that JSON file (e.g. `./firebase-service-account.json`) |
+
+You need **either** `FIREBASE_SERVICE_ACCOUNT_JSON` **or** `GOOGLE_APPLICATION_CREDENTIALS`; the server uses whichever is set.
+
+---
+
+## 5. Summary checklist
+
+Add these to `.env.local` (or your host’s env):
 
 ```bash
-NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_key_here
+# --- Client (from Firebase Web app config) ---
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+
+# --- Client (from Cloud Messaging → Web Push certificates) ---
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=...
+
+# --- Server (from Project Settings → Service accounts → Generate new private key) ---
+# Either paste the whole JSON in one line:
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
+# Or use a file path (e.g. local):
+# GOOGLE_APPLICATION_CREDENTIALS=./firebase-service-account.json
 ```
 
-No quotes; the value is the single long string.
-
-## 4. Environment variables summary
-
-**Client (browser) – all `NEXT_PUBLIC_` so they’re safe in the client bundle:**
-
-| Variable | Where in Firebase |
-|----------|-------------------|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Project Settings → General → Your apps → Web app config |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Same |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Same |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Same |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Same (often labeled “messagingSenderId”) |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Same |
-| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Project Settings → **Cloud Messaging** → Web Push certificates (generate key pair if needed) |
-
-**Server (sending push from API):**
-
-| Variable | Where in Firebase |
-|----------|-------------------|
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Project Settings → **Service accounts** → **Generate new private key** (paste the whole JSON as a single-line string), or use `GOOGLE_APPLICATION_CREDENTIALS` with a path to the JSON file. |
-
 After changing env vars, restart the dev server (`npm run dev`).
+
+---
+
+## 6. iOS Safari
+
+On **iPhone/iPad**, FCM web push only works when the site is **added to the Home Screen** and opened from there (not from a normal Safari tab). Users should use **Share → Add to Home Screen**, then open the app from the home screen and allow notifications.

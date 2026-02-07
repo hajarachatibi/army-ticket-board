@@ -212,7 +212,7 @@ export default function SettingsView() {
               "Push is not supported in this browser or context. On iPhone/iPad, add this site to your Home Screen and open the app from there, then try again.";
             break;
           case "no_config":
-            msg = "Push is not configured for this app. Please try again later.";
+            msg = "Push is not configured for this app (missing Firebase config or VAPID key). See docs/FIREBASE_PUSH_SETUP.md.";
             break;
           case "error":
             msg = result.message?.trim() || "Something went wrong. Please try again.";
