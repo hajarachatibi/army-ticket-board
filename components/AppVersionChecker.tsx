@@ -15,7 +15,8 @@ export default function AppVersionChecker() {
       if (!res.ok) return;
       const { version } = (await res.json()) as { version: string };
       const prev = typeof window !== "undefined" ? sessionStorage.getItem(VERSION_KEY) : null;
-      if (prev != null && prev !== version) {
+      const prevSet = prev != null && prev !== "";
+      if (prevSet && prev !== version) {
         setUpdateAvailable(true);
         setDismissed(false);
       } else if (typeof window !== "undefined") {
@@ -42,10 +43,19 @@ export default function AppVersionChecker() {
     };
   }, [checkVersion]);
 
-  const handleRefresh = () => {
-    sessionStorage.setItem(VERSION_KEY, "");
+  const handleRefresh = useCallback(async () => {
+    // Store current server version before reload so after refresh we don't show the banner again
+    try {
+      const res = await fetch("/api/version", { cache: "no-store" });
+      if (res.ok) {
+        const { version } = (await res.json()) as { version: string };
+        if (version) sessionStorage.setItem(VERSION_KEY, version);
+      }
+    } catch {
+      /* ignore */
+    }
     window.location.reload();
-  };
+  }, []);
 
   if (!updateAvailable || dismissed) return null;
 

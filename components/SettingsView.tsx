@@ -361,7 +361,6 @@ export default function SettingsView() {
         </div>
       </section>
 
-      {isAdmin && (
       <section className="rounded-xl border border-army-purple/15 bg-white p-6 dark:border-army-purple/25 dark:bg-neutral-900">
         <h2 className="font-display text-lg font-bold text-army-purple">Notifications</h2>
 
@@ -627,7 +626,6 @@ export default function SettingsView() {
           )}
         </div>
       </section>
-      )}
     </div>
   );
 }
