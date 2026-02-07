@@ -43,9 +43,25 @@ export async function GET(request: NextRequest) {
       method: "POST",
       headers: { Authorization: `Bearer ${secret}` },
     });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) return NextResponse.json({ error: "process-push failed", status: res.status, body }, { status: 502 });
-    return NextResponse.json(body);
+    const text = await res.text();
+    let body: unknown;
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      body = { _raw: text.slice(0, 2000) };
+    }
+    if (!res.ok) {
+      return NextResponse.json(
+        {
+          error: "process-push failed",
+          status: res.status,
+          statusText: res.statusText,
+          body,
+        },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json(typeof body === "object" && body !== null ? body : { result: body });
   } catch (e) {
     return NextResponse.json(
       { error: "Failed to run process-push", message: e instanceof Error ? e.message : String(e) },

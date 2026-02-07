@@ -890,7 +890,11 @@ export default function AdminPanelContent() {
                     const res = await fetch("/api/admin/cron-status");
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok) {
-                      setCronError(data.error || data.message || `HTTP ${res.status}`);
+                      const msg = data.error || data.message || `HTTP ${res.status}`;
+                      const detail = data.body != null ? ` — ${JSON.stringify(data.body)}` : "";
+                      const statusInfo = data.status != null ? ` (status ${data.status})` : "";
+                      setCronError(`${msg}${statusInfo}${detail}`);
+                      setCronResult(data);
                       return;
                     }
                     setCronResult(data);
