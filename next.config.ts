@@ -38,6 +38,12 @@ const nextConfig: NextConfig = {
 
     return [
       {
+        source: "/manifest.webmanifest",
+        headers: [
+          { key: "Content-Type", value: "application/manifest+json" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: csp },

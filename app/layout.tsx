@@ -15,7 +15,16 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Army Ticket Board",
   description: "Find, book, and manage BTS concert tickets with ARMY.",
-  icons: { icon: "/icon.png" },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ARMY Ticket Board",
+  },
 };
 
 export default function RootLayout({
