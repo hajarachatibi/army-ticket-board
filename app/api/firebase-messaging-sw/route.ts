@@ -27,6 +27,10 @@ export async function GET() {
     "  });\n" +
     "}\n";
   return new NextResponse(js, {
-    headers: { "Content-Type": "application/javascript", "Cache-Control": "no-cache" },
+    headers: {
+      "Content-Type": "application/javascript",
+      "Cache-Control": "no-cache",
+      "Service-Worker-Allowed": "/",
+    },
   });
 }
