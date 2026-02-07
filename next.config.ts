@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
     // NOTE: PayPal Smart Buttons render inside secure PayPal iframes and load PayPal-hosted scripts.
     // If you integrate other payment providers, update CSP carefully (keep it as tight as possible).
     const paypalOrigins = ["https://www.paypal.com", "https://www.sandbox.paypal.com", "https://www.paypalobjects.com"];
+    // Firebase SDK is loaded in the service worker via importScripts()
+    const firebaseOrigin = "https://www.gstatic.com";
 
     const csp = [
       "default-src 'self'",
@@ -30,8 +32,8 @@ const nextConfig: NextConfig = {
       "object-src 'none'",
       "frame-ancestors 'none'",
       `frame-src 'self' ${paypalOrigins.join(" ")}`,
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${paypalOrigins.join(" ")}`,
-      `script-src-elem 'self' 'unsafe-inline' ${paypalOrigins.join(" ")}`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${paypalOrigins.join(" ")} ${firebaseOrigin}`,
+      `script-src-elem 'self' 'unsafe-inline' ${paypalOrigins.join(" ")} ${firebaseOrigin}`,
       // Tailwind inline styles are used in some components
       "style-src 'self' 'unsafe-inline'",
       // Images
