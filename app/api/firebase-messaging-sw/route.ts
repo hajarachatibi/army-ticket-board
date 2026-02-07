@@ -10,9 +10,10 @@ export async function GET() {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
   };
   const configStr = JSON.stringify(config);
+  // Use 9.2.0: 11.x returns 404 on gstatic; this version matches Firebase quickstart SW
   const js =
-    'importScripts("https://www.gstatic.com/firebasejs/11.14.0/firebase-app-compat.js");\n' +
-    'importScripts("https://www.gstatic.com/firebasejs/11.14.0/firebase-messaging-compat.js");\n' +
+    'importScripts("https://www.gstatic.com/firebasejs/9.2.0/firebase-app-compat.js");\n' +
+    'importScripts("https://www.gstatic.com/firebasejs/9.2.0/firebase-messaging-compat.js");\n' +
     "var firebaseConfig = " +
     configStr +
     ";\n" +
