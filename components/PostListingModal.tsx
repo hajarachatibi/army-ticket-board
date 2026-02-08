@@ -54,20 +54,19 @@ export default function PostListingModal({
     return valid.length >= 1;
   }, [seats]);
 
-  const canSubmit = useMemo(() => {
+  const canSubmitOther = useMemo(() => {
     if (submitting) return false;
     if (!concertCity.trim() || !concertDate.trim()) return false;
     if (!ticketSource.trim()) return false;
     if (!ticketingExperience.trim() || !sellingReason.trim()) return false;
     if (seats.length < 1 || seats.length > 4) return false;
-    for (const s of seats) {
-      if (!s.section.trim() || !s.row.trim() || !s.seat.trim()) return false;
-      const p = parsePrice(s.faceValuePrice);
-      if (!Number.isFinite(p) || p <= 0) return false;
-      if (!s.currency.trim()) return false;
-    }
     return true;
-  }, [concertCity, concertDate, sellingReason, seats, submitting, ticketSource, ticketingExperience]);
+  }, [concertCity, concertDate, sellingReason, seats.length, submitting, ticketSource, ticketingExperience]);
+
+  const canSubmit = useMemo(() => {
+    if (!canSubmitOther) return false;
+    return hasValidSeats;
+  }, [canSubmitOther, hasValidSeats]);
 
   const reset = () => {
     setConcertCity("");
