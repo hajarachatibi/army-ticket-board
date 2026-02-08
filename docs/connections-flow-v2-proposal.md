@@ -215,35 +215,58 @@ Goal: over time, existing behavior is aligned with the new flow without breaking
 
 ### 4.1 Existing listings (no connection yet)
 
-- **Option A – Soft:** New flow applies only to listings **created after** the release. Existing listings keep current “connect → bonding after accept” behavior until those connections end.
-- **Option B – On next action:** Next time the seller “edits” or “reposts” or does a defined action, require the 2 bonding answers (and store as user-level). Then treat that listing as “v2” for new connections.
-- **Recommendation:** Option A for simplicity. Option B only if you want all listings to converge to v2 without waiting for natural churn.
+Existing listings with **no connection yet** are brought into the new flow as follows:
+
+- **Sellers who have no bonding answers in their profile:**  
+  On the seller's **next login**, show a window: *"Add your bonding answers now to build trust with buyers."* (Same 2 global questions; store as user-level.) Once they submit, the **new flow is activated for all their existing listings**—new connection requests to those listings follow v2 (buyer sees socials + bonding at connect; seller sees accept → socials → preview).
+- **Sellers who already have bonding answers:**  
+  **New flow is activated directly** for their existing listings; no prompt on login. New connections to those listings use v2.
+
+```mermaid
+flowchart TB
+  subgraph existing_listing["Existing listing, no connection yet"]
+    A[Seller has listings, no connections]
+    A --> B{Has user bonding answers?}
+    B -->|No| C[Next login: window to add 2 bonding answers]
+    B -->|Yes| E[v2 flow active for his listings]
+    C --> D[Submit answers - save per user]
+    D --> E
+  end
+```
 
 ### 4.2 Existing connections in `pending_seller`
 
-- No bonding or socials from buyer yet in current flow. When seller accepts:
-  - **Option A:** Keep current flow: move to `bonding`, use current 3 questions for this connection only; then preview → comfort → social → agreement → chat_open.
-  - **Option B:** Ask seller for “share socials?” at accept; then move to a “preview” that uses buyer’s existing user-level bonding answers if they have any, otherwise prompt buyer for 2 questions once (and save as user-level). More complex; only if you want every connection to look like v2 as soon as possible.
-- **Recommendation:** Option A – let these connections complete with the current flow. New connections (from v2 connect flow) use the new rules.
+When the seller **accepts** an existing request that is still in `pending_seller`:
+
+1. **Ask seller:** "Share socials with this buyer?" (Yes/No) and store the choice.
+2. **Then move to a "preview"** that:
+   - Uses the **buyer's existing user-level bonding answers** if they have any (reuse; no prompt).
+   - If the buyer has **no** user-level bonding answers yet, **prompt the buyer once** for the 2 questions, save as **user-level**, then show the preview.
+3. From there, follow the v2-style match message and both confirm → chat_open (no separate bonding stage).
+
+So these connections are migrated to the new flow at accept time: seller socials at accept, then preview with buyer bonding (existing or one-time collect).
 
 ### 4.3 Existing connections in `bonding`
 
-- Both sides may have already submitted, or only one. Easiest is to **leave as-is**: keep 3 questions and current transition to `preview`. No change to in-flight bonding.
-- **Recommendation:** Do not migrate mid-bonding; let them finish with current logic.
+- Both sides may have already submitted, or only one. **Do not migrate mid-bonding.**
+- **Leave as-is:** keep current 3 questions and current transition to `preview` → comfort → social → agreement → chat_open.
+- Let them finish with **current logic**.
 
 ### 4.4 Existing connections in `preview`, `comfort`, `social`, `agreement`, `chat_open`
 
-- No change to stage logic; keep current timeouts and transitions. Only new connections (and optionally “new listings” as in 4.1) follow v2.
-- **Recommendation:** No migration for these stages; they run to completion as today.
+- **Do not migrate** these stages.
+- No change to stage logic; keep current timeouts and transitions.
+- They run to completion as today.
 
 ### 4.5 Summary table (migration)
 
 | Scenario | Suggestion |
 |----------|------------|
-| New listing (after release) | Full v2: seller answers 2 questions at post; buyer answers at connect + socials intent. |
-| Existing listing, no connections | Keep current connect flow until listing is removed/sold or you add an explicit “migrate to v2” action (Option B in 4.1). |
-| Existing connection in pending_seller | On accept, use current flow (bonding with 3 questions, then preview → …). |
-| Existing connection in bonding or later | No change; complete with current flow. |
+| New listing (after release) | Full v2: seller answers 2 questions at post (if not already); buyer at connect + socials intent. |
+| Existing listing, no connections; seller has **no** bonding answers | On seller's **next login**: window to add 2 bonding answers; after submit, v2 active for his listings. |
+| Existing listing, no connections; seller **has** bonding answers | v2 activated directly for his listings. |
+| Existing connection in `pending_seller` | At accept: ask seller "share socials?" → move to preview using buyer's user-level bonding (or prompt buyer once for 2 questions and save as user-level) → match message → both confirm → chat_open. |
+| Existing connection in `bonding` or later | Do not migrate; complete with current logic. |
 
 ---
 
@@ -329,7 +352,7 @@ Optional:
 - Reduce **listing limit** from 5 to 3 (non-removed).
 - Add **seller cap:** max 3 connections in active stages (across all listings); enforce in accept and in connect (for seller side).
 - Notifications: add/update events as in section 5; reuse existing push/in-app channels.
-- Migration: keep existing connections on current flow; apply v2 only to new listings and new connection requests (as in section 4).
+- Migration: (1) Existing listings, no connections—sellers with no bonding answers get a window on next login to add answers, then v2 for their listings; sellers with bonding already get v2 directly. (2) Existing connections in pending_seller—at accept, ask seller “share socials?”, then preview using buyer’s user-level bonding (or prompt buyer once). (3) All other stages—do not migrate; complete with current logic (section 4).
 
 ---
 
