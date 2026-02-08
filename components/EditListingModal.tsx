@@ -38,6 +38,21 @@ export default function EditListingModal({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showNoSeatsModal, setShowNoSeatsModal] = useState(false);
+
+  const hasValidSeats = useMemo(() => {
+    if (seats.length < 1) return false;
+    const valid = seats.filter(
+      (s) =>
+        s.section.trim() &&
+        s.row.trim() &&
+        s.seat.trim() &&
+        Number.isFinite(parsePrice(s.faceValuePrice)) &&
+        (parsePrice(s.faceValuePrice) ?? 0) > 0 &&
+        s.currency.trim()
+    );
+    return valid.length >= 1;
+  }, [seats]);
 
   useEffect(() => {
     if (!open || !listing) return;
@@ -59,23 +74,23 @@ export default function EditListingModal({
     );
     setError(null);
     setSubmitting(false);
+    setShowNoSeatsModal(false);
   }, [listing, open]);
 
-  const canSubmit = useMemo(() => {
+  const canSubmitOther = useMemo(() => {
     if (submitting) return false;
     if (!listing?.id) return false;
     if (!concertCity.trim() || !concertDate.trim()) return false;
     if (!ticketSource.trim()) return false;
     if (!ticketingExperience.trim() || !sellingReason.trim()) return false;
     if (seats.length < 1 || seats.length > 4) return false;
-    for (const s of seats) {
-      if (!s.section.trim() || !s.row.trim() || !s.seat.trim()) return false;
-      const p = parsePrice(s.faceValuePrice);
-      if (!Number.isFinite(p) || p <= 0) return false;
-      if (!s.currency.trim()) return false;
-    }
     return true;
-  }, [concertCity, concertDate, listing?.id, sellingReason, seats, submitting, ticketSource, ticketingExperience]);
+  }, [concertCity, concertDate, listing?.id, sellingReason, seats.length, submitting, ticketSource, ticketingExperience]);
+
+  const canSubmit = useMemo(() => {
+    if (!canSubmitOther) return false;
+    return hasValidSeats;
+  }, [canSubmitOther, hasValidSeats]);
 
   const close = () => {
     if (submitting) return;
@@ -94,7 +109,11 @@ export default function EditListingModal({
   };
 
   const submit = async () => {
-    if (!canSubmit || !listing) return;
+    if (!canSubmitOther || !listing) return;
+    if (!hasValidSeats) {
+      setShowNoSeatsModal(true);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -313,11 +332,43 @@ export default function EditListingModal({
           <button type="button" className="btn-army-outline" onClick={close} disabled={submitting}>
             Cancel
           </button>
-          <button type="button" className="btn-army" onClick={submit} disabled={!canSubmit}>
+          <button type="button" className="btn-army" onClick={submit} disabled={!canSubmitOther}>
             {submitting ? "Saving…" : "Save changes"}
           </button>
         </div>
       </div>
+
+      {showNoSeatsModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowNoSeatsModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-bold text-army-purple">Add at least one seat</h3>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Listings must have at least one seat with section, row, seat, and face value. Fill in the seat details above or tap Add seat.
+            </p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button type="button" className="btn-army-outline" onClick={() => setShowNoSeatsModal(false)}>
+                OK
+              </button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => {
+                  addSeat();
+                  setShowNoSeatsModal(false);
+                }}
+              >
+                Add seat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

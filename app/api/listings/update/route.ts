@@ -3,7 +3,6 @@ import { checkBotId } from "botid/server";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { ARIRANG_CITIES } from "@/lib/data/arirang";
-import { createServiceClient } from "@/lib/supabase/serviceClient";
 import { parsePrice } from "@/lib/parsePrice";
 import { sameOriginError } from "@/lib/security/sameOrigin";
 
@@ -115,47 +114,27 @@ export async function POST(request: NextRequest) {
   if (seats.some((s) => !s.section || !s.row || !s.seat)) return NextResponse.json({ error: "Each seat needs section, row, seat" }, { status: 400 });
   if (seats.some((s) => s.faceValuePrice <= 0)) return NextResponse.json({ error: "Each seat needs a face value price" }, { status: 400 });
 
-  let client: ReturnType<typeof createServiceClient> | null = null;
-  try {
-    client = createServiceClient();
-  } catch {
-    // Fallback when service role is not configured (e.g. local dev): use user's session; RLS allows seller to update own listing.
-  }
-  const db = client ?? supabase;
-
-  const updatePayload: Record<string, unknown> = {
-    concert_city: concertCity,
-    concert_date: concertDate,
-    ticket_source: ticketSource,
-    ticketing_experience: ticketingExperience,
-    selling_reason: sellingReason,
-    price_explanation: priceExplanation || null,
-  };
-  if (vip !== undefined) updatePayload.vip = vip;
-  if (loge !== undefined) updatePayload.loge = loge;
-  if (suite !== undefined) updatePayload.suite = suite;
-  const { error: upErr } = await db
-    .from("listings")
-    .update(updatePayload)
-    .eq("id", listingId)
-    .eq("seller_id", user.id);
-  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
-
-  const { error: delErr } = await db.from("listing_seats").delete().eq("listing_id", listingId);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 });
-
-  const { error: seatsErr } = await db.from("listing_seats").insert(
-    seats.map((s, idx) => ({
-      listing_id: listingId,
-      seat_index: idx + 1,
+  // Atomic update: listing row + replace seats in one transaction (avoids leaving listing with 0 seats).
+  const { error: rpcErr } = await supabase.rpc("update_listing_with_seats", {
+    p_listing_id: listingId,
+    p_concert_city: concertCity,
+    p_concert_date: concertDate,
+    p_ticket_source: ticketSource,
+    p_ticketing_experience: ticketingExperience,
+    p_selling_reason: sellingReason,
+    p_price_explanation: priceExplanation ?? "",
+    p_vip: vip ?? false,
+    p_loge: loge ?? false,
+    p_suite: suite ?? false,
+    p_seats: seats.map((s) => ({
       section: s.section,
-      seat_row: s.row,
+      row: s.row,
       seat: s.seat,
-      face_value_price: s.faceValuePrice,
+      faceValuePrice: s.faceValuePrice,
       currency: s.currency,
-    }))
-  );
-  if (seatsErr) return NextResponse.json({ error: seatsErr.message }, { status: 400 });
+    })),
+  });
+  if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 400 });
 
   return response;
 }

@@ -38,6 +38,21 @@ export default function PostListingModal({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showNoSeatsModal, setShowNoSeatsModal] = useState(false);
+
+  const hasValidSeats = useMemo(() => {
+    if (seats.length < 1) return false;
+    const valid = seats.filter(
+      (s) =>
+        s.section.trim() &&
+        s.row.trim() &&
+        s.seat.trim() &&
+        Number.isFinite(parsePrice(s.faceValuePrice)) &&
+        (parsePrice(s.faceValuePrice) ?? 0) > 0 &&
+        s.currency.trim()
+    );
+    return valid.length >= 1;
+  }, [seats]);
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
@@ -65,6 +80,7 @@ export default function PostListingModal({
     setSeats([{ section: "", row: "", seat: "", faceValuePrice: "", currency: "USD" }]);
     setSubmitting(false);
     setError(null);
+    setShowNoSeatsModal(false);
   };
 
   const close = () => {
@@ -85,6 +101,10 @@ export default function PostListingModal({
 
   const submit = async () => {
     if (!canSubmit) return;
+    if (!hasValidSeats) {
+      setShowNoSeatsModal(true);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -314,11 +334,43 @@ export default function PostListingModal({
           <button type="button" className="btn-army-outline" onClick={close} disabled={submitting}>
             Cancel
           </button>
-          <button type="button" className="btn-army" onClick={submit} disabled={!canSubmit}>
+          <button type="button" className="btn-army" onClick={submit} disabled={!canSubmitOther}>
             {submitting ? "Posting…" : "Post listing"}
           </button>
         </div>
       </div>
+
+      {showNoSeatsModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowNoSeatsModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-bold text-army-purple">Add at least one seat</h3>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Listings must have at least one seat with section, row, seat, and face value. Fill in the seat details above or tap Add seat.
+            </p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button type="button" className="btn-army-outline" onClick={() => setShowNoSeatsModal(false)}>
+                OK
+              </button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => {
+                  addSeat();
+                  setShowNoSeatsModal(false);
+                }}
+              >
+                Add seat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
