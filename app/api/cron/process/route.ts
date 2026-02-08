@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/serviceClient";
-import { runProcessPush } from "@/lib/processPushRunner";
 
 export const runtime = "nodejs";
-export const maxDuration = 65;
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,9 +26,14 @@ async function runCron(request: NextRequest) {
     ? { ok: false, error: inactiveChats.error.message }
     : { ok: true, data: inactiveChats.data };
 
-  // Run process-push in-process (no self-fetch) so Vercel Cron works reliably and avoids timeouts
   try {
-    results.process_push = await runProcessPush(supabase);
+    const base = new URL(request.url).origin;
+    const pushRes = await fetch(`${base}/api/notifications/process-push`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    const pushJson = await pushRes.json().catch(() => ({}));
+    results.process_push = pushRes.ok ? pushJson : { ok: false, status: pushRes.status, body: pushJson };
   } catch (e) {
     results.process_push = { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -45,4 +48,3 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return runCron(request);
 }
-
