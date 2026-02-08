@@ -196,5 +196,9 @@ export async function runProcessPush(supabase?: SupabaseClient): Promise<Process
   }
   results.listingAlerts = { sent: alertSent, errors: alertErrors };
 
-  return { ok: true, ...results };
+  return {
+    ok: true,
+    push: { sent: pushSent, errors: pushErrors },
+    listingAlerts: { sent: alertSent, errors: alertErrors },
+  };
 }
