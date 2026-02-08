@@ -132,10 +132,11 @@ After changing env vars, restart the dev server (`npm run dev`).
 
 ## 7. Cron (required for push and listing alerts)
 
-Push notifications and **listing alerts** are sent when the cron runs. The repo includes `vercel.json` so that **Vercel Cron** calls `/api/cron/process` every 5 minutes.
+Push notifications and **listing alerts** are sent when the cron runs. The repo includes `vercel.json` so that **Vercel Cron** calls `/api/cron/process` every 15 minutes.
 
-- Set **`CRON_SECRET`** in your Vercel project (Project → Settings → Environment Variables): a random string (e.g. 32 chars). Vercel sends it as `Authorization: Bearer <CRON_SECRET>` when invoking the cron; the API rejects requests without it.
-- Without `CRON_SECRET`, the cron endpoint returns 401 and push/listing alerts never run.
+- Set **`CRON_SECRET`** in your Vercel project (**Project → Settings → Environment Variables**): a random string (e.g. 32 chars). When this variable is set, Vercel sends it as `Authorization: Bearer <CRON_SECRET>` when invoking the cron; the API rejects requests without it. **Use the Production (and Preview if needed) environment** so the cron runner can send it.
+- Without `CRON_SECRET`, the cron endpoint returns 401 and automatic runs never succeed (manual run from Admin still works because it uses the same secret from your server env).
+- **Vercel Hobby (free) plan:** Cron jobs can run **only once per day**. The schedule in `vercel.json` is every 15 minutes; that requires **Pro** (or Team/Enterprise). On Hobby, the automatic cron will not run every 15 min — use **Admin → Cron & Push → Run push & listing alerts now** when you need to send, or upgrade to Pro, or use an external cron service (e.g. cron-job.org) that calls `GET https://YOUR_DOMAIN/api/cron/process` with header `Authorization: Bearer YOUR_CRON_SECRET` every 15 minutes.
 - Push is sent when **FCM** and/or **Web Push** is configured. If FCM is set, notifications go to FCM tokens; if `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set, they also go to Web Push subscriptions. If neither is set, the response includes a `reason` and push is skipped.
 
 ### How to check if cron / push is working
@@ -150,7 +151,7 @@ Push notifications and **listing alerts** are sent when the cron runs. The repo 
    ```bash
    curl -X GET "https://YOUR_DOMAIN.vercel.app/api/cron/process" -H "Authorization: Bearer YOUR_CRON_SECRET"
    ```
-   The response includes `process_push` with the same structure as above. Vercel Cron uses GET to this URL every 5 minutes.
+   The response includes `process_push` with the same structure as above. Vercel Cron uses GET to this URL on the schedule in `vercel.json` (e.g. every 15 minutes on Pro).
 
 3. **Vercel logs:** In the Vercel dashboard, **Logs** or **Functions** may show cron invocations. If there are no errors but you still get no notifications, use the Admin **Cron & Push** tab to confirm the process-push result (e.g. FCM configured, tokens present, and prefs enabled).
 

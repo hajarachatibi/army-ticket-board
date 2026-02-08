@@ -905,6 +905,9 @@ export default function AdminPanelContent() {
               <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
                 Push notifications and listing alerts run when the cron job calls <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-700">/api/notifications/process-push</code>. Use the button below to run that job now and see the result (same as what the cron runs every 15 minutes).
               </p>
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                <strong>Automatic cron not running?</strong> On the <strong>Vercel Hobby (free) plan</strong>, cron jobs can run only <strong>once per day</strong>. To run every 15 minutes you need Pro (or an external cron that calls <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-600">GET /api/cron/process</code> with <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-600">Authorization: Bearer YOUR_CRON_SECRET</code>). Also ensure <code className="rounded bg-neutral-200 px-1 dark:bg-neutral-600">CRON_SECRET</code> is set in Vercel → Project → Settings → Environment Variables (Production).
+              </div>
 
               <h3 className="mb-2 font-display text-sm font-semibold text-army-purple">Why might &quot;sent&quot; be 0?</h3>
               {pushStatsLoading ? (
