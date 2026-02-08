@@ -16,23 +16,26 @@ export type PushSubscriptionPayload = {
   keys: { p256dh: string; auth: string };
 };
 
+/** Register FCM token. Keeps only this token for the user (removes older ones) to avoid double notifications. */
 export async function registerPushToken(token: string): Promise<{ error: string | null }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
-  const { error } = await supabase
+  const { error: upsertError } = await supabase
     .from("push_tokens")
     .upsert({ token, user_id: user.id }, { onConflict: "token" });
-  if (error) return { error: error.message };
+  if (upsertError) return { error: upsertError.message };
+  // Remove any other FCM tokens for this user so we send only once per user (avoids double notifications).
+  await supabase.from("push_tokens").delete().eq("user_id", user.id).neq("token", token);
   return { error: null };
 }
 
-/** Register a Web Push subscription (no Firebase). */
+/** Register a Web Push subscription (no Firebase). Keeps only this subscription for the user to avoid double notifications. */
 export async function registerPushSubscription(
   subscription: PushSubscriptionPayload
 ): Promise<{ error: string | null }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
-  const { error } = await supabase.from("push_subscriptions").upsert(
+  const { error: upsertError } = await supabase.from("push_subscriptions").upsert(
     {
       user_id: user.id,
       endpoint: subscription.endpoint,
@@ -41,7 +44,9 @@ export async function registerPushSubscription(
     },
     { onConflict: "endpoint" }
   );
-  if (error) return { error: error.message };
+  if (upsertError) return { error: upsertError.message };
+  // Remove any other Web Push subscriptions for this user so we send only once per user.
+  await supabase.from("push_subscriptions").delete().eq("user_id", user.id).neq("endpoint", subscription.endpoint);
   return { error: null };
 }
 
