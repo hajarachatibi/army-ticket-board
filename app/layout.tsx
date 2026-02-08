@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   description: "Find, book, and manage BTS concert tickets with ARMY.",
   icons: {
     icon: [{ url: "/army-ticket-board-logo.png", type: "image/png" }],
-    apple: [{ url: "/icons/apple-touch-icon.png" }],
   },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -35,10 +34,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={outfit.variable} suppressHydrationWarning>
       <head>
-        {/* iOS PWA: explicit apple-touch-icon and standalone meta so Home Screen icon and title work */}
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Army Ticket Board" />
       </head>
       <body className="flex min-h-screen flex-col antialiased">
