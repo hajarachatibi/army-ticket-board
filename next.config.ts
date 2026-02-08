@@ -4,10 +4,7 @@ import { withBotId } from "botid/next/config";
 
 const nextConfig: NextConfig = {
   async redirects() {
-    return [
-      { source: "/icon.png", destination: "/army-ticket-board-logo.png", permanent: true },
-      { source: "/apple-icon.png", destination: "/army-ticket-board-logo.png", permanent: true },
-    ];
+    return [];
   },
   experimental: {
     // Disable Turbopack dev cache; corrupt cache can cause "stuck compiling"
