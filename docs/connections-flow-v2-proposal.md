@@ -6,7 +6,7 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 
 ## 1. Design goals
 
-- **Trust up front:** Sellers answer 2 bonding questions when posting; buyers answer 2 bonding questions when connecting (and confirm socials intent). Same 2 questions for everyone; answers are **per user** and reused across all connections.
+- **Trust up front:** Sellers answer 2 bonding questions when posting (if not already answered); buyers answer 2 bonding questions when connecting (if not already answered) and confirm socials intent. Same 2 questions for everyone; answers are **per user** and reused across all connections—no need to ask again once stored.
 - **Simpler limits:** Max 3 listings per user (non-removed); max 3 active connections per seller (total, not per listing).
 - **Socials decided early:** Buyer decides “share socials with this seller?” before the request is sent; seller decides “share socials with this buyer?” when accepting. If both yes → matching message includes socials.
 
@@ -16,7 +16,7 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 flowchart TB
   subgraph seller["Seller"]
     S1[Fill listing + Post]
-    S2[Answer 2 bonding questions]
+    S2[Answer 2 bonding questions if first time]
     S3[Listing live]
     S4[Get request - See buyer lite profile]
     S5[Accept or Decline]
@@ -49,26 +49,27 @@ flowchart TB
 ### 2.1 Seller: post listing
 
 ```mermaid
-flowchart LR
+flowchart TB
   A[Fill listing form] --> B[Click Post]
-  B --> C[Modal: Answer 2 bonding questions]
-  C --> D[Submit answers]
-  D --> E[Save user bonding answers]
-  E --> F[Create listing]
+  B --> C{Already has user bonding answers?}
+  C -->|No| D[Modal: Answer 2 bonding questions]
+  C -->|Yes| F[Create listing]
+  D --> E[Submit answers]
+  E --> F
   F --> G[Listing live: processing to active]
 ```
 
 1. Seller fills listing (city, date, seats, etc.) and clicks **Post**.
-2. **New step (before listing goes live):** A window appears: *“Please answer these two questions to build trust with ARMY buyers.”*  
+2. **Check:** If the seller **already has** user-level bonding answers (from a previous listing or connection), skip the questions and go straight to creating the listing.
+3. **If not:** A window appears: *“Please answer these two questions to build trust with ARMY buyers.”*  
    - Same 2 global bonding questions (admin-configured).  
-   - Seller submits answers.  
-3. Answers are stored **per user** (e.g. `user_bonding_answers` or equivalent), not per connection.
-4. Listing is then created and goes live as today (e.g. processing → active).
+   - Seller submits answers; they are stored **per user** (e.g. `user_bonding_answers` or equivalent), not per connection; then the listing is created.
+4. Listing goes live as today (e.g. processing → active).
 
 **Data / backend (conceptual):**
 
 - New or reused store for “user’s bonding answers” (user_id, question_ids, answers, updated_at).
-- Listing creation API or a new “post-listing bonding” step that saves these answers and then creates the listing.
+- Listing creation: **if** seller has no user bonding answers yet, show “post-listing bonding” step and save answers; **else** create listing immediately.
 
 ---
 
