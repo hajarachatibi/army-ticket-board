@@ -224,6 +224,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run middleware for all non-asset routes so maintenance can apply site-wide.
+  // Run middleware for all non-asset routes. Exclude static assets (dots) so /icons/*.png are served directly for PWA.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|.*\\..*).*)"],
 };

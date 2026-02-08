@@ -1,6 +1,16 @@
 # Home Screen Icon Setup (PWA / Add to Home Screen)
 
-Exact setup used for the Army Ticket Board home screen icon. The icon still does not display on some devices (e.g. iOS); only the app name or "A" may show.
+iOS-safe PWA configuration for Army Ticket Board.
+
+---
+
+## Verification (standalone mode)
+
+When the app is launched **from the Home Screen** (not from Safari), the following should be true in the browser context:
+
+- `window.matchMedia('(display-mode: standalone)').matches` → **true**
+
+If it returns **false**, the app is not running in standalone mode (e.g. still opened in a browser tab). Remove from Home Screen and add again, and open via the home screen icon.
 
 ---
 
