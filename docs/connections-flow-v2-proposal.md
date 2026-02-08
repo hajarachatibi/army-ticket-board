@@ -10,11 +10,53 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 - **Simpler limits:** Max 3 listings per user (non-removed); max 3 active connections per seller (total, not per listing).
 - **Socials decided early:** Buyer decides “share socials with this seller?” before the request is sent; seller decides “share socials with this buyer?” when accepting. If both yes → matching message includes socials.
 
+### Overview (v2 flows)
+
+```mermaid
+flowchart TB
+  subgraph seller["Seller"]
+    S1[Fill listing + Post]
+    S2[Answer 2 bonding questions]
+    S3[Listing live]
+    S4[Get request - See buyer lite profile]
+    S5[Accept or Decline]
+    S6[If accept: Confirm socials?]
+    S7[Match message - Both confirm - Chat]
+    S1 --> S2 --> S3
+    S4 --> S5 --> S6 --> S7
+  end
+
+  subgraph buyer["Buyer"]
+    B1[See listing - Connect]
+    B2[See seller lite profile]
+    B3[Share socials with seller?]
+    B4[Answer 2 bonding questions if first time]
+    B5[Request sent]
+    B6[If accepted: Match message - Confirm - Chat]
+    B1 --> B2 --> B3 --> B4 --> B5
+  end
+
+  S3 -.->|listing visible| B1
+  B5 -.->|notify| S4
+  S5 -.->|accept| B6
+  S7 <-.->|both in chat| B6
+```
+
 ---
 
 ## 2. New flow for new listings
 
 ### 2.1 Seller: post listing
+
+```mermaid
+flowchart LR
+  A[Fill listing form] --> B[Click Post]
+  B --> C[Modal: Answer 2 bonding questions]
+  C --> D[Submit answers]
+  D --> E[Save user bonding answers]
+  E --> F[Create listing]
+  F --> G[Listing live: processing to active]
+```
 
 1. Seller fills listing (city, date, seats, etc.) and clicks **Post**.
 2. **New step (before listing goes live):** A window appears: *“Please answer these two questions to build trust with ARMY buyers.”*  
@@ -32,6 +74,20 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 
 ### 2.2 Buyer: connect to listing
 
+```mermaid
+flowchart TB
+  A[See listing → Click Connect] --> B[Show seller lite profile + listing]
+  B --> C[Do you want to share socials with this seller?]
+  C --> D{Already has user bonding answers?}
+  D -->|No| E[Show 2 bonding questions]
+  D -->|Yes| F[Reuse existing answers]
+  E --> G[Submit]
+  F --> G
+  G --> H[Save socials intent + answers if first time]
+  H --> I[Create connection: pending_seller]
+  I --> J[Notify seller]
+```
+
 1. Buyer sees listing and clicks **Connect**.
 2. **Single step (before any request is sent):**
    - Buyer sees **seller’s lite profile** (and listing summary).
@@ -48,6 +104,23 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 ---
 
 ### 2.3 Seller: accept or decline
+
+```mermaid
+flowchart TB
+  A[Seller gets notification] --> B[Open request: see buyer lite profile]
+  B --> C{Accept or Decline?}
+  C -->|Decline| D[Connection to declined, notify buyer]
+  C -->|Accept| E[Confirm socials exchange with this buyer?]
+  E --> F[Store seller socials choice]
+  F --> G[Move to preview or agreement]
+  G --> H[Both see match message]
+  H --> I{Both chose share socials?}
+  I -->|Yes| J[Match message includes socials]
+  I -->|No| K[Match message without socials]
+  J --> L[Both confirm]
+  K --> L
+  L --> M[chat_open]
+```
 
 1. Seller gets notification: new connection request.
 2. Seller sees **buyer’s lite profile** (and listing summary) and can **Accept** or **Decline**.
@@ -74,6 +147,27 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 
 Bonding is no longer a separate stage; it’s done before the request (buyer) and at post time (seller).
 
+#### Stage flow (v2 simplified)
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending_seller: Buyer sends request (already did socials + bonding)
+
+  pending_seller --> declined: Seller declines
+  pending_seller --> expired: 24h no response
+  pending_seller --> agreement: Seller accepts + confirms socials
+
+  agreement --> chat_open: Both confirm match message
+  agreement --> expired: 24h timeout
+
+  chat_open --> ended: User ends or listing sold or removed
+  chat_open --> ended: Chat inactive e.g. 24h
+
+  ended --> [*]
+  expired --> [*]
+  declined --> [*]
+```
+
 ---
 
 ## 3. New limits (for new flow)
@@ -84,6 +178,33 @@ Bonding is no longer a separate stage; it’s done before the request (buyer) an
 | **Active connections per seller** | Max **3** active connections in total (across all the seller’s listings), not per listing. Stages that count: e.g. pending_seller (once accepted they move on), bonding (if kept), preview, social, agreement, chat_open. So at most 3 connections in “active” stages. |
 | **Bonding questions** | **2** questions (admin-configured). Answered once per user; reused for all their connections. |
 | **Socials** | Buyer decides at connect time; seller decides at accept time. If both yes → matching message includes socials. |
+
+```mermaid
+flowchart TB
+  subgraph listings["Listings per user"]
+    L1[Max 3 non-removed]
+    L2[processing, active, locked, sold count]
+    L3[removed do not count]
+    L1 --- L2
+    L2 --- L3
+  end
+
+  subgraph seller_conn["Seller: active connections"]
+    S1[Max 3 total]
+    S2[Across all seller listings]
+    S3[Stages: pending_seller, agreement, chat_open]
+    S1 --- S2
+    S2 --- S3
+  end
+
+  subgraph bonding["Bonding"]
+    B1[2 questions, admin-configured]
+    B2[Answered once per user]
+    B3[Reused for all connections]
+    B1 --- B2
+    B2 --- B3
+  end
+```
 
 ---
 
@@ -126,6 +247,43 @@ Goal: over time, existing behavior is aligned with the new flow without breaking
 ---
 
 ## 5. Notifications flow (suggested)
+
+```mermaid
+flowchart LR
+  subgraph events["Events"]
+    E1[Seller posts listing]
+    E2[Buyer sends request]
+    E3[Seller declines]
+    E4[Seller accepts]
+    E5[Both confirm match]
+    E6[Connection ended / expired]
+  end
+
+  subgraph to_seller["→ Seller"]
+    T1[Optional: Your listing is live]
+    T2[New request from buyer]
+    T3[Reminder: request pending 12h]
+    T4[Connection ended reason]
+  end
+
+  subgraph to_buyer["→ Buyer"]
+    U1[Request declined]
+    U2[Request accepted – view match]
+    U3[You're on waiting list]
+    U4[Matched – chat open]
+    U5[Connection ended reason]
+  end
+
+  E1 --> T1
+  E2 --> T2
+  E2 --> T3
+  E3 --> U1
+  E4 --> U2
+  E4 --> U3
+  E5 --> U4
+  E6 --> T4
+  E6 --> U5
+```
 
 - **Seller posts listing (after answering 2 questions):** Optional in-app: *“Your listing is live.”* (No push required if you don’t notify on post today.)
 - **Buyer sends connection request:**  
