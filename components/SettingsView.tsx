@@ -197,6 +197,9 @@ export default function SettingsView() {
     }
   }, [user?.id, loadPushPrefs, loadListingAlertPrefs]);
 
+  const pushAlreadyActivatedMessage =
+    "You've already activated notifications for this device. No need to do it again.";
+
   const handleEnablePush = useCallback(async () => {
     setEnablePushMessage(null);
     setEnablePushLoading(true);
@@ -206,7 +209,9 @@ export default function SettingsView() {
       if (result.reason === "ok" && result.token) {
         const { error } = await registerPushToken(result.token);
         if (error) {
-          setEnablePushMessage(error);
+          const isAlreadyActivated =
+            /row level security|violates|duplicate|already exists|unique constraint/i.test(error);
+          setEnablePushMessage(isAlreadyActivated ? pushAlreadyActivatedMessage : error);
           return;
         }
         setEnablePushMessage("Push notifications enabled (this device is registered).");
@@ -229,7 +234,9 @@ export default function SettingsView() {
       if (webResult.reason === "ok" && webResult.subscription) {
         const { error } = await registerPushSubscription(webResult.subscription);
         if (error) {
-          setEnablePushMessage(error);
+          const isAlreadyActivated =
+            /row level security|violates|duplicate|already exists|unique constraint/i.test(error);
+          setEnablePushMessage(isAlreadyActivated ? pushAlreadyActivatedMessage : error);
           return;
         }
         setEnablePushMessage(
