@@ -11,6 +11,13 @@ AS $$
 DECLARE
   v_seller_id uuid;
   v_username text;
+  v_country text;
+  v_army_bias_answer text;
+  v_army_years_army text;
+  v_army_favorite_album text;
+  v_army_bias_prompt text;
+  v_army_years_army_prompt text;
+  v_army_favorite_album_prompt text;
   v_ticket_source text;
   v_ticketing_experience text;
   v_selling_reason text;
@@ -34,7 +41,21 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  SELECT username INTO v_username FROM public.user_profiles WHERE id = v_seller_id;
+  SELECT up.username, up.country, up.army_bias_answer, up.army_years_army, up.army_favorite_album
+  INTO v_username, v_country, v_army_bias_answer, v_army_years_army, v_army_favorite_album
+  FROM public.user_profiles up
+  WHERE up.id = v_seller_id;
+
+  SELECT
+    MAX(CASE WHEN q.key = 'bias' THEN q.prompt END),
+    MAX(CASE WHEN q.key = 'years_army' THEN q.prompt END),
+    MAX(CASE WHEN q.key = 'favorite_album' THEN q.prompt END)
+  INTO
+    v_army_bias_prompt,
+    v_army_years_army_prompt,
+    v_army_favorite_album_prompt
+  FROM public.army_profile_questions q
+  WHERE q.key IN ('bias', 'years_army', 'favorite_album');
 
   v_qids := public.get_connection_bonding_question_ids();
   SELECT json_agg(
@@ -51,6 +72,13 @@ BEGIN
 
   RETURN json_build_object(
     'username', COALESCE(v_username, 'Seller'),
+    'country', COALESCE(v_country, ''),
+    'armyBiasPrompt', COALESCE(v_army_bias_prompt, 'Bias'),
+    'armyBiasAnswer', COALESCE(v_army_bias_answer, ''),
+    'armyYearsArmyPrompt', COALESCE(v_army_years_army_prompt, 'Years ARMY'),
+    'armyYearsArmy', COALESCE(v_army_years_army, ''),
+    'armyFavoriteAlbumPrompt', COALESCE(v_army_favorite_album_prompt, 'Favorite album'),
+    'armyFavoriteAlbum', COALESCE(v_army_favorite_album, ''),
     'ticketSource', COALESCE(v_ticket_source, ''),
     'ticketingExperience', COALESCE(v_ticketing_experience, ''),
     'sellingReason', COALESCE(v_selling_reason, ''),

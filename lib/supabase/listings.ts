@@ -58,6 +58,13 @@ export type BrowseListingSellerDetails = {
 
 export type ListingSellerProfileForConnect = {
   username: string;
+  country: string;
+  armyBiasPrompt: string;
+  armyBiasAnswer: string;
+  armyYearsArmyPrompt: string;
+  armyYearsArmy: string;
+  armyFavoriteAlbumPrompt: string;
+  armyFavoriteAlbum: string;
   ticketSource: string;
   ticketingExperience: string;
   sellingReason: string;
@@ -78,6 +85,13 @@ export async function fetchListingSellerProfileForConnect(
   return {
     data: {
       username: String(r.username ?? "Seller"),
+      country: String(r.country ?? ""),
+      armyBiasPrompt: String(r.armyBiasPrompt ?? r.army_bias_prompt ?? "Bias"),
+      armyBiasAnswer: String(r.armyBiasAnswer ?? r.army_bias_answer ?? ""),
+      armyYearsArmyPrompt: String(r.armyYearsArmyPrompt ?? r.army_years_army_prompt ?? "Years ARMY"),
+      armyYearsArmy: String(r.armyYearsArmy ?? r.army_years_army ?? ""),
+      armyFavoriteAlbumPrompt: String(r.armyFavoriteAlbumPrompt ?? r.army_favorite_album_prompt ?? "Favorite album"),
+      armyFavoriteAlbum: String(r.armyFavoriteAlbum ?? r.army_favorite_album ?? ""),
       ticketSource: String(r.ticketSource ?? r.ticket_source ?? ""),
       ticketingExperience: String(r.ticketingExperience ?? r.ticketing_experience ?? ""),
       sellingReason: String(r.sellingReason ?? r.selling_reason ?? ""),

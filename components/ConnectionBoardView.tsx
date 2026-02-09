@@ -1250,9 +1250,35 @@ export default function ConnectionBoardView() {
               {connectV2SellerProfile.data && !connectV2SellerProfile.loading && (
                 <div className="mt-2 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
                   <p><span className="font-medium text-army-purple">Username:</span> {connectV2SellerProfile.data.username}</p>
+                  {connectV2SellerProfile.data.country && (
+                    <p><span className="font-medium text-army-purple">Country:</span> {connectV2SellerProfile.data.country}</p>
+                  )}
                   <p><span className="font-medium text-army-purple">Where ticket was bought:</span> {connectV2SellerProfile.data.ticketSource || "—"}</p>
                   <p><span className="font-medium text-army-purple">Ticketing experience:</span> {connectV2SellerProfile.data.ticketingExperience || "—"}</p>
                   <p><span className="font-medium text-army-purple">Why selling:</span> {connectV2SellerProfile.data.sellingReason || "—"}</p>
+                  {(connectV2SellerProfile.data.armyBiasAnswer || connectV2SellerProfile.data.armyYearsArmy || connectV2SellerProfile.data.armyFavoriteAlbum) && (
+                    <div className="mt-2 space-y-1">
+                      <p className="font-medium text-army-purple">ARMY profile</p>
+                      {connectV2SellerProfile.data.armyBiasAnswer && (
+                        <div>
+                          <p className="text-xs text-army-purple/80">{connectV2SellerProfile.data.armyBiasPrompt}</p>
+                          <p className="whitespace-pre-wrap">{connectV2SellerProfile.data.armyBiasAnswer}</p>
+                        </div>
+                      )}
+                      {connectV2SellerProfile.data.armyYearsArmy && (
+                        <div>
+                          <p className="text-xs text-army-purple/80">{connectV2SellerProfile.data.armyYearsArmyPrompt}</p>
+                          <p className="whitespace-pre-wrap">{connectV2SellerProfile.data.armyYearsArmy}</p>
+                        </div>
+                      )}
+                      {connectV2SellerProfile.data.armyFavoriteAlbum && (
+                        <div>
+                          <p className="text-xs text-army-purple/80">{connectV2SellerProfile.data.armyFavoriteAlbumPrompt}</p>
+                          <p className="whitespace-pre-wrap">{connectV2SellerProfile.data.armyFavoriteAlbum}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {connectV2SellerProfile.data.bondingAnswers.filter((b) => b.prompt || b.answer).length > 0 && (
                     <div className="mt-2 space-y-1">
                       <p className="font-medium text-army-purple">Bonding answers:</p>
