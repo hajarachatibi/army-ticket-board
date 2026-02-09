@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -40,6 +39,7 @@ export default function CommunityChatContent() {
   const [draft, setDraft] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const listEndRef = useRef<HTMLDivElement>(null);
 
   const loadProfile = useCallback(async () => {
@@ -212,14 +212,18 @@ export default function CommunityChatContent() {
                 )}
                 {m.imageUrl && (
                   <div className="mt-2 overflow-hidden rounded-lg">
-                    <Image
-                      src={m.imageUrl}
-                      alt="Shared"
-                      width={320}
-                      height={240}
-                      className="h-auto max-h-48 w-full object-contain"
-                      unoptimized
-                    />
+                    <button
+                      type="button"
+                      className="block w-full cursor-zoom-in text-left focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg"
+                      onClick={() => setLightboxUrl(m.imageUrl!)}
+                      aria-label="Open image"
+                    >
+                      <img
+                        src={m.imageUrl}
+                        alt="Shared"
+                        className="h-auto max-h-48 w-full object-contain rounded-lg"
+                      />
+                    </button>
                   </div>
                 )}
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -283,6 +287,33 @@ export default function CommunityChatContent() {
           </button>
         </div>
       </div>
+
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white"
+            onClick={() => setLightboxUrl(null)}
+            aria-label="Close"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Full size"
+            className="max-h-full max-w-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
