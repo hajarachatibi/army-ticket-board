@@ -396,6 +396,7 @@ export default function AdminPanelContent() {
     if (tab === "sellers") void loadSellers();
     if (tab === "buyers") void loadBuyers();
     if (tab === "users") void loadAllUsers();
+    if (tab === "usersUnderReview") void loadUsersUnderReview();
     if (tab === "banned") void loadBanned();
   }, [
     isAdmin,
@@ -1264,10 +1265,22 @@ export default function AdminPanelContent() {
 
           {tab === "usersUnderReview" && (
             <section>
-              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Users under review</h2>
-              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-                Users with at least one user report have their listings hidden from browse. Release listings to make them visible again, or remove and ban the user.
-              </p>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-xl font-bold text-army-purple">Users under review</h2>
+                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                    Users with listings hidden from browse (user report or scam listing report). Release listings to make them visible again, or remove and ban the user.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-army-outline rounded-lg px-3 py-1.5 text-sm"
+                  onClick={() => void loadUsersUnderReview()}
+                  disabled={loading}
+                >
+                  Refresh list
+                </button>
+              </div>
               {loading ? (
                 <p className="text-neutral-500">Loading…</p>
               ) : usersUnderReview.length === 0 ? (
