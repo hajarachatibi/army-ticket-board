@@ -17,22 +17,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | {
-        firstName?: string;
-        country?: string;
-        is18Confirmed?: boolean;
-        instagram?: string | null;
-        facebook?: string | null;
-        tiktok?: string | null;
-        snapchat?: string | null;
-        armyBiasAnswer?: string;
-        armyYearsArmy?: string;
-        armyFavoriteAlbum?: string;
-        acceptTerms?: boolean;
-        acceptUserAgreement?: boolean;
+  const rawBody = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = rawBody
+    ? {
+        firstName: rawBody.firstName ?? rawBody.first_name,
+        country: rawBody.country,
+        is18Confirmed: rawBody.is18Confirmed ?? rawBody.is_18_confirmed,
+        instagram: rawBody.instagram ?? null,
+        facebook: rawBody.facebook ?? null,
+        tiktok: rawBody.tiktok ?? null,
+        snapchat: rawBody.snapchat ?? null,
+        armyBiasAnswer: rawBody.armyBiasAnswer ?? rawBody.army_bias_answer,
+        armyYearsArmy: rawBody.armyYearsArmy ?? rawBody.army_years_army,
+        armyFavoriteAlbum: rawBody.armyFavoriteAlbum ?? rawBody.army_favorite_album,
+        acceptTerms: rawBody.acceptTerms ?? rawBody.accept_terms,
+        acceptUserAgreement: rawBody.acceptUserAgreement ?? rawBody.user_agreement_accepted,
       }
-    | null;
+    : null;
 
   const response = NextResponse.json({ ok: true });
   const supabase = createServerClient(
@@ -102,14 +103,9 @@ export async function POST(request: NextRequest) {
     .eq("id", user.id);
 
   if (error) {
-    const msg = String(error.message ?? "");
-    if (msg.toLowerCase().includes("user_profiles_onboarding_required_fields")) {
-      return NextResponse.json(
-        { error: "Please fill all required fields (including at least one social) and make sure your DB migrations are up to date." },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const friendlyMessage =
+      "Setup couldn’t be saved. Please check that you’ve filled: first name, country, 18+ confirmation, at least one social (Instagram or Facebook — usernames only, no links), and all three ARMY profile answers (bias, years ARMY, favorite album). Then try again.";
+    return NextResponse.json({ error: friendlyMessage }, { status: 400 });
   }
   return response;
 }
