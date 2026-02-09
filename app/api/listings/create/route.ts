@@ -102,6 +102,12 @@ export async function POST(request: NextRequest) {
   const priceExplanationRaw = body?.priceExplanation;
   const priceExplanation = priceExplanationRaw == null ? null : String(priceExplanationRaw).trim();
   const seatsRaw = Array.isArray(body?.seats) ? body!.seats! : [];
+  if (seatsRaw.length === 0) {
+    return NextResponse.json(
+      { error: "Add at least one seat with section, row, seat and price." },
+      { status: 400 }
+    );
+  }
 
   if (!concertCity) return NextResponse.json({ error: "Missing concert city" }, { status: 400 });
   if (!(ARIRANG_CITIES as readonly string[]).includes(concertCity)) {
