@@ -133,28 +133,29 @@ export async function POST(request: NextRequest) {
   if (seats.some((s) => !s.section || !s.row || !s.seat)) return NextResponse.json({ error: "Each seat needs section, row, seat" }, { status: 400 });
   if (seats.some((s) => s.faceValuePrice <= 0)) return NextResponse.json({ error: "Each seat needs a face value price" }, { status: 400 });
 
-  const { data: listing, error: listingErr } = await supabase
-    .from("listings")
-    .insert({
-      seller_id: user.id,
-      concert_city: concertCity,
-      concert_date: concertDate,
-      ticket_source: ticketSource,
-      vip,
-      loge,
-      suite,
-      ticketing_experience: ticketingExperience,
-      selling_reason: sellingReason,
-      price_explanation: priceExplanation || null,
-      status: "active",
-      processing_until: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+  // Atomic create: listing + seats in one transaction so we never get a listing with 0 seats.
+  const { data: listingId, error: rpcErr } = await supabase.rpc("create_listing_with_seats", {
+    p_concert_city: concertCity,
+    p_concert_date: concertDate,
+    p_ticket_source: ticketSource,
+    p_ticketing_experience: ticketingExperience,
+    p_selling_reason: sellingReason,
+    p_price_explanation: priceExplanation ?? "",
+    p_vip: vip,
+    p_loge: loge,
+    p_suite: suite,
+    p_seats: seats.map((s) => ({
+      section: s.section,
+      row: s.row,
+      seat: s.seat,
+      faceValuePrice: s.faceValuePrice,
+      currency: s.currency,
+    })),
+  });
 
-  if (listingErr) {
-    const err = listingErr as { message?: string; code?: string; details?: string; hint?: string };
-    console.error("[listings/create] listing insert failed:", {
+  if (rpcErr) {
+    const err = rpcErr as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[listings/create] create_listing_with_seats failed:", {
       message: err.message,
       code: err.code,
       details: err.details,
@@ -162,29 +163,6 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ error: err.message ?? "Failed to create listing." }, { status: 400 });
   }
-
-  const { error: seatsErr } = await supabase.from("listing_seats").insert(
-    seats.map((s, idx) => ({
-      listing_id: listing.id,
-      seat_index: idx + 1,
-      section: s.section,
-      seat_row: s.row,
-      seat: s.seat,
-      face_value_price: s.faceValuePrice,
-      currency: s.currency,
-    }))
-  );
-
-  if (seatsErr) {
-    const err = seatsErr as { message?: string; code?: string; details?: string; hint?: string };
-    console.error("[listings/create] listing_seats insert failed:", {
-      message: err.message,
-      code: err.code,
-      details: err.details,
-      hint: err.hint,
-    });
-    return NextResponse.json({ error: err.message ?? "Failed to save seats." }, { status: 400 });
-  }
-  return NextResponse.json({ data: { listingId: listing.id } });
+  return NextResponse.json({ data: { listingId: listingId ?? "" } });
 }
 
