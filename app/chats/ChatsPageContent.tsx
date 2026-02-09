@@ -85,7 +85,7 @@ export default function ChatsPageContent() {
               Admin panel
             </Link>
             <Link href="/channel" className="btn-army-outline">
-              Admin Channel
+              Chatroom
             </Link>
             <button type="button" className="btn-army-outline" onClick={() => void load()}>
               Refresh

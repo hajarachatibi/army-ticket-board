@@ -810,6 +810,26 @@ export type ConnectionStats = {
   byStage: Record<string, number>;
 };
 
+export type AdminGrowthAndFlowStats = {
+  usersTotal: number;
+  usersLast7d: number;
+  usersLast30d: number;
+  listingsTotal: number;
+  listingsLast7d: number;
+  listingsLast30d: number;
+  soldTotal: number;
+  soldLast7d: number;
+  soldLast30d: number;
+  connectionsV2Total: number;
+  connectionsLegacyTotal: number;
+  connectionsLast7d: number;
+  connectionsLast30d: number;
+  endedLast7d: number;
+  endedLast30d: number;
+  endedV2Total: number;
+  endedLegacyTotal: number;
+};
+
 export async function fetchConnectionStats(): Promise<{
   data: ConnectionStats | null;
   error: string | null;
@@ -856,6 +876,45 @@ export async function fetchAdminDashboardStats(): Promise<{
     return {
       data: null,
       error: e instanceof Error ? e.message : "Failed to fetch stats",
+    };
+  }
+}
+
+export async function fetchAdminGrowthAndFlowStats(): Promise<{
+  data: AdminGrowthAndFlowStats | null;
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_growth_and_flow_stats");
+    if (error) return { data: null, error: error.message };
+    const o = data as Record<string, number> | null;
+    if (!o) return { data: null, error: "No stats" };
+    return {
+      data: {
+        usersTotal: Number(o.users_total) || 0,
+        usersLast7d: Number(o.users_last_7d) || 0,
+        usersLast30d: Number(o.users_last_30d) || 0,
+        listingsTotal: Number(o.listings_total) || 0,
+        listingsLast7d: Number(o.listings_last_7d) || 0,
+        listingsLast30d: Number(o.listings_last_30d) || 0,
+        soldTotal: Number(o.sold_total) || 0,
+        soldLast7d: Number(o.sold_last_7d) || 0,
+        soldLast30d: Number(o.sold_last_30d) || 0,
+        connectionsV2Total: Number(o.connections_v2_total) || 0,
+        connectionsLegacyTotal: Number(o.connections_legacy_total) || 0,
+        connectionsLast7d: Number(o.connections_last_7d) || 0,
+        connectionsLast30d: Number(o.connections_last_30d) || 0,
+        endedLast7d: Number(o.ended_last_7d) || 0,
+        endedLast30d: Number(o.ended_last_30d) || 0,
+        endedV2Total: Number(o.ended_v2_total) || 0,
+        endedLegacyTotal: Number(o.ended_legacy_total) || 0,
+      },
+      error: null,
+    };
+  } catch (e) {
+    return {
+      data: null,
+      error: e instanceof Error ? e.message : "Failed to fetch growth/flow stats",
     };
   }
 }

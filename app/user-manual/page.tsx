@@ -56,13 +56,13 @@ export default function UserManualPage() {
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
-              Admin Channel
+              Chatroom
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              Use the <strong>Admin Channel</strong> to message the official admins. This is the only in-app messaging channel.
+              The <strong>Chatroom</strong> has two tabs: <strong>Admin Channel</strong> (official admin announcements and replies) and <strong>Community Chat</strong> (chat with all signed-in ARMY; you choose a display name on first use, and you can react to messages, mention others with @username, and share pictures). Only signed-in users can use the Chatroom.
             </p>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              If there are new Admin Channel posts, you may see a <strong>purple badge</strong> on the <strong>Admin Channel</strong> link in the header.
+              If there are new Admin Channel or Community Chat messages, you may see a <strong>purple badge</strong> on the <strong>Chatroom</strong> link in the header.
             </p>
           </div>
 

@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">How we use data</h2>
               <ul className="mt-2 list-disc pl-5 space-y-1">
-                <li>To operate the app (listings, connections, admin channel, notifications).</li>
+                <li>To operate the app (listings, connections, chatroom, notifications).</li>
                 <li>To prevent abuse and improve security (moderation, rate limiting, bot protection).</li>
                 <li>To respond to reports and enforce rules.</li>
               </ul>
@@ -80,7 +80,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">Contact</h2>
               <p className="mt-2">
-                If you have privacy questions, contact the admins via the Official Admin Channel or the in-app report feature.
+                If you have privacy questions, contact the admins via the Chatroom (Admin Channel tab) or the in-app report feature.
               </p>
             </section>
           </div>

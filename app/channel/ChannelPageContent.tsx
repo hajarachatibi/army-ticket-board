@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import VerifiedAdminBadge from "@/components/VerifiedAdminBadge";
-import RequireAuth from "@/components/RequireAuth";
 import { useAuth } from "@/lib/AuthContext";
 import { displayName } from "@/lib/displayName";
 import { supabase } from "@/lib/supabaseClient";
@@ -177,26 +176,10 @@ export default function ChannelPageContent() {
   };
 
   return (
-    <RequireAuth>
-      <main className="relative min-h-screen bg-[#1a0433] px-4 py-8 text-white">
-        {/* BTS-ish background image layer */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-25"
-          style={{
-            backgroundImage: "url(/bts-hero.png)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
-        {/* Purple overlay for readability */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(196,99,255,0.55),transparent_55%),radial-gradient(ellipse_at_bottom,rgba(255,77,166,0.25),transparent_60%),linear-gradient(180deg,rgba(26,4,51,0.85),rgba(26,4,51,0.95))]"
-        />
+    <>
         <div className="mx-auto max-w-3xl">
           <div className="relative flex flex-wrap items-center justify-between gap-3">
-            <h1 className="font-display text-3xl font-bold text-white">Official Admin Channel</h1>
+            <h2 className="font-display text-xl font-bold text-white">Official Admin Channel</h2>
           </div>
 
           <div className="relative mt-3 rounded-2xl border border-white/25 bg-white/10 p-4 text-sm text-white backdrop-blur">
@@ -347,7 +330,6 @@ export default function ChannelPageContent() {
             )}
           </div>
         </div>
-      </main>
 
       {editOpen && (
         <div
@@ -404,7 +386,7 @@ export default function ChannelPageContent() {
           </div>
         </div>
       )}
-    </RequireAuth>
+    </>
   );
 }
 

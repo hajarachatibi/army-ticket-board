@@ -16,7 +16,7 @@ import { useTheme } from "@/lib/ThemeContext";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Listings" },
-  { href: "/channel", label: "Admin Channel" },
+  { href: "/channel", label: "Chatroom" },
   { href: "/questions", label: "Questions" },
   { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
@@ -35,8 +35,10 @@ export default function Header() {
   const { user, isLoggedIn, isAdmin, signOut } = useAuth();
   const showAdmin = isLoggedIn && isAdmin;
   const [adminChannelUnreadCount, setAdminChannelUnreadCount] = useState(0);
+  const [communityChatUnreadCount, setCommunityChatUnreadCount] = useState(0);
   const adminChannelLastSeenRef = useRef(0);
-  const onAdminChannelPageRef = useRef(false);
+  const communityChatLastSeenRef = useRef(0);
+  const onChatroomPageRef = useRef(false);
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -44,12 +46,14 @@ export default function Header() {
   const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
 
   const navLinks = useMemo(() => {
-    // Hide Admin Channel and Questions for logged-out users (routes are still protected by middleware).
+    // Hide Chatroom and Questions for logged-out users (routes are still protected by middleware).
     return NAV.filter((x) => {
       if (!isLoggedIn && (x.href === "/channel" || x.href === "/questions")) return false;
       return true;
     });
   }, [isLoggedIn]);
+
+  const chatroomUnreadCount = adminChannelUnreadCount + communityChatUnreadCount;
 
   useEffect(() => {
     setMounted(true);
@@ -59,16 +63,20 @@ export default function Header() {
     if (typeof window === "undefined") return;
     if (!isLoggedIn || !user?.id) return;
 
-    const key = `army_admin_channel_last_seen_${user.id}`;
-    const onChannel = pathname === "/channel" || pathname.startsWith("/channel/");
-    onAdminChannelPageRef.current = onChannel;
+    const adminKey = `army_admin_channel_last_seen_${user.id}`;
+    const communityKey = `army_community_chat_last_seen_${user.id}`;
+    const onChatroom = pathname === "/channel" || pathname.startsWith("/channel/");
+    onChatroomPageRef.current = onChatroom;
 
-    // When the user visits the Admin Channel, mark everything as read.
-    if (onChannel) {
+    // When the user visits the Chatroom page, mark both Admin Channel and Community Chat as read.
+    if (onChatroom) {
       const now = Date.now();
       adminChannelLastSeenRef.current = now;
-      window.localStorage.setItem(key, String(now));
+      communityChatLastSeenRef.current = now;
+      window.localStorage.setItem(adminKey, String(now));
+      window.localStorage.setItem(communityKey, String(now));
       setAdminChannelUnreadCount(0);
+      setCommunityChatUnreadCount(0);
     }
   }, [isLoggedIn, pathname, user?.id]);
 
@@ -77,21 +85,30 @@ export default function Header() {
     if (!isLoggedIn || !user?.id) return;
     let cancelled = false;
 
-    const key = `army_admin_channel_last_seen_${user.id}`;
-    const raw = window.localStorage.getItem(key);
-    const lastSeen = raw ? Number(raw) : 0;
-    adminChannelLastSeenRef.current = Number.isFinite(lastSeen) ? lastSeen : 0;
+    const adminKey = `army_admin_channel_last_seen_${user.id}`;
+    const communityKey = `army_community_chat_last_seen_${user.id}`;
+    const adminRaw = window.localStorage.getItem(adminKey);
+    const communityRaw = window.localStorage.getItem(communityKey);
+    adminChannelLastSeenRef.current = Number.isFinite(Number(adminRaw)) ? Number(adminRaw) : 0;
+    communityChatLastSeenRef.current = Number.isFinite(Number(communityRaw)) ? Number(communityRaw) : 0;
 
-    // Initial unread count: look at recent posts and count those newer than last seen.
     (async () => {
-      const { data } = await fetchAdminChannelPosts({ limit: 50, offset: 0 });
+      const [{ data: adminPosts }, { count: communityCount }] = await Promise.all([
+        fetchAdminChannelPosts({ limit: 50, offset: 0 }),
+        supabase
+          .from("community_chat_messages")
+          .select("id", { count: "exact", head: true })
+          .gt("created_at", new Date(communityChatLastSeenRef.current).toISOString()),
+      ]);
       if (cancelled) return;
-      const count = data.filter((p) => Date.parse(p.createdAt) > adminChannelLastSeenRef.current).length;
-      setAdminChannelUnreadCount(count);
+      setAdminChannelUnreadCount(
+        adminPosts.filter((p) => Date.parse(p.createdAt) > adminChannelLastSeenRef.current).length
+      );
+      setCommunityChatUnreadCount(Math.min(99, communityCount ?? 0));
     })();
 
-    const channel = supabase
-      .channel(`admin_channel_posts_unread_${user.id}`)
+    const ch = supabase
+      .channel(`chatroom_unread_${user.id}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "admin_channel_posts" },
@@ -99,18 +116,34 @@ export default function Header() {
           if (cancelled) return;
           const createdAt = Date.parse(String((payload as any)?.new?.created_at ?? ""));
           if (!Number.isFinite(createdAt)) return;
-
-          // If the user is currently on /channel, treat it as read.
-          if (onAdminChannelPageRef.current) {
+          if (onChatroomPageRef.current) {
             const now = Date.now();
             adminChannelLastSeenRef.current = Math.max(adminChannelLastSeenRef.current, now, createdAt);
-            window.localStorage.setItem(key, String(adminChannelLastSeenRef.current));
+            window.localStorage.setItem(adminKey, String(adminChannelLastSeenRef.current));
             setAdminChannelUnreadCount(0);
             return;
           }
-
           if (createdAt > adminChannelLastSeenRef.current) {
             setAdminChannelUnreadCount((n) => Math.min(99, n + 1));
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "community_chat_messages" },
+        (payload) => {
+          if (cancelled) return;
+          const createdAt = Date.parse(String((payload as any)?.new?.created_at ?? ""));
+          if (!Number.isFinite(createdAt)) return;
+          if (onChatroomPageRef.current) {
+            const now = Date.now();
+            communityChatLastSeenRef.current = Math.max(communityChatLastSeenRef.current, now, createdAt);
+            window.localStorage.setItem(communityKey, String(communityChatLastSeenRef.current));
+            setCommunityChatUnreadCount(0);
+            return;
+          }
+          if (createdAt > communityChatLastSeenRef.current) {
+            setCommunityChatUnreadCount((n) => Math.min(99, n + 1));
           }
         }
       )
@@ -118,7 +151,7 @@ export default function Header() {
 
     return () => {
       cancelled = true;
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(ch);
     };
   }, [isLoggedIn, user?.id]);
 
@@ -142,7 +175,7 @@ export default function Header() {
       { href: "/tickets", label: "Listings" },
     ];
     if (isLoggedIn) {
-      base.push({ href: "/channel", label: "Admin Channel" });
+      base.push({ href: "/channel", label: "Chatroom" });
     }
     if (showSupportLink) {
       base.push({ href: "/support", label: "Support the board 💜" });
@@ -163,12 +196,12 @@ export default function Header() {
     return (
       <span className="relative inline-flex items-center">
         {label}
-        {adminChannelUnreadCount > 0 && (
+        {chatroomUnreadCount > 0 && (
           <span
             className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
-            aria-label={`${adminChannelUnreadCount} new admin channel posts`}
+            aria-label={`${chatroomUnreadCount} new chatroom messages`}
           >
-            {adminChannelUnreadCount > 99 ? "99+" : adminChannelUnreadCount}
+            {chatroomUnreadCount > 99 ? "99+" : chatroomUnreadCount}
           </span>
         )}
       </span>

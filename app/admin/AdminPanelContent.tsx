@@ -37,6 +37,7 @@ import {
   fetchAdminBannedUsers,
   fetchAdminBuyersPage,
   fetchAdminDashboardStats,
+  fetchAdminGrowthAndFlowStats,
   fetchAdminListingReports,
   fetchAdminListingsFiltered,
   fetchAdminSellersPage,
@@ -44,6 +45,7 @@ import {
   fetchAdminUsersUnderReview,
   fetchConnectionStats,
   type AdminDashboardStats,
+  type AdminGrowthAndFlowStats,
   type AdminListing,
   type AdminListingReport,
   type AdminUser,
@@ -90,6 +92,7 @@ export default function AdminPanelContent() {
 
   const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
   const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
+  const [growthStats, setGrowthStats] = useState<AdminGrowthAndFlowStats | null>(null);
 
   const [listingReports, setListingReports] = useState<AdminListingReport[]>([]);
   const [userReports, setUserReports] = useState<AdminUserReport[]>([]);
@@ -190,11 +193,17 @@ export default function AdminPanelContent() {
   }, [authLoading, isAdmin, router, user]);
 
   const loadDashboard = useCallback(async () => {
-    const [statsRes, connRes] = await Promise.all([fetchAdminDashboardStats(), fetchConnectionStats()]);
+    const [statsRes, connRes, growthRes] = await Promise.all([
+      fetchAdminDashboardStats(),
+      fetchConnectionStats(),
+      fetchAdminGrowthAndFlowStats(),
+    ]);
     if (statsRes.error) setError(statsRes.error);
     else setDashboardStats(statsRes.data);
     if (connRes.error) setError(connRes.error);
     else setConnectionStats(connRes.data);
+    if (growthRes.error) setError(growthRes.error);
+    else setGrowthStats(growthRes.data);
   }, []);
 
   const loadListingReports = useCallback(async () => {
@@ -894,6 +903,85 @@ export default function AdminPanelContent() {
                       </table>
                     </div>
                   )}
+                </div>
+              )}
+
+              {growthStats !== null && (
+                <div className="mt-8">
+                  <h3 className="mb-3 font-display text-lg font-semibold text-army-purple dark:text-army-300">Growth &amp; recent activity</h3>
+                  <div className="mb-4 overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                    <p className="border-b border-army-purple/15 px-4 py-2 text-sm font-semibold text-army-purple dark:border-army-purple/25 dark:text-army-300">Counts by period</p>
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Metric</th>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Total</th>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Last 7 days</th>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Last 30 days</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Users (signed up)</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.usersTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.usersLast7d}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.usersLast30d}</td>
+                        </tr>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Listings (created)</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.listingsTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.listingsLast7d}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.listingsLast30d}</td>
+                        </tr>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Listings sold</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.soldTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.soldLast7d}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.soldLast30d}</td>
+                        </tr>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Connections (started)</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.connectionsV2Total + growthStats.connectionsLegacyTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.connectionsLast7d}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.connectionsLast30d}</td>
+                        </tr>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Connections ended (reached chat)</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.endedV2Total + growthStats.endedLegacyTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.endedLast7d}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.endedLast30d}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 className="mb-2 font-display text-sm font-semibold text-army-purple dark:text-army-300">Old flow vs new flow (connection path)</h4>
+                  <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
+                    New flow = connect with social share preference (v2). Old flow = legacy bonding path.
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Metric</th>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">Legacy (old)</th>
+                          <th className="px-4 py-2 font-semibold text-army-purple dark:text-army-300">New flow (v2)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Connections (all time)</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.connectionsLegacyTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.connectionsV2Total}</td>
+                        </tr>
+                        <tr className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                          <td className="px-4 py-2 font-medium text-neutral-800 dark:text-neutral-200">Ended (reached chat)</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.endedLegacyTotal}</td>
+                          <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">{growthStats.endedV2Total}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </section>

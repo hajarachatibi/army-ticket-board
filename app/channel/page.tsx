@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import ChannelPageContent from "@/app/channel/ChannelPageContent";
+import ChatroomPageContent from "@/app/channel/ChatroomPageContent";
 
 export const metadata = {
-  title: "Official Admin Channel | ARMY Ticket Board",
+  title: "Chatroom | ARMY Ticket Board",
 };
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export default function ChannelPage() {
         </main>
       }
     >
-      <ChannelPageContent />
+      <ChatroomPageContent />
     </Suspense>
   );
 }
