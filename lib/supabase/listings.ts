@@ -72,6 +72,28 @@ export type ListingSellerProfileForConnect = {
   bondingAnswers: Array<{ prompt: string; answer: string }>;
 };
 
+function parseLiteProfileForConnect(r: any): ListingSellerProfileForConnect {
+  const rawBonding = Array.isArray(r?.bondingAnswers) ? r.bondingAnswers : [];
+  return {
+    username: String(r?.username ?? "User"),
+    country: String(r?.country ?? ""),
+    armyBiasPrompt: String(r?.armyBiasPrompt ?? r?.army_bias_prompt ?? "Bias"),
+    armyBiasAnswer: String(r?.armyBiasAnswer ?? r?.army_bias_answer ?? ""),
+    armyYearsArmyPrompt: String(r?.armyYearsArmyPrompt ?? r?.army_years_army_prompt ?? "Years ARMY"),
+    armyYearsArmy: String(r?.armyYearsArmy ?? r?.army_years_army ?? ""),
+    armyFavoriteAlbumPrompt: String(r?.armyFavoriteAlbumPrompt ?? r?.army_favorite_album_prompt ?? "Favorite album"),
+    armyFavoriteAlbum: String(r?.armyFavoriteAlbum ?? r?.army_favorite_album ?? ""),
+    ticketSource: String(r?.ticketSource ?? r?.ticket_source ?? ""),
+    ticketingExperience: String(r?.ticketingExperience ?? r?.ticketing_experience ?? ""),
+    sellingReason: String(r?.sellingReason ?? r?.selling_reason ?? ""),
+    priceExplanation: String(r?.priceExplanation ?? r?.price_explanation ?? ""),
+    bondingAnswers: rawBonding.map((b: any) => ({
+      prompt: String(b?.prompt ?? ""),
+      answer: String(b?.answer ?? ""),
+    })),
+  };
+}
+
 export async function fetchListingSellerProfileForConnect(
   listingId: string
 ): Promise<{ data: ListingSellerProfileForConnect | null; error: string | null }> {
@@ -79,30 +101,19 @@ export async function fetchListingSellerProfileForConnect(
     p_listing_id: listingId,
   });
   if (error) return { data: null, error: error.message };
-  const r = data as any;
-  if (!r) return { data: null, error: null };
-  const rawBonding = Array.isArray(r.bondingAnswers) ? r.bondingAnswers : [];
-  return {
-    data: {
-      username: String(r.username ?? "Seller"),
-      country: String(r.country ?? ""),
-      armyBiasPrompt: String(r.armyBiasPrompt ?? r.army_bias_prompt ?? "Bias"),
-      armyBiasAnswer: String(r.armyBiasAnswer ?? r.army_bias_answer ?? ""),
-      armyYearsArmyPrompt: String(r.armyYearsArmyPrompt ?? r.army_years_army_prompt ?? "Years ARMY"),
-      armyYearsArmy: String(r.armyYearsArmy ?? r.army_years_army ?? ""),
-      armyFavoriteAlbumPrompt: String(r.armyFavoriteAlbumPrompt ?? r.army_favorite_album_prompt ?? "Favorite album"),
-      armyFavoriteAlbum: String(r.armyFavoriteAlbum ?? r.army_favorite_album ?? ""),
-      ticketSource: String(r.ticketSource ?? r.ticket_source ?? ""),
-      ticketingExperience: String(r.ticketingExperience ?? r.ticketing_experience ?? ""),
-      sellingReason: String(r.sellingReason ?? r.selling_reason ?? ""),
-      priceExplanation: String(r.priceExplanation ?? r.price_explanation ?? ""),
-      bondingAnswers: rawBonding.map((b: any) => ({
-        prompt: String(b?.prompt ?? ""),
-        answer: String(b?.answer ?? ""),
-      })),
-    },
-    error: null,
-  };
+  if (!data) return { data: null, error: null };
+  return { data: parseLiteProfileForConnect(data), error: null };
+}
+
+export async function fetchConnectionBuyerProfileForSeller(
+  connectionId: string
+): Promise<{ data: ListingSellerProfileForConnect | null; error: string | null }> {
+  const { data, error } = await supabase.rpc("get_connection_buyer_profile_for_seller", {
+    p_connection_id: connectionId,
+  });
+  if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: null };
+  return { data: parseLiteProfileForConnect(data), error: null };
 }
 
 export async function fetchBrowseListingSellerDetails(

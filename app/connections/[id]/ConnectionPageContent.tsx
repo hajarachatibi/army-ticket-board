@@ -8,7 +8,16 @@ import RequireAuth from "@/components/RequireAuth";
 import UserReportModal from "@/components/UserReportModal";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { acceptConnectionAgreement, endConnection, sellerRespondConnection, setComfortDecision, setSocialShareDecision, submitBondingAnswers } from "@/lib/supabase/listings";
+import {
+  acceptConnectionAgreement,
+  endConnection,
+  fetchConnectionBuyerProfileForSeller,
+  sellerRespondConnection,
+  setComfortDecision,
+  setSocialShareDecision,
+  submitBondingAnswers,
+  type ListingSellerProfileForConnect,
+} from "@/lib/supabase/listings";
 
 function formatPrice(amount: number, currency: string): string {
   try {
@@ -112,6 +121,11 @@ export default function ConnectionPageContent() {
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
   const [sellerAcceptSocialShare, setSellerAcceptSocialShare] = useState<boolean | null>(null);
+  const [buyerProfileForSeller, setBuyerProfileForSeller] = useState<{
+    data: ListingSellerProfileForConnect | null;
+    loading: boolean;
+    error: string | null;
+  }>({ data: null, loading: false, error: null });
 
   const isBuyer = useMemo(() => !!user && conn?.buyer_id === user.id, [conn?.buyer_id, user]);
   const isSeller = useMemo(() => !!user && conn?.seller_id === user.id, [conn?.seller_id, user]);
@@ -229,6 +243,26 @@ export default function ConnectionPageContent() {
     if (conn.stage !== "agreement" && conn.stage !== "chat_open") return;
     setMatchOpen(true);
   }, [conn?.stage]);
+
+  useEffect(() => {
+    if (!conn || conn.stage !== "pending_seller" || !user || conn.seller_id !== user.id) {
+      setBuyerProfileForSeller({ data: null, loading: false, error: null });
+      return;
+    }
+    setBuyerProfileForSeller({ data: null, loading: true, error: null });
+    let cancelled = false;
+    void fetchConnectionBuyerProfileForSeller(conn.id).then((res) => {
+      if (!cancelled)
+        setBuyerProfileForSeller({
+          data: res.data ?? null,
+          loading: false,
+          error: res.error ?? null,
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [conn?.id, conn?.stage, conn?.seller_id, user?.id]);
 
   const expiresLabel = useMemo(() => {
     if (!conn?.stage_expires_at) return "";
@@ -656,6 +690,57 @@ export default function ConnectionPageContent() {
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     A buyer wants to connect. You have 24 hours to respond.
                   </p>
+                  <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                    <p className="text-sm font-semibold text-army-purple">Buyer profile</p>
+                    {buyerProfileForSeller.loading && (
+                      <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Loading buyer profile…</p>
+                    )}
+                    {buyerProfileForSeller.error && (
+                      <p className="mt-2 text-sm text-red-600 dark:text-red-400">{buyerProfileForSeller.error}</p>
+                    )}
+                    {buyerProfileForSeller.data && !buyerProfileForSeller.loading && (
+                      <div className="mt-2 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+                        <p><span className="font-medium text-army-purple">Username:</span> {buyerProfileForSeller.data.username}</p>
+                        {buyerProfileForSeller.data.country && (
+                          <p><span className="font-medium text-army-purple">Country:</span> {buyerProfileForSeller.data.country}</p>
+                        )}
+                        {(buyerProfileForSeller.data.armyBiasAnswer || buyerProfileForSeller.data.armyYearsArmy || buyerProfileForSeller.data.armyFavoriteAlbum) && (
+                          <div className="mt-2 space-y-1">
+                            <p className="font-medium text-army-purple">ARMY profile</p>
+                            {buyerProfileForSeller.data.armyBiasAnswer && (
+                              <div>
+                                <p className="text-xs text-army-purple/80">{buyerProfileForSeller.data.armyBiasPrompt}</p>
+                                <p className="whitespace-pre-wrap">{buyerProfileForSeller.data.armyBiasAnswer}</p>
+                              </div>
+                            )}
+                            {buyerProfileForSeller.data.armyYearsArmy && (
+                              <div>
+                                <p className="text-xs text-army-purple/80">{buyerProfileForSeller.data.armyYearsArmyPrompt}</p>
+                                <p className="whitespace-pre-wrap">{buyerProfileForSeller.data.armyYearsArmy}</p>
+                              </div>
+                            )}
+                            {buyerProfileForSeller.data.armyFavoriteAlbum && (
+                              <div>
+                                <p className="text-xs text-army-purple/80">{buyerProfileForSeller.data.armyFavoriteAlbumPrompt}</p>
+                                <p className="whitespace-pre-wrap">{buyerProfileForSeller.data.armyFavoriteAlbum}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {buyerProfileForSeller.data.bondingAnswers.filter((b) => b.prompt || b.answer).length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="font-medium text-army-purple">Bonding answers:</p>
+                            {buyerProfileForSeller.data.bondingAnswers.map((b, idx) => (
+                              <div key={idx}>
+                                <p className="text-xs text-army-purple/80">{b.prompt}</p>
+                                <p className="whitespace-pre-wrap">{b.answer || "—"}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {conn.buyer_want_social_share != null && (
                     <div className="mt-4">
                       <p className="text-sm font-semibold text-army-purple">Do you want to share socials with this buyer?</p>
