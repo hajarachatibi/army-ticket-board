@@ -1300,25 +1300,20 @@ export default function ConnectionBoardView() {
 
       {showMigrationBondingModal && migrationBondingPrompts.length >= 2 && (
         <div
-          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="migration-bonding-title"
-          onClick={() => {
-            if (typeof window !== "undefined" && user) localStorage.setItem("army_seller_bonding_migration_done:" + user.id, "1");
-            setShowMigrationBondingModal(false);
-          }}
         >
           <div
             className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
-            onClick={(e) => e.stopPropagation()}
           >
             <h2 id="migration-bonding-title" className="font-display text-xl font-bold text-army-purple">
               Build trust with buyers
             </h2>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
               Add your bonding answers now. They will be shown to buyers when they connect to your listings. You only need to do this once.
-              Please answer the questions below to simplify the bonding stage from now onwards.
+              Please answer the questions below to simplify the bonding stage from now onwards. This step is required to continue.
             </p>
             <div className="mt-4 space-y-3">
               {migrationBondingPrompts.map((q) => (
@@ -1333,18 +1328,7 @@ export default function ConnectionBoardView() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                className="btn-army-outline"
-                onClick={() => {
-                  if (typeof window !== "undefined" && user) localStorage.setItem("army_seller_bonding_migration_done:" + user.id, "1");
-                  setShowMigrationBondingModal(false);
-                }}
-                disabled={migrationBondingSubmitting}
-              >
-                Maybe later
-              </button>
+            <div className="mt-4 flex justify-end">
               <button type="button" className="btn-army" onClick={() => void migrationBondingSubmit()} disabled={migrationBondingSubmitting}>
                 {migrationBondingSubmitting ? "Saving…" : "Save"}
               </button>

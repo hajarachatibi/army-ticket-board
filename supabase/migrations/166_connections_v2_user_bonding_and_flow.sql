@@ -75,6 +75,7 @@ ALTER TABLE public.connections
   CHECK (stage IN ('pending_seller','declined','bonding','buyer_bonding_v2','preview','comfort','social','agreement','chat_open','ended','expired'));
 
 -- 5) Listing limit: max 3 non-removed per user
+DROP TRIGGER IF EXISTS listings_enforce_max_active ON public.listings;
 DROP FUNCTION IF EXISTS public.enforce_max_active_listings();
 CREATE OR REPLACE FUNCTION public.enforce_max_active_listings()
 RETURNS trigger
@@ -100,6 +101,10 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE TRIGGER listings_enforce_max_active
+  BEFORE INSERT OR UPDATE OF status, seller_id ON public.listings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_max_active_listings();
 
 -- 6) RPC: get connection bonding question ids (the 2 for v2)
 DROP FUNCTION IF EXISTS public.get_connection_bonding_question_ids();
@@ -397,6 +402,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_connection_timeouts() TO authenticated;
 
 -- 12) Buyer trigger: count buyer_bonding_v2 as active
+DROP TRIGGER IF EXISTS connections_enforce_max_active_buyer ON public.connections;
 DROP FUNCTION IF EXISTS public.enforce_max_active_connections_per_buyer();
 CREATE OR REPLACE FUNCTION public.enforce_max_active_connections_per_buyer()
 RETURNS trigger
@@ -418,3 +424,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE TRIGGER connections_enforce_max_active_buyer
+  BEFORE INSERT OR UPDATE OF stage, buyer_id ON public.connections
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_max_active_connections_per_buyer();

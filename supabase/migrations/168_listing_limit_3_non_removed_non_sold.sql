@@ -1,6 +1,7 @@
 -- Listing limit: max 3 non-removed and non-sold listings per seller.
 -- Sold and removed listings no longer count toward the limit.
 
+DROP TRIGGER IF EXISTS listings_enforce_max_active ON public.listings;
 DROP FUNCTION IF EXISTS public.enforce_max_active_listings();
 CREATE OR REPLACE FUNCTION public.enforce_max_active_listings()
 RETURNS trigger
@@ -27,3 +28,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE TRIGGER listings_enforce_max_active
+  BEFORE INSERT OR UPDATE OF status, seller_id ON public.listings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_max_active_listings();
