@@ -408,7 +408,14 @@ export default function ConnectionBoardView() {
       connectV2HasBonding === false && connectV2QuestionIds.length >= 2
         ? Object.fromEntries(connectV2QuestionIds.map((id) => [id, (connectV2BondingAnswers[id] ?? "").trim()]))
         : undefined;
-    const { connectionId, error: e } = await connectToListingV2(connectV2.listingId, connectV2SocialShare, bonding);
+    const questionIds =
+      connectV2HasBonding === false && connectV2QuestionIds.length >= 2 ? connectV2QuestionIds : undefined;
+    const { connectionId, error: e } = await connectToListingV2(
+      connectV2.listingId,
+      connectV2SocialShare,
+      bonding,
+      questionIds
+    );
     setConnectingId(null);
     if (e) {
       if (e.toLowerCase().includes("3 active") || e.toLowerCase().includes("maximum")) {

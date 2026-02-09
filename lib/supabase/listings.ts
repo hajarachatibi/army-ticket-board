@@ -217,16 +217,18 @@ export async function connectToListing(listingId: string): Promise<{ connectionI
   return { connectionId: String(data ?? ""), error: null };
 }
 
-/** v2: connect with socials intent and optional bonding answers (required if user has none). */
+/** v2: connect with socials intent and optional bonding answers (required if user has none). Pass questionIds so the server validates the same questions the user was shown. */
 export async function connectToListingV2(
   listingId: string,
   wantSocialShare: boolean,
-  bondingAnswers?: Record<string, string> | null
+  bondingAnswers?: Record<string, string> | null,
+  questionIds?: string[] | null
 ): Promise<{ connectionId: string | null; error: string | null }> {
   const { data, error } = await supabase.rpc("connect_to_listing_v2", {
     p_listing_id: listingId,
     p_want_social_share: wantSocialShare,
     p_bonding_answers: bondingAnswers ?? null,
+    p_question_ids: questionIds && questionIds.length === 2 ? questionIds : null,
   });
   if (error) return { connectionId: null, error: error.message };
   return { connectionId: String(data ?? ""), error: null };
