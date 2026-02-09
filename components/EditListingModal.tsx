@@ -127,6 +127,7 @@ export default function EditListingModal({
           ticketSource: ticketSource.trim(),
           vip: listingType === "vip",
           loge: listingType === "loge",
+          suite: listingType === "suite",
           ticketingExperience: ticketingExperience.trim(),
           sellingReason: sellingReason.trim(),
           priceExplanation: priceExplanation.trim() || null,
