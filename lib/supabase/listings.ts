@@ -157,8 +157,61 @@ export async function connectToListing(listingId: string): Promise<{ connectionI
   return { connectionId: String(data ?? ""), error: null };
 }
 
-export async function sellerRespondConnection(connectionId: string, accept: boolean): Promise<{ error: string | null }> {
-  const { error } = await supabase.rpc("seller_respond_connection", { p_connection_id: connectionId, p_accept: accept });
+/** v2: connect with socials intent and optional bonding answers (required if user has none). */
+export async function connectToListingV2(
+  listingId: string,
+  wantSocialShare: boolean,
+  bondingAnswers?: Record<string, string> | null
+): Promise<{ connectionId: string | null; error: string | null }> {
+  const { data, error } = await supabase.rpc("connect_to_listing_v2", {
+    p_listing_id: listingId,
+    p_want_social_share: wantSocialShare,
+    p_bonding_answers: bondingAnswers ?? null,
+  });
+  if (error) return { connectionId: null, error: error.message };
+  return { connectionId: String(data ?? ""), error: null };
+}
+
+/** Get the 2 connection bonding question IDs (for v2 flow). */
+export async function getConnectionBondingQuestionIds(): Promise<{ data: string[] | null; error: string | null }> {
+  const { data, error } = await supabase.rpc("get_connection_bonding_question_ids");
+  if (error) return { data: null, error: error.message };
+  const arr = Array.isArray(data) ? data : [];
+  return { data: arr.map((id: unknown) => String(id)), error: null };
+}
+
+/** Save or update user-level bonding answers (2 questions). */
+export async function upsertUserBondingAnswers(
+  questionIds: string[],
+  answers: Record<string, string>
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("upsert_user_bonding_answers", {
+    p_question_ids: questionIds,
+    p_answers: answers,
+  });
+  return { error: error?.message ?? null };
+}
+
+/** Check if current user has user-level bonding answers. */
+export async function hasUserBondingAnswers(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("user_bonding_answers")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function sellerRespondConnection(
+  connectionId: string,
+  accept: boolean,
+  sellerSocialShare?: boolean | null
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("seller_respond_connection", {
+    p_connection_id: connectionId,
+    p_accept: accept,
+    p_seller_social_share: accept ? sellerSocialShare ?? null : null,
+  });
   return { error: error?.message ?? null };
 }
 

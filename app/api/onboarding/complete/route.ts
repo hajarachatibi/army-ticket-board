@@ -60,8 +60,6 @@ export async function POST(request: NextRequest) {
   const is18 = !!body?.is18Confirmed;
   const instagram = body?.instagram == null ? null : String(body.instagram).trim();
   const facebook = body?.facebook == null ? null : String(body.facebook).trim();
-  const tiktok = body?.tiktok == null ? null : String(body.tiktok).trim();
-  const snapchat = body?.snapchat == null ? null : String(body.snapchat).trim();
   const bias = String(body?.armyBiasAnswer ?? "").trim();
   const years = String(body?.armyYearsArmy ?? "").trim();
   const album = String(body?.armyFavoriteAlbum ?? "").trim();
@@ -69,12 +67,10 @@ export async function POST(request: NextRequest) {
   if (!firstName) return NextResponse.json({ error: "Missing first name" }, { status: 400 });
   if (!country) return NextResponse.json({ error: "Missing country" }, { status: 400 });
   if (!is18) return NextResponse.json({ error: "You must confirm 18+" }, { status: 400 });
-  if (!instagram && !facebook && !tiktok && !snapchat) return NextResponse.json({ error: "Connect at least one social account" }, { status: 400 });
+  if (!instagram && !facebook) return NextResponse.json({ error: "Connect at least one social (Instagram or Facebook)" }, { status: 400 });
   const socialErr = validateAllSocials({
     instagram: instagram ?? "",
     facebook: facebook ?? "",
-    tiktok: tiktok ?? "",
-    snapchat: snapchat ?? "",
   });
   if (socialErr) return NextResponse.json({ error: socialErr }, { status: 400 });
   if (bias.length < 50) return NextResponse.json({ error: "Bias answer must be at least 50 characters" }, { status: 400 });
@@ -90,34 +86,20 @@ export async function POST(request: NextRequest) {
     is_18_confirmed: true,
     instagram: instagram || null,
     facebook: facebook || null,
-    tiktok: tiktok || null,
-    snapchat: snapchat || null,
+    tiktok: null,
+    snapchat: null,
     army_bias_answer: bias,
     army_years_army: years,
     army_favorite_album: album,
     onboarding_completed_at: nowIso,
     terms_accepted_at: nowIso,
     user_agreement_accepted_at: nowIso,
-  } as Record<string, any>;
+  };
 
-  let { error } = await supabase
+  const { error } = await supabase
     .from("user_profiles")
     .update(update)
     .eq("id", user.id);
-
-  // If DB migrations aren't applied yet (e.g. tiktok/snapchat columns missing),
-  // retry without those fields so the UI doesn't feel "stuck".
-  if (error) {
-    const msg = String(error.message ?? "");
-    const missingTikTok = msg.toLowerCase().includes("column") && msg.toLowerCase().includes("tiktok");
-    const missingSnap = msg.toLowerCase().includes("column") && msg.toLowerCase().includes("snapchat");
-    if (missingTikTok || missingSnap) {
-      delete update.tiktok;
-      delete update.snapchat;
-      const retry = await supabase.from("user_profiles").update(update).eq("id", user.id);
-      error = retry.error ?? null;
-    }
-  }
 
   if (error) {
     const msg = String(error.message ?? "");

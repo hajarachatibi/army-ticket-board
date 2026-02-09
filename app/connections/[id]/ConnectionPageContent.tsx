@@ -77,6 +77,7 @@ type ConnectionRow = {
   seller_comfort: boolean | null;
   buyer_social_share: boolean | null;
   seller_social_share: boolean | null;
+  buyer_want_social_share: boolean | null;
   buyer_agreed: boolean;
   seller_agreed: boolean;
 };
@@ -110,6 +111,7 @@ export default function ConnectionPageContent() {
   const [sellerRating, setSellerRating] = useState<number | null>(null);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
+  const [sellerAcceptSocialShare, setSellerAcceptSocialShare] = useState<boolean | null>(null);
 
   const isBuyer = useMemo(() => !!user && conn?.buyer_id === user.id, [conn?.buyer_id, user]);
   const isSeller = useMemo(() => !!user && conn?.seller_id === user.id, [conn?.seller_id, user]);
@@ -131,7 +133,7 @@ export default function ConnectionPageContent() {
     const { data, error: e } = await supabase
       .from("connections")
       .select(
-        "id, listing_id, buyer_id, seller_id, stage, stage_expires_at, bonding_question_ids, buyer_bonding_submitted_at, seller_bonding_submitted_at, buyer_comfort, seller_comfort, buyer_social_share, seller_social_share, buyer_agreed, seller_agreed"
+        "id, listing_id, buyer_id, seller_id, stage, stage_expires_at, bonding_question_ids, buyer_bonding_submitted_at, seller_bonding_submitted_at, buyer_comfort, seller_comfort, buyer_social_share, seller_social_share, buyer_want_social_share, buyer_agreed, seller_agreed"
       )
       .eq("id", connectionId)
       .single();
@@ -145,6 +147,7 @@ export default function ConnectionPageContent() {
     setConn(data as any);
     setStatusPopupClosed(false);
     setBondingIntroOpen(false);
+    setSellerAcceptSocialShare(null);
 
     // Seller-only: can only accept one active connection at a time PER LISTING.
     // If this listing already has an active accepted connection (not this one), disable Accept in pending_seller and show a note.
@@ -155,7 +158,7 @@ export default function ConnectionPageContent() {
         .select("id")
         .eq("seller_id", user.id)
         .eq("listing_id", listingId)
-        .in("stage", ["bonding", "preview", "comfort", "social", "agreement", "chat_open"])
+        .in("stage", ["bonding", "buyer_bonding_v2", "preview", "comfort", "social", "agreement", "chat_open"])
         .neq("id", connectionId)
         .limit(1);
       setSellerHasOtherActive(Array.isArray(other) && other.length > 0);
@@ -166,7 +169,7 @@ export default function ConnectionPageContent() {
     const stage = String((data as any)?.stage ?? "");
     const qIds = ((data as any)?.bonding_question_ids ?? []) as string[];
     // Keep bonding prompts available for preview (so we can show Q+A nicely).
-    if (qIds.length > 0 && ["bonding", "preview", "social", "agreement", "chat_open", "ended", "expired"].includes(stage)) {
+    if (qIds.length > 0 && ["bonding", "buyer_bonding_v2", "preview", "social", "agreement", "chat_open", "ended", "expired"].includes(stage)) {
       const { data: qs } = await supabase.from("bonding_questions").select("id, prompt").in("id", qIds);
       const map = new Map<string, string>();
       for (const q of (qs ?? []) as any[]) map.set(String(q.id), String(q.prompt ?? ""));
@@ -252,6 +255,11 @@ export default function ConnectionPageContent() {
   const canSubmitBonding = useMemo(() => {
     if (!conn) return false;
     if (submitting) return false;
+    if (conn.stage === "buyer_bonding_v2") {
+      if (!isBuyer) return false;
+      if (bondingQuestions.length !== 2) return false;
+      return bondingQuestions.every((q) => (answers[q.id] ?? "").trim().length > 0);
+    }
     if (conn.stage !== "bonding") return false;
     const alreadySubmitted = isBuyer ? !!conn.buyer_bonding_submitted_at : isSeller ? !!conn.seller_bonding_submitted_at : false;
     if (alreadySubmitted) return false;
@@ -648,6 +656,22 @@ export default function ConnectionPageContent() {
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     A buyer wants to connect. You have 24 hours to respond.
                   </p>
+                  {conn.buyer_want_social_share != null && (
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold text-army-purple">Do you want to share socials with this buyer?</p>
+                      <p className="mt-1 text-xs text-neutral-500">If you both agree, your socials will appear in the match message.</p>
+                      <div className="mt-2 flex gap-4">
+                        <label className="flex items-center gap-2">
+                          <input type="radio" name="sellerAcceptSocial" checked={sellerAcceptSocialShare === true} onChange={() => setSellerAcceptSocialShare(true)} />
+                          <span>Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input type="radio" name="sellerAcceptSocial" checked={sellerAcceptSocialShare === false} onChange={() => setSellerAcceptSocialShare(false)} />
+                          <span>No</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                   <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
                     Note: for this listing, you can <span className="font-semibold">accept only one connection at a time</span>. You can decline others (they will stay as requests), and once the active connection for this listing is ended/finished, you can accept another request for this listing.
                   </p>
@@ -663,7 +687,12 @@ export default function ConnectionPageContent() {
                     <button type="button" className="btn-army-outline" onClick={() => doSellerRespond(false)} disabled={submitting}>
                       Decline
                     </button>
-                    <button type="button" className="btn-army" onClick={() => doSellerRespond(true)} disabled={submitting || sellerHasOtherActive}>
+                    <button
+                      type="button"
+                      className="btn-army"
+                      onClick={() => doSellerRespond(true)}
+                      disabled={submitting || sellerHasOtherActive || (conn.buyer_want_social_share != null && sellerAcceptSocialShare === null)}
+                    >
                       Accept
                     </button>
                   </div>
@@ -713,6 +742,47 @@ export default function ConnectionPageContent() {
                     </button>
                   </div>
                 </>
+              )}
+            </div>
+          )}
+
+          {conn.stage === "buyer_bonding_v2" && (
+            <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
+              {isBuyer ? (
+                <>
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    The seller accepted. Answer these 2 questions to build trust (saved once for all your connections).
+                  </p>
+                  {conn.buyer_bonding_submitted_at ? (
+                    <p className="mt-4 text-sm font-semibold text-army-purple">Thanks — you’ve submitted. Loading…</p>
+                  ) : (
+                    <>
+                      <div className="mt-5 space-y-4">
+                        {bondingQuestions.map((q, idx) => (
+                          <div key={q.id}>
+                            <label className="block text-sm font-semibold text-army-purple">{idx + 1}. {q.prompt}</label>
+                            <textarea
+                              rows={3}
+                              className="input-army mt-2 resize-none w-full"
+                              value={answers[q.id] ?? ""}
+                              onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                              placeholder="Type your answer…"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-6 flex justify-end">
+                        <button type="button" className="btn-army" onClick={doSubmitBonding} disabled={!canSubmitBonding}>
+                          {submitting ? "Submitting…" : "Submit answers"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                  Waiting for the buyer to answer 2 bonding questions…
+                </p>
               )}
             </div>
           )}
@@ -1026,15 +1096,11 @@ export default function ConnectionPageContent() {
                         <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Buyer</p>
                         <p className="mt-1">Instagram: {socials.buyer.instagram ?? "—"}</p>
                         <p>Facebook: {socials.buyer.facebook ?? "—"}</p>
-                        <p>TikTok: {socials.buyer.tiktok ?? "—"}</p>
-                        <p>Snapchat: {socials.buyer.snapchat ?? "—"}</p>
                       </div>
                       <div className="rounded-xl border border-army-purple/15 bg-white p-3 dark:border-army-purple/25 dark:bg-neutral-900">
                         <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Seller</p>
                         <p className="mt-1">Instagram: {socials.seller.instagram ?? "—"}</p>
                         <p>Facebook: {socials.seller.facebook ?? "—"}</p>
-                        <p>TikTok: {socials.seller.tiktok ?? "—"}</p>
-                        <p>Snapchat: {socials.seller.snapchat ?? "—"}</p>
                       </div>
                     </div>
                   ) : (

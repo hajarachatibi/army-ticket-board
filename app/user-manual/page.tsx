@@ -18,7 +18,7 @@ export default function UserManualPage() {
               To use the app, tap <strong>Get started</strong> in the header and <strong>Continue with Google</strong> to sign in with your Gmail. One account, no password. Once signed in, use the <strong>Account</strong> menu in the header to view your email, open <strong>Settings</strong>, or <strong>Sign out</strong>.
             </p>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              After your first login, you’ll be asked to complete <strong>Finish setup</strong> (basic profile + at least one social). This is required to use listings and connections. For socials, use <strong>usernames only</strong> (no links, phone numbers, or emails).
+              After your first login, you’ll be asked to complete <strong>Finish setup</strong> (basic profile + at least one social). This is required to use listings and connections. We support only <strong>Instagram</strong> and <strong>Facebook</strong> for contact—use <strong>usernames only</strong> (no links, phone numbers, or emails).
             </p>
           </div>
 
@@ -38,12 +38,15 @@ export default function UserManualPage() {
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
               Use <strong>Listings</strong> to browse or manage your posts. You can switch between <strong>All Listings</strong>, <strong>My Listings</strong>, and <strong>My Connections</strong>.
             </p>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              <strong>Limits:</strong> Up to <strong>3 active listings</strong> at a time (sold and removed do not count toward the limit). Up to <strong>3 active connection requests</strong> as a buyer; sellers can have up to <strong>3 active connections</strong> in progress. Once a seller has 3 active connections, that listing is locked to new requests. When you connect, you answer <strong>2 bonding questions</strong> once (reused for all connections) and choose whether to share socials. Contact socials are <strong>Instagram or Facebook</strong> only.
+            </p>
             <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
-              <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). Your listing appears in <strong>All Listings</strong> after <strong>2 minutes</strong> of processing.</li>
+              <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). You may be asked to answer 2 bonding questions first if you haven’t already. Your listing appears in <strong>All Listings</strong> after <strong>2 minutes</strong> of processing.</li>
               <li><strong>View more details:</strong> On <strong>All Listings</strong>, tap <strong>View more details</strong> on a listing to see the seller’s answers (where the ticket was bought, ticketing experience, why they’re selling).</li>
-              <li><strong>CONNECT:</strong> Starts a connection request with the seller. You’ll go through steps (accept/decline, bonding questions, comfort check, socials decision, agreement).</li>
+              <li><strong>CONNECT:</strong> Choose whether to share socials with the seller and answer 2 bonding questions (if first time). Then the request is sent. Seller has 24 hours to accept or decline. If accepted, you both see the match message and confirm; if you both chose to share socials, your <strong>Instagram or Facebook</strong> are shown so you can continue on social media.</li>
               <li><strong>Connection alerts:</strong> If there’s an update in one of your connections, you’ll see a <strong>red dot</strong> on <strong>My Connections</strong>, and on the specific connection card.</li>
-              <li><strong>No in-app buyer/seller chat:</strong> For ARMY safety, buyer/seller chat inside the app is not available. If you both choose to share socials and both confirm, your socials will be shown so you can continue on social media.</li>
+              <li><strong>No in-app buyer/seller chat:</strong> For ARMY safety, buyer/seller chat inside the app is not available. If you both choose to share socials and both confirm, your socials (Instagram or Facebook) will be shown so you can contact each other.</li>
               <li><strong>Report:</strong> Report suspicious or non–face-value listings. After multiple reports from different users, listings can be removed and users can be banned.</li>
             </ul>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
@@ -68,7 +71,7 @@ export default function UserManualPage() {
               Settings
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              In <strong>Settings</strong> you can view your <strong>Account</strong> (username, email), update your <strong>Socials</strong> (the social you want ARMY to contact you on), and switch <strong>Appearance</strong> (dark/light mode). You can change your socials only <strong>once every 30 days</strong>. Use <strong>usernames only</strong> for socials—no links, phone numbers, emails, WhatsApp, or Telegram.
+              In <strong>Settings</strong> you can view your <strong>Account</strong> (username, email), update your <strong>Socials</strong> (Instagram or Facebook—the social you want ARMY to contact you on), and switch <strong>Appearance</strong> (dark/light mode). Use <strong>usernames only</strong> for socials—no links, phone numbers, emails, WhatsApp, or Telegram.
             </p>
           </div>
 

@@ -3,7 +3,14 @@
 import { useMemo, useState } from "react";
 
 import { ARIRANG_CITIES } from "@/lib/data/arirang";
+import { useAuth } from "@/lib/AuthContext";
 import { parsePrice } from "@/lib/parsePrice";
+import {
+  getConnectionBondingQuestionIds,
+  hasUserBondingAnswers,
+  upsertUserBondingAnswers,
+} from "@/lib/supabase/listings";
+import { supabase } from "@/lib/supabaseClient";
 
 type SeatDraft = {
   section: string;
@@ -39,6 +46,19 @@ export default function PostListingModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNoSeatsModal, setShowNoSeatsModal] = useState(false);
+  const [showBondingModal, setShowBondingModal] = useState(false);
+  const [bondingAnswers, setBondingAnswers] = useState<Record<string, string>>({});
+  const [bondingPrompts, setBondingPrompts] = useState<Array<{ id: string; prompt: string }>>([]);
+  const [bondingQuestionIds, setBondingQuestionIds] = useState<string[]>([]);
+  const [pendingCreateBody, setPendingCreateBody] = useState<object | null>(null);
+  const [bondingSubmitting, setBondingSubmitting] = useState(false);
+  const [showSocialsModal, setShowSocialsModal] = useState(false);
+  const [sellerComfortableSocials, setSellerComfortableSocials] = useState<boolean | null>(null);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [safetyAck1, setSafetyAck1] = useState(false);
+  const [safetyAck2, setSafetyAck2] = useState(false);
+
+  const { user } = useAuth();
 
   const hasValidSeats = useMemo(() => {
     if (seats.length < 1) return false;
@@ -80,6 +100,16 @@ export default function PostListingModal({
     setSubmitting(false);
     setError(null);
     setShowNoSeatsModal(false);
+    setShowBondingModal(false);
+    setBondingAnswers({});
+    setBondingPrompts([]);
+    setBondingQuestionIds([]);
+    setPendingCreateBody(null);
+    setShowSocialsModal(false);
+    setSellerComfortableSocials(null);
+    setShowSafetyModal(false);
+    setSafetyAck1(false);
+    setSafetyAck2(false);
   };
 
   const close = () => {
@@ -98,48 +128,110 @@ export default function PostListingModal({
     setSeats((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const buildCreateBody = () => ({
+    concertCity: concertCity.trim(),
+    concertDate: concertDate.trim(),
+    ticketSource: ticketSource.trim(),
+    vip: listingType === "vip",
+    loge: listingType === "loge",
+    suite: listingType === "suite",
+    ticketingExperience: ticketingExperience.trim(),
+    sellingReason: sellingReason.trim(),
+    priceExplanation: priceExplanation.trim() || null,
+    seats: seats.map((s) => ({
+      section: s.section.trim(),
+      row: s.row.trim(),
+      seat: s.seat.trim(),
+      faceValuePrice: parsePrice(s.faceValuePrice) || 0,
+      currency: s.currency.trim(),
+    })),
+  });
+
   const submit = async () => {
     if (!canSubmit) return;
     if (!hasValidSeats) {
       setShowNoSeatsModal(true);
       return;
     }
+    if (!user) return;
+    const body = buildCreateBody();
+    setPendingCreateBody(body);
+    setError(null);
+    setSubmitting(true);
+    try {
+      const hasBonding = await hasUserBondingAnswers(user.id);
+      if (hasBonding) {
+        setShowSocialsModal(true);
+      } else {
+        const { data: ids } = await getConnectionBondingQuestionIds();
+        const idList = ids ?? [];
+        setBondingQuestionIds(idList);
+        if (idList.length >= 2) {
+          const { data: rows } = await supabase.from("bonding_questions").select("id, prompt").in("id", idList);
+          setBondingPrompts(
+            idList.map((id) => ({ id, prompt: String((rows as any[]).find((r: any) => r.id === id)?.prompt ?? "Question") }))
+          );
+        }
+        setShowBondingModal(true);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to check setup");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const doCreateListing = async () => {
+    if (!pendingCreateBody) return;
     setSubmitting(true);
     setError(null);
     try {
       const res = await fetch("/api/listings/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          concertCity: concertCity.trim(),
-          concertDate: concertDate.trim(),
-          ticketSource: ticketSource.trim(),
-          vip: listingType === "vip",
-          loge: listingType === "loge",
-          suite: listingType === "suite",
-          ticketingExperience: ticketingExperience.trim(),
-          sellingReason: sellingReason.trim(),
-          priceExplanation: priceExplanation.trim() || null,
-          seats: seats.map((s) => ({
-            section: s.section.trim(),
-            row: s.row.trim(),
-            seat: s.seat.trim(),
-            faceValuePrice: parsePrice(s.faceValuePrice) || 0,
-            currency: s.currency.trim(),
-          })),
-        }),
+        body: JSON.stringify(pendingCreateBody),
       });
       const j = (await res.json().catch(() => null)) as { data?: { listingId?: string }; error?: string } | null;
       if (!res.ok) {
         setError(j?.error || `HTTP ${res.status}`);
         return;
       }
+      setShowSafetyModal(false);
+      setPendingCreateBody(null);
+      setSafetyAck1(false);
+      setSafetyAck2(false);
       onCreated();
       close();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create listing");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const submitBondingThenSocials = async () => {
+    if (!pendingCreateBody || bondingQuestionIds.length < 2) return;
+    const a = bondingAnswers;
+    if (!bondingQuestionIds.every((id) => (a[id] ?? "").trim())) {
+      setError("Please answer both questions.");
+      return;
+    }
+    setBondingSubmitting(true);
+    setError(null);
+    try {
+      const answers = Object.fromEntries(bondingQuestionIds.map((id) => [id, (a[id] ?? "").trim()]));
+      const { error: e } = await upsertUserBondingAnswers(bondingQuestionIds, answers);
+      if (e) {
+        setError(e);
+        return;
+      }
+      setShowBondingModal(false);
+      setBondingAnswers({});
+      setShowSocialsModal(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setBondingSubmitting(false);
     }
   };
 
@@ -365,6 +457,162 @@ export default function PostListingModal({
                 }}
               >
                 Add seat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBondingModal && bondingPrompts.length >= 2 && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowBondingModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-bold text-army-purple">Build trust with buyers</h3>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Answer these 2 questions once. Your answers will be shown to buyers when they connect to your listings.
+            </p>
+            <div className="mt-4 space-y-3">
+              {bondingPrompts.map((q) => (
+                <div key={q.id}>
+                  <label className="block text-sm font-medium text-army-purple">{q.prompt}</label>
+                  <textarea
+                    className="input-army mt-1 w-full min-h-[80px]"
+                    value={bondingAnswers[q.id] ?? ""}
+                    onChange={(e) => setBondingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder="Your answer…"
+                  />
+                </div>
+              ))}
+            </div>
+            {error && (
+              <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="btn-army-outline" onClick={() => setShowBondingModal(false)} disabled={bondingSubmitting}>
+                Cancel
+              </button>
+              <button type="button" className="btn-army" onClick={() => void submitBondingThenSocials()} disabled={bondingSubmitting}>
+                {bondingSubmitting ? "Saving…" : "Save & continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSocialsModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowSocialsModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:border-army-purple/25 dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-bold text-army-purple">Before your listing goes live</h3>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Are you comfortable sharing your socials (Instagram or Facebook) with buyers who connect to this listing?
+            </p>
+            <div className="mt-4 flex gap-4">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="seller-comfortable-socials"
+                  checked={sellerComfortableSocials === true}
+                  onChange={() => setSellerComfortableSocials(true)}
+                />
+                <span>Yes</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="seller-comfortable-socials"
+                  checked={sellerComfortableSocials === false}
+                  onChange={() => setSellerComfortableSocials(false)}
+                />
+                <span>No</span>
+              </label>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" className="btn-army-outline" onClick={() => setShowSocialsModal(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => {
+                  setShowSocialsModal(false);
+                  setShowSafetyModal(true);
+                }}
+                disabled={sellerComfortableSocials === null}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSafetyModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowSafetyModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:border-army-purple/25 dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-bold text-army-purple">Warnings &amp; safety</h3>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              Please read and confirm before your listing goes live.
+            </p>
+            <div className="mt-4 max-h-[50vh] overflow-y-auto space-y-4 rounded-xl border border-army-purple/15 p-4 text-sm text-neutral-800 dark:border-army-purple/25 dark:bg-neutral-900/60 dark:text-neutral-200">
+              <p className="font-semibold text-army-purple">Before you list</p>
+              <p>
+                This platform is only here to help ARMYs connect. We do not verify tickets, identities, or payments. You list at your own discretion.
+              </p>
+              <hr className="border-army-purple/15 dark:border-army-purple/25" />
+              <p className="font-semibold text-army-purple">Take your time</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Get comfortable as ARMY first</li>
+                <li>A real connection should not feel rushed</li>
+              </ul>
+              <hr className="border-army-purple/15 dark:border-army-purple/25" />
+              <p className="font-semibold text-army-purple">Face value only</p>
+              <p>
+                Only <strong>face value</strong> is accepted. By listing, you agree to sell at face value only. Listing above face value can lead to reports and a ban.
+              </p>
+              <hr className="border-army-purple/15 dark:border-army-purple/25" />
+              <p className="font-semibold text-army-purple">By posting, you confirm:</p>
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={safetyAck1} onChange={(e) => setSafetyAck1(e.target.checked)} />
+                  <span>I understand the admins do not verify tickets, handle payments, or take responsibility for transactions.</span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={safetyAck2} onChange={(e) => setSafetyAck2(e.target.checked)} />
+                  <span>I choose to list at my own discretion.</span>
+                </label>
+              </div>
+            </div>
+            {error && (
+              <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="btn-army-outline" onClick={() => setShowSafetyModal(false)} disabled={submitting}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => void doCreateListing()}
+                disabled={submitting || !safetyAck1 || !safetyAck2}
+              >
+                {submitting ? "Posting…" : "Post listing"}
               </button>
             </div>
           </div>

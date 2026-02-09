@@ -46,8 +46,6 @@ export default function LiteProfileModal({
     const rows: Array<{ label: string; value: string }> = [
       { label: "Instagram", value: (p.instagram ?? "").trim() },
       { label: "Facebook", value: (p.facebook ?? "").trim() },
-      { label: "TikTok", value: (p.tiktok ?? "").trim() },
-      { label: "Snapchat", value: (p.snapchat ?? "").trim() },
     ];
     return rows;
   }, [profile]);

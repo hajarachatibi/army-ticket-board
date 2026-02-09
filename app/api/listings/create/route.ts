@@ -78,17 +78,16 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  // Rate limit posting: max 3 listings per 48 hours (friendly pre-check; DB trigger enforces too).
-  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const { count: recentCount } = await supabase
-    .from("listings")
-    .select("id", { count: "exact", head: true })
-    .eq("seller_id", user.id)
-    .gte("created_at", since);
-  if ((recentCount ?? 0) >= 3) {
+  // v2: seller must have user-level bonding answers before creating a listing.
+  const { data: existingBonding } = await supabase
+    .from("user_bonding_answers")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!existingBonding) {
     return NextResponse.json(
-      { error: "You can only post 3 listings within 48 hours. Please wait before posting another." },
-      { status: 429 }
+      { needsBondingAnswers: true as const, error: "Answer the 2 bonding questions first to build trust with buyers." },
+      { status: 200 }
     );
   }
 

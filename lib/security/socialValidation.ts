@@ -1,4 +1,4 @@
-export type SocialField = "instagram" | "facebook" | "tiktok" | "snapchat";
+export type SocialField = "instagram" | "facebook";
 
 function looksLikeEmail(s: string): boolean {
   // Allow "@handle" (no domain), but block actual emails.
@@ -39,7 +39,7 @@ export function validateSocialValue(field: SocialField, value: string): string |
 }
 
 export function validateAllSocials(values: Record<SocialField, string>): string | null {
-  const fields: SocialField[] = ["instagram", "facebook", "tiktok", "snapchat"];
+  const fields: SocialField[] = ["instagram", "facebook"];
   for (const f of fields) {
     const err = validateSocialValue(f, values[f] ?? "");
     if (err) return err;

@@ -11,7 +11,19 @@ import PostListingModal from "@/components/PostListingModal";
 import { ARIRANG_CONTINENTS, getContinentForCity } from "@/lib/data/arirang";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationContext";
-import { connectToListing, endConnection, fetchBrowseListingSellerDetails, fetchBrowseListings, fetchMyListings, type BrowseListingCard, type BrowseListingSellerDetails, type MyListing } from "@/lib/supabase/listings";
+import {
+  connectToListingV2,
+  endConnection,
+  fetchBrowseListingSellerDetails,
+  fetchBrowseListings,
+  fetchMyListings,
+  getConnectionBondingQuestionIds,
+  hasUserBondingAnswers,
+  upsertUserBondingAnswers,
+  type BrowseListingCard,
+  type BrowseListingSellerDetails,
+  type MyListing,
+} from "@/lib/supabase/listings";
 import { supabase } from "@/lib/supabaseClient";
 
 function formatPrice(amount: number, currency: string): string {
@@ -75,6 +87,17 @@ export default function ConnectionBoardView() {
   const [postOpen, setPostOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
+  const [connectV2, setConnectV2] = useState<{ listingId: string; summary: string } | null>(null);
+  const [connectV2SocialShare, setConnectV2SocialShare] = useState<boolean | null>(null);
+  const [connectV2BondingAnswers, setConnectV2BondingAnswers] = useState<Record<string, string>>({});
+  const [connectV2HasBonding, setConnectV2HasBonding] = useState<boolean | null>(null);
+  const [connectV2QuestionIds, setConnectV2QuestionIds] = useState<string[]>([]);
+  const [connectV2Prompts, setConnectV2Prompts] = useState<Array<{ id: string; prompt: string }>>([]);
+  const [showMigrationBondingModal, setShowMigrationBondingModal] = useState(false);
+  const [migrationBondingAnswers, setMigrationBondingAnswers] = useState<Record<string, string>>({});
+  const [migrationBondingPrompts, setMigrationBondingPrompts] = useState<Array<{ id: string; prompt: string }>>([]);
+  const [migrationBondingQuestionIds, setMigrationBondingQuestionIds] = useState<string[]>([]);
+  const [migrationBondingSubmitting, setMigrationBondingSubmitting] = useState(false);
   const [limitOpen, setLimitOpen] = useState<{ title: string; body: string } | null>(null);
   const [ticketDetailsOpen, setTicketDetailsOpen] = useState<{ connectionId: string } | null>(null);
   const [listingDetailsOpen, setListingDetailsOpen] = useState<{ listingId: string; summary: string } | null>(null);
@@ -87,6 +110,8 @@ export default function ConnectionBoardView() {
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const [needsSocialMigration, setNeedsSocialMigration] = useState(false);
+  const [socialMigrationBannerDismissed, setSocialMigrationBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!listingDetailsOpen) {
@@ -103,11 +128,45 @@ export default function ConnectionBoardView() {
     });
   }, [listingDetailsOpen?.listingId]);
 
+  useEffect(() => {
+    if (!connectV2 || !user) {
+      setConnectV2HasBonding(null);
+      setConnectV2QuestionIds([]);
+      setConnectV2Prompts([]);
+      return;
+    }
+    setConnectV2SocialShare(null);
+    setConnectV2BondingAnswers({});
+    let cancelled = false;
+    void (async () => {
+      const [hasBonding, qIdsRes] = await Promise.all([
+        hasUserBondingAnswers(user.id),
+        getConnectionBondingQuestionIds(),
+      ]);
+      if (cancelled) return;
+      setConnectV2HasBonding(hasBonding);
+      const ids = qIdsRes.data ?? [];
+      setConnectV2QuestionIds(ids);
+      if (!hasBonding && ids.length >= 2) {
+        const { data: rows } = await supabase.from("bonding_questions").select("id, prompt").in("id", ids);
+        if (!cancelled && Array.isArray(rows))
+          setConnectV2Prompts(
+            ids.map((id) => ({ id, prompt: String((rows as any[]).find((r) => r.id === id)?.prompt ?? "Question") }))
+          );
+      } else {
+        setConnectV2Prompts([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connectV2?.listingId, user?.id]);
+
   const load = async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
-    const [b, m, c] = await Promise.all([
+    const [b, m, c, profileRes] = await Promise.all([
       fetchBrowseListings(),
       fetchMyListings(user.id),
       supabase
@@ -115,7 +174,14 @@ export default function ConnectionBoardView() {
         .select("id, stage, stage_expires_at, listing_id, buyer_id, seller_id")
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .order("created_at", { ascending: false }),
+      supabase.from("user_profiles").select("instagram, facebook, tiktok, snapchat").eq("id", user.id).single(),
     ]);
+    const profile = (profileRes as any)?.data;
+    const hasInsta = (profile?.instagram ?? "").toString().trim().length > 0;
+    const hasFb = (profile?.facebook ?? "").toString().trim().length > 0;
+    const hasTikTok = (profile?.tiktok ?? "").toString().trim().length > 0;
+    const hasSnap = (profile?.snapchat ?? "").toString().trim().length > 0;
+    setNeedsSocialMigration((hasTikTok || hasSnap) && !hasInsta && !hasFb);
     if (b.error) setError(b.error);
     if (m.error) setError(m.error);
     // Keep ordering "Active first", then "Locked", then "Sold" to reduce confusion.
@@ -141,6 +207,34 @@ export default function ConnectionBoardView() {
       const activeLike = rows.filter((x) => !finished.has(String(x.stage)));
       const endedLike = rows.filter((x) => finished.has(String(x.stage)));
       setConnections([...activeLike, ...endedLike]);
+
+      // Migration: sellers with existing listings (no connection yet) and no bonding answers — show modal once
+      if (m.data.length > 0) {
+        const allConns = [...activeLike, ...endedLike];
+        const listingIdsWithConnections = new Set(allConns.filter((c) => c.sellerId === user.id).map((c) => c.listingId));
+        const listingsNoConnection = m.data.filter(
+          (l) => l.status !== "removed" && l.status !== "sold" && !listingIdsWithConnections.has(l.id)
+        );
+        if (listingsNoConnection.length > 0) {
+          const hasBonding = await hasUserBondingAnswers(user.id);
+          if (
+            !hasBonding &&
+            typeof window !== "undefined" &&
+            !localStorage.getItem("army_seller_bonding_migration_done:" + user.id)
+          ) {
+            setShowMigrationBondingModal(true);
+            const { data: ids } = await getConnectionBondingQuestionIds();
+            const idList = ids ?? [];
+            setMigrationBondingQuestionIds(idList);
+            if (idList.length >= 2) {
+              const { data: rowsQ } = await supabase.from("bonding_questions").select("id, prompt").in("id", idList);
+              setMigrationBondingPrompts(
+                idList.map((id) => ({ id, prompt: String((rowsQ as any[]).find((r: any) => r.id === id)?.prompt ?? "Question") }))
+              );
+            }
+          }
+        }
+      }
     }
     setLoading(false);
   };
@@ -155,16 +249,9 @@ export default function ConnectionBoardView() {
   }, [mine]);
 
   const activeListingsCount = useMemo(() => {
-    return mine.filter((l) => l.status === "processing" || l.status === "active" || l.status === "locked").length;
+    return mine.filter((l) => ["processing", "active", "locked"].includes(l.status)).length;
   }, [mine]);
 
-  const postedLast48hCount = useMemo(() => {
-    const since = Date.now() - 48 * 60 * 60 * 1000;
-    return mine.filter((l) => {
-      const t = Date.parse(String(l.createdAt ?? ""));
-      return Number.isFinite(t) && t > since;
-    }).length;
-  }, [mine]);
 
   const sellerHasActiveAcceptedConnectionByListingId = useMemo(() => {
     if (!user) return new Map<string, boolean>();
@@ -255,14 +342,46 @@ export default function ConnectionBoardView() {
     });
   }, [browse, filterCity, filterContinent, filterCurrency, filterDateFrom, filterDateTo, filterPriceMax, filterPriceMin, filterQuantity, filterStatus, filterVip]);
 
-  const connect = async (listingId: string) => {
+  const migrationBondingSubmit = async () => {
+    if (migrationBondingQuestionIds.length < 2) return;
+    const a = migrationBondingAnswers;
+    if (!migrationBondingQuestionIds.every((id) => (a[id] ?? "").trim())) {
+      setError("Please answer both questions.");
+      return;
+    }
     if (!user) return;
-    setConnectingId(listingId);
+    setMigrationBondingSubmitting(true);
     setError(null);
-    const { connectionId, error: e } = await connectToListing(listingId);
+    const answers = Object.fromEntries(migrationBondingQuestionIds.map((id) => [id, (a[id] ?? "").trim()]));
+    const { error: e } = await upsertUserBondingAnswers(migrationBondingQuestionIds, answers);
+    setMigrationBondingSubmitting(false);
+    if (e) setError(e);
+    else {
+      if (typeof window !== "undefined") localStorage.setItem("army_seller_bonding_migration_done:" + user.id, "1");
+      setShowMigrationBondingModal(false);
+      setMigrationBondingAnswers({});
+    }
+  };
+
+  const connectV2Submit = async () => {
+    if (!connectV2 || connectV2SocialShare === null) return;
+    if (connectV2HasBonding === false && connectV2QuestionIds.length >= 2) {
+      const a = connectV2BondingAnswers;
+      if (!connectV2QuestionIds.every((id) => (a[id] ?? "").trim())) {
+        setError("Please answer both bonding questions.");
+        return;
+      }
+    }
+    setConnectingId(connectV2.listingId);
+    setError(null);
+    const bonding =
+      connectV2HasBonding === false && connectV2QuestionIds.length >= 2
+        ? Object.fromEntries(connectV2QuestionIds.map((id) => [id, (connectV2BondingAnswers[id] ?? "").trim()]))
+        : undefined;
+    const { connectionId, error: e } = await connectToListingV2(connectV2.listingId, connectV2SocialShare, bonding);
     setConnectingId(null);
     if (e) {
-      if (e.toLowerCase().includes("3 active")) {
+      if (e.toLowerCase().includes("3 active") || e.toLowerCase().includes("maximum")) {
         setLimitOpen({
           title: "Connection limit reached",
           body: "You can only have up to 3 active connection requests at a time. Please end or finish one of your existing connections, then try again.",
@@ -270,8 +389,10 @@ export default function ConnectionBoardView() {
       } else {
         setError(e);
       }
+      setConnectV2(null);
       return;
     }
+    setConnectV2(null);
     if (connectionId) {
       window.location.href = `/connections/${encodeURIComponent(connectionId)}`;
     }
@@ -291,7 +412,7 @@ export default function ConnectionBoardView() {
   };
 
   const activeConnectionStages = useMemo(() => {
-    return new Set(["pending_seller", "bonding", "preview", "comfort", "social", "agreement", "chat_open"]);
+    return new Set(["pending_seller", "bonding", "buyer_bonding_v2", "preview", "comfort", "social", "agreement", "chat_open"]);
   }, []);
 
   const myActiveBuyerConnectionByListingId = useMemo(() => {
@@ -360,6 +481,20 @@ export default function ConnectionBoardView() {
   return (
     <RequireAuth>
       <div className="mx-auto max-w-7xl">
+        {needsSocialMigration && !socialMigrationBannerDismissed && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-50 px-4 py-3 dark:border-amber-400/30 dark:bg-amber-950/30">
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              We now support only <strong>Instagram</strong> and <strong>Facebook</strong> for contact. You currently have only TikTok or Snapchat. Please add Instagram or Facebook in{" "}
+              <Link href="/settings" className="font-semibold underline hover:no-underline">Settings</Link> so buyers can reach you.
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <Link href="/settings" className="btn-army text-sm">Go to Settings</Link>
+              <button type="button" className="text-xs text-amber-700 dark:text-amber-300 hover:underline" onClick={() => setSocialMigrationBannerDismissed(true)}>
+                Dismiss for now
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-display text-3xl font-bold text-army-purple sm:text-4xl">
@@ -379,30 +514,17 @@ export default function ConnectionBoardView() {
               type="button"
               className="btn-army disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
-                if (activeListingsCount >= 5) {
+                if (activeListingsCount >= 3) {
                   setLimitOpen({
                     title: "Listing limit reached",
-                    body: "You can have a maximum of 5 active listings at a time. Mark one sold, delete it, or wait until it is no longer active.",
-                  });
-                  return;
-                }
-                if (postedLast48hCount >= 3) {
-                  setLimitOpen({
-                    title: "Posting limit reached",
-                    body: "You can only post 3 listings within 48 hours. Please wait before posting another listing.",
+                    body: "You can have a maximum of 3 active listings at a time (sold and removed do not count). Mark one sold, delete it, or wait until it is no longer active.",
                   });
                   return;
                 }
                 setPostOpen(true);
               }}
-              disabled={false}
-              title={
-                postedLast48hCount >= 3
-                  ? "Max 3 listings per 48 hours"
-                  : activeListingsCount >= 5
-                    ? "Max 5 active listings"
-                    : "Post a listing"
-              }
+              disabled={activeListingsCount >= 3}
+              title={activeListingsCount >= 3 ? "Max 3 active listings" : "Post a listing"}
             >
               Post Listing
             </button>
@@ -455,14 +577,9 @@ export default function ConnectionBoardView() {
         </div>
       )}
 
-      {activeListingsCount >= 5 && (
+      {activeListingsCount >= 3 && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-          You can have a maximum of <span className="font-semibold">5 active listings</span> at a time.
-        </div>
-      )}
-      {postedLast48hCount >= 3 && (
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-          You can post a maximum of <span className="font-semibold">3 listings within 48 hours</span>. Please wait before posting another.
+          You can have a maximum of <span className="font-semibold">3 active listings</span> at a time (sold and removed do not count).
         </div>
       )}
 
@@ -1030,29 +1147,22 @@ export default function ConnectionBoardView() {
                 </p>
               </div>
               <p>
-                <span className="font-semibold">Limits:</span> you can have up to <span className="font-semibold">3</span>{" "}
-                active connection requests at a time.
+                <span className="font-semibold">Limits:</span> up to <span className="font-semibold">3</span> active connection requests; up to <span className="font-semibold">3</span> active listings at a time (sold and removed do not count). Once a seller has <span className="font-semibold">3</span> active connections, their listing is locked to new requests. Contact socials are <span className="font-semibold">Instagram or Facebook</span> only.
               </p>
               <div>
                 <p className="font-semibold text-army-purple">How it works (high level)</p>
                 <ol className="mt-2 list-decimal space-y-1 pl-5">
                   <li>
+                    <span className="font-semibold">Connect</span>: choose whether to share socials with this seller, and answer 2 bonding questions (once per account) if you haven’t already.
+                  </li>
+                  <li>
                     <span className="font-semibold">Request sent</span>: seller has up to <span className="font-semibold">24 hours</span> to accept or decline.
                   </li>
                   <li>
-                    <span className="font-semibold">If accepted</span>: the listing becomes <span className="font-semibold">locked</span> to you while you both proceed.
+                    <span className="font-semibold">If accepted</span>: seller chooses whether to share socials; you both see the match message. If you both chose to share socials, your <strong>Instagram or Facebook</strong> are shown so you can contact each other.
                   </li>
                   <li>
-                    <span className="font-semibold">Bonding</span>: you both answer 3 questions (24 hours).
-                  </li>
-                  <li>
-                    <span className="font-semibold">Preview</span>: you both confirm comfort (24 hours). If either says no, it ends and the listing unlocks.
-                  </li>
-                  <li>
-                    <span className="font-semibold">Socials</span>: you both choose whether to share socials (24 hours).
-                  </li>
-                  <li>
-                    <span className="font-semibold">Agreement</span>: you both confirm the match (24 hours). If you both chose to share socials, your socials are revealed here so you can contact each other.
+                    <span className="font-semibold">Agreement</span>: you both confirm the match (24 hours), then chat is open.
                   </li>
                 </ol>
               </div>
@@ -1069,13 +1179,94 @@ export default function ConnectionBoardView() {
                 type="button"
                 className="btn-army"
                 onClick={() => {
-                  const id = connectConfirm.listingId;
+                  setConnectV2({ listingId: connectConfirm.listingId, summary: connectConfirm.summary });
                   setConnectConfirm(null);
-                  void connect(id);
                 }}
-                disabled={connectingId === connectConfirm.listingId}
               >
-                {connectingId === connectConfirm.listingId ? "Connecting…" : "Continue"}
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {connectV2 && (
+        <div
+          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="connect-v2-title"
+          onClick={() => setConnectV2(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="connect-v2-title" className="font-display text-xl font-bold text-army-purple">
+              Connect to listing
+            </h2>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              {connectV2.summary}
+            </p>
+
+            <div className="mt-4">
+              <p className="text-sm font-semibold text-army-purple">Do you want to share socials with this seller?</p>
+              <p className="mt-1 text-xs text-neutral-500">If you both agree later, you’ll see each other’s socials in the match message.</p>
+              <div className="mt-2 flex gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="connectV2Social"
+                    checked={connectV2SocialShare === true}
+                    onChange={() => setConnectV2SocialShare(true)}
+                  />
+                  <span>Yes</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="connectV2Social"
+                    checked={connectV2SocialShare === false}
+                    onChange={() => setConnectV2SocialShare(false)}
+                  />
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+
+            {connectV2HasBonding === false && connectV2Prompts.length >= 2 && (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm font-semibold text-army-purple">Answer these 2 questions to build trust with the seller</p>
+                {connectV2Prompts.map((q) => (
+                  <div key={q.id}>
+                    <label className="block text-sm text-neutral-700 dark:text-neutral-300">{q.prompt}</label>
+                    <textarea
+                      className="input-army mt-1 w-full min-h-[80px]"
+                      value={connectV2BondingAnswers[q.id] ?? ""}
+                      onChange={(e) => setConnectV2BondingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      placeholder="Your answer…"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" className="btn-army-outline" onClick={() => setConnectV2(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => void connectV2Submit()}
+                disabled={
+                  connectingId === connectV2.listingId ||
+                  connectV2SocialShare === null ||
+                  connectV2HasBonding === null ||
+                  (connectV2HasBonding === false && connectV2Prompts.length < 2)
+                }
+              >
+                {connectingId === connectV2.listingId ? "Connecting…" : "Send request"}
               </button>
             </div>
           </div>
@@ -1101,6 +1292,61 @@ export default function ConnectionBoardView() {
             <div className="mt-6 flex justify-end">
               <button type="button" className="btn-army" onClick={() => setLimitOpen(null)}>
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMigrationBondingModal && migrationBondingPrompts.length >= 2 && (
+        <div
+          className="modal-backdrop fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="migration-bonding-title"
+          onClick={() => {
+            if (typeof window !== "undefined" && user) localStorage.setItem("army_seller_bonding_migration_done:" + user.id, "1");
+            setShowMigrationBondingModal(false);
+          }}
+        >
+          <div
+            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="migration-bonding-title" className="font-display text-xl font-bold text-army-purple">
+              Build trust with buyers
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Add your bonding answers now. They will be shown to buyers when they connect to your listings. You only need to do this once.
+              Please answer the questions below to simplify the bonding stage from now onwards.
+            </p>
+            <div className="mt-4 space-y-3">
+              {migrationBondingPrompts.map((q) => (
+                <div key={q.id}>
+                  <label className="block text-sm font-medium text-army-purple">{q.prompt}</label>
+                  <textarea
+                    className="input-army mt-1 w-full min-h-[80px]"
+                    value={migrationBondingAnswers[q.id] ?? ""}
+                    onChange={(e) => setMigrationBondingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder="Your answer…"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-army-outline"
+                onClick={() => {
+                  if (typeof window !== "undefined" && user) localStorage.setItem("army_seller_bonding_migration_done:" + user.id, "1");
+                  setShowMigrationBondingModal(false);
+                }}
+                disabled={migrationBondingSubmitting}
+              >
+                Maybe later
+              </button>
+              <button type="button" className="btn-army" onClick={() => void migrationBondingSubmit()} disabled={migrationBondingSubmitting}>
+                {migrationBondingSubmitting ? "Saving…" : "Save"}
               </button>
             </div>
           </div>

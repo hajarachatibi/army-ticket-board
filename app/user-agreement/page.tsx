@@ -59,7 +59,7 @@ export default function UserAgreementPage() {
                 </li>
                 <li>
                   <strong>Social exchange:</strong> If both sides choose to share socials and both confirm, socials are shown so you
-                  can continue on social media.
+                  can continue on social media. Contact socials are <strong>Instagram or Facebook</strong> only.
                 </li>
                 <li>
                   <strong>Locked listings:</strong> When a seller accepts a connection, the listing can become locked while you go

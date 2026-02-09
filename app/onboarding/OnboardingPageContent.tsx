@@ -37,8 +37,6 @@ export default function OnboardingPageContent() {
   const [is18, setIs18] = useState(false);
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");
-  const [tiktok, setTiktok] = useState("");
-  const [snapchat, setSnapchat] = useState("");
 
   const [biasAnswer, setBiasAnswer] = useState("");
   const [yearsArmy, setYearsArmy] = useState("");
@@ -94,29 +92,29 @@ export default function OnboardingPageContent() {
     if (!nonEmpty(firstName)) return false;
     if (!nonEmpty(country)) return false;
     if (!is18) return false;
-    if (!nonEmpty(instagram) && !nonEmpty(facebook) && !nonEmpty(tiktok) && !nonEmpty(snapchat)) return false;
-    if (validateAllSocials({ instagram, facebook, tiktok, snapchat })) return false;
+    if (!nonEmpty(instagram) && !nonEmpty(facebook)) return false;
+    if (validateAllSocials({ instagram, facebook })) return false;
     if (biasAnswer.trim().length < MIN_BIAS_CHARS) return false;
     if (!nonEmpty(yearsArmy)) return false;
     if (!nonEmpty(favoriteAlbum)) return false;
     if (!agreeTerms) return false;
     if (!agreeUserAgreement) return false;
     return true;
-  }, [agreeTerms, agreeUserAgreement, biasAnswer, country, favoriteAlbum, facebook, firstName, instagram, is18, snapchat, submitting, tiktok, yearsArmy]);
+  }, [agreeTerms, agreeUserAgreement, biasAnswer, country, favoriteAlbum, facebook, firstName, instagram, is18, submitting, yearsArmy]);
 
   const socialsValidationError = useMemo(() => {
-    return validateAllSocials({ instagram, facebook, tiktok, snapchat });
-  }, [facebook, instagram, snapchat, tiktok]);
+    return validateAllSocials({ instagram, facebook });
+  }, [facebook, instagram]);
 
   const getMissingMessages = useMemo(() => {
     const messages: string[] = [];
     if (!nonEmpty(firstName)) messages.push("First name is required.");
     if (!nonEmpty(country)) messages.push("Country is required.");
     if (!is18) messages.push("You must confirm you are 18 or older.");
-    if (!nonEmpty(instagram) && !nonEmpty(facebook) && !nonEmpty(tiktok) && !nonEmpty(snapchat)) {
-      messages.push("At least one social (Instagram, Facebook, TikTok, or Snapchat) is required.");
+    if (!nonEmpty(instagram) && !nonEmpty(facebook)) {
+      messages.push("At least one social (Instagram or Facebook) is required.");
     }
-    if (validateAllSocials({ instagram, facebook, tiktok, snapchat })) {
+    if (validateAllSocials({ instagram, facebook })) {
       messages.push("Use usernames only for socials (no links, phone numbers, or emails).");
     }
     if (biasAnswer.trim().length < MIN_BIAS_CHARS) {
@@ -127,7 +125,7 @@ export default function OnboardingPageContent() {
     if (!agreeTerms) messages.push("You must agree to the Terms and Conditions.");
     if (!agreeUserAgreement) messages.push("You must agree to the User Agreement.");
     return messages;
-  }, [agreeTerms, agreeUserAgreement, biasAnswer, country, favoriteAlbum, facebook, firstName, instagram, is18, snapchat, tiktok, yearsArmy]);
+  }, [agreeTerms, agreeUserAgreement, biasAnswer, country, favoriteAlbum, facebook, firstName, instagram, is18, yearsArmy]);
 
   useEffect(() => {
     if (canSubmit && validationMessages.length > 0) setValidationMessages([]);
@@ -151,8 +149,8 @@ export default function OnboardingPageContent() {
           is18Confirmed: is18,
           instagram: instagram.trim() || null,
           facebook: facebook.trim() || null,
-          tiktok: tiktok.trim() || null,
-          snapchat: snapchat.trim() || null,
+          tiktok: null,
+          snapchat: null,
           armyBiasAnswer: biasAnswer.trim(),
           armyYearsArmy: yearsArmy.trim(),
           armyFavoriteAlbum: favoriteAlbum.trim(),
@@ -261,13 +259,10 @@ export default function OnboardingPageContent() {
             </div>
 
             <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/60">
-              <p className="text-sm font-semibold text-army-purple">Connect at least one social</p>
+              <p className="text-sm font-semibold text-army-purple">Connect at least one social (Instagram or Facebook)</p>
               <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
                 Important: there is <span className="font-semibold">no in-app buyer/seller chat</span>. When you match with an ARMY,
-                you will contact each other through the social you put here. Please choose the correct social.
-              </p>
-              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                To prevent scams and keep things stable, you can change your socials only <span className="font-semibold">once every 30 days</span>.
+                you will contact each other through the social you put here. We support only <strong>Instagram</strong> and <strong>Facebook</strong>.
               </p>
               <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
                 Please use <span className="font-semibold">usernames only</span> (no phone numbers, emails, WhatsApp, Telegram, or links).
@@ -285,14 +280,6 @@ export default function OnboardingPageContent() {
                 <div>
                   <label className="block text-sm font-semibold text-army-purple">Facebook</label>
                   <input className="input-army mt-2" value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="username" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-army-purple">TikTok</label>
-                  <input className="input-army mt-2" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="@yourhandle" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-army-purple">Snapchat</label>
-                  <input className="input-army mt-2" value={snapchat} onChange={(e) => setSnapchat(e.target.value)} placeholder="@yourhandle" />
                 </div>
               </div>
             </div>
