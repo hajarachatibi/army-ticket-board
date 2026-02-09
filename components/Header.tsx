@@ -93,18 +93,21 @@ export default function Header() {
     communityChatLastSeenRef.current = Number.isFinite(Number(communityRaw)) ? Number(communityRaw) : 0;
 
     (async () => {
-      const [{ data: adminPosts }, { count: communityCount }] = await Promise.all([
+      const sinceCommunity = new Date(communityChatLastSeenRef.current).toISOString();
+      const [{ data: adminPosts }, { count: communityCount, error: communityError }] = await Promise.all([
         fetchAdminChannelPosts({ limit: 50, offset: 0 }),
         supabase
           .from("community_chat_messages")
           .select("id", { count: "exact", head: true })
-          .gt("created_at", new Date(communityChatLastSeenRef.current).toISOString()),
+          .gt("created_at", sinceCommunity)
+          .neq("user_id", user.id),
       ]);
       if (cancelled) return;
       setAdminChannelUnreadCount(
         adminPosts.filter((p) => Date.parse(p.createdAt) > adminChannelLastSeenRef.current).length
       );
-      setCommunityChatUnreadCount(Math.min(99, communityCount ?? 0));
+      const communityUnread = communityError ? 0 : Math.min(99, communityCount ?? 0);
+      setCommunityChatUnreadCount(communityUnread);
     })();
 
     const ch = supabase
@@ -133,8 +136,11 @@ export default function Header() {
         { event: "INSERT", schema: "public", table: "community_chat_messages" },
         (payload) => {
           if (cancelled) return;
-          const createdAt = Date.parse(String((payload as any)?.new?.created_at ?? ""));
+          const newRow = (payload as { new?: { created_at?: string; user_id?: string } })?.new;
+          const createdAt = Date.parse(String(newRow?.created_at ?? ""));
+          const fromUserId = newRow?.user_id;
           if (!Number.isFinite(createdAt)) return;
+          if (fromUserId === user.id) return;
           if (onChatroomPageRef.current) {
             const now = Date.now();
             communityChatLastSeenRef.current = Math.max(communityChatLastSeenRef.current, now, createdAt);
