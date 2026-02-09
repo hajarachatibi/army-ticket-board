@@ -19,6 +19,7 @@ DECLARE
   v_qids uuid[];
   v_has_answers boolean;
   v_seller_active int;
+  v_buyer_active int;
 BEGIN
   SELECT * INTO v_listing FROM public.listings WHERE id = p_listing_id FOR UPDATE;
   IF v_listing.id IS NULL THEN RAISE EXCEPTION 'Listing not found'; END IF;
@@ -34,12 +35,11 @@ BEGIN
     RAISE EXCEPTION 'Complete onboarding and agreements first';
   END IF;
 
-  IF EXISTS (
-    SELECT 1 FROM public.connections c
-    WHERE c.buyer_id = auth.uid()
-      AND c.stage IN ('pending_seller','bonding','buyer_bonding_v2','preview','comfort','social','agreement','chat_open')
-  ) THEN
-    RAISE EXCEPTION 'You already have an active connection. Complete or end one before connecting to another listing.';
+  SELECT count(*) INTO v_buyer_active FROM public.connections c
+  WHERE c.buyer_id = auth.uid()
+    AND c.stage IN ('pending_seller','bonding','buyer_bonding_v2','preview','comfort','social','agreement','chat_open');
+  IF COALESCE(v_buyer_active, 0) >= 3 THEN
+    RAISE EXCEPTION 'You have reached the maximum of 3 active connections. Complete or end one before connecting to another listing.';
   END IF;
 
   v_qids := public.get_connection_bonding_question_ids();
