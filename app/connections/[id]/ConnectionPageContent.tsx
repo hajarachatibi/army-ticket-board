@@ -280,7 +280,11 @@ export default function ConnectionPageContent() {
         ? "Saved: accepted. Next: answer bonding questions to build trust with the buyer."
         : "Saved: you declined this connection request."
     );
-    const { error: e } = await sellerRespondConnection(conn.id, accept);
+    const { error: e } = await sellerRespondConnection(
+      conn.id,
+      accept,
+      accept && conn.buyer_want_social_share != null ? (sellerAcceptSocialShare ?? false) : undefined
+    );
     setSubmitting(false);
     if (e) setError(e);
     else void load();
@@ -1013,7 +1017,7 @@ export default function ConnectionPageContent() {
           {conn.stage === "agreement" && (
             <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
               <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                You have a match. Please read the message and confirm to continue.
+                You have a match. Both buyer and seller must read the message and confirm to continue.
               </p>
               <div className="mt-5 flex justify-end">
                 <button type="button" className="btn-army" onClick={() => setMatchOpen(true)} disabled={submitting}>
