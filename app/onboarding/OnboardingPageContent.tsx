@@ -92,7 +92,7 @@ export default function OnboardingPageContent() {
     if (!is18) return false;
     if (!nonEmpty(instagram) && !nonEmpty(facebook)) return false;
     if (validateAllSocials({ instagram, facebook })) return false;
-    if (biasAnswer.trim().length < MIN_BIAS_CHARS) return false;
+    if (!nonEmpty(biasAnswer)) return false;
     if (!nonEmpty(yearsArmy)) return false;
     if (!nonEmpty(favoriteAlbum)) return false;
     if (!agreeTerms) return false;
