@@ -16,8 +16,6 @@ type OnboardingStatus = {
 
 type ArmyProfileQuestionRow = { key: string; prompt: string };
 
-const MIN_BIAS_CHARS = 50;
-
 function nonEmpty(s: string): boolean {
   return s.trim().length > 0;
 }
@@ -117,8 +115,8 @@ export default function OnboardingPageContent() {
     if (validateAllSocials({ instagram, facebook })) {
       messages.push("Use usernames only for socials (no links, phone numbers, or emails).");
     }
-    if (biasAnswer.trim().length < MIN_BIAS_CHARS) {
-      messages.push(`Bias / ARMY profile answer must be at least ${MIN_BIAS_CHARS} characters (you have ${biasAnswer.trim().length}).`);
+    if (!nonEmpty(biasAnswer)) {
+      messages.push("Bias / ARMY profile answer is required.");
     }
     if (!nonEmpty(yearsArmy)) messages.push("How many years you've been ARMY is required.");
     if (!nonEmpty(favoriteAlbum)) messages.push("Favorite BTS album is required.");
@@ -290,16 +288,15 @@ export default function OnboardingPageContent() {
               <div className="mt-3 space-y-3">
                 <div>
                   <label className="block text-sm font-semibold text-army-purple">
-                    {armyProfilePrompts.bias || "Who is your bias? Why? (min 100 chars)"}
+                    {armyProfilePrompts.bias || "Who is your bias? Why?"}
                   </label>
                   <textarea
                     className="input-army mt-2 resize-none"
                     rows={4}
                     value={biasAnswer}
                     onChange={(e) => setBiasAnswer(e.target.value)}
-                    placeholder="Write at least 100 characters…"
+                    placeholder="Your bias and why…"
                   />
-                  <p className="mt-1 text-xs text-neutral-500">{biasAnswer.trim().length}/100</p>
                 </div>
 
                 <div>

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     facebook: facebook ?? "",
   });
   if (socialErr) return NextResponse.json({ error: socialErr }, { status: 400 });
-  if (bias.length < 50) return NextResponse.json({ error: "Bias answer must be at least 50 characters" }, { status: 400 });
+  if (!bias.trim()) return NextResponse.json({ error: "Bias / ARMY profile answer is required" }, { status: 400 });
   if (!years) return NextResponse.json({ error: "Missing years ARMY" }, { status: 400 });
   if (!album) return NextResponse.json({ error: "Missing favorite album" }, { status: 400 });
   if (!body?.acceptTerms) return NextResponse.json({ error: "You must accept Terms" }, { status: 400 });
