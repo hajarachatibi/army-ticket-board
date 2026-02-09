@@ -163,19 +163,16 @@ export default function ConnectionPageContent() {
     setBondingIntroOpen(false);
     setSellerAcceptSocialShare(null);
 
-    // Seller-only: can only accept one active connection at a time PER LISTING.
-    // If this listing already has an active accepted connection (not this one), disable Accept in pending_seller and show a note.
+    // Seller-only: max 3 active connections total (across all listings). If already at 3, disable Accept and show a note.
     if (user && String((data as any)?.seller_id ?? "") === user.id) {
-      const listingId = String((data as any)?.listing_id ?? "");
       const { data: other } = await supabase
         .from("connections")
         .select("id")
         .eq("seller_id", user.id)
-        .eq("listing_id", listingId)
         .in("stage", ["bonding", "buyer_bonding_v2", "preview", "comfort", "social", "agreement", "chat_open"])
-        .neq("id", connectionId)
-        .limit(1);
-      setSellerHasOtherActive(Array.isArray(other) && other.length > 0);
+        .neq("id", connectionId);
+      const count = Array.isArray(other) ? other.length : 0;
+      setSellerHasOtherActive(count >= 3);
     } else {
       setSellerHasOtherActive(false);
     }
@@ -762,14 +759,11 @@ export default function ConnectionPageContent() {
                     </div>
                   )}
                   <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                    Note: you can have at most <span className="font-semibold">3 active connections at a time</span> (across all your listings). For each listing, only one connection can be active—so this listing can have only one accepted buyer at a time. If you already have 3 active connections, finish or end one before accepting another request. You can decline others (they stay as requests).
+                    Note: you can have at most <span className="font-semibold">3 active connections at a time</span> (across all your listings). If you already have 3, finish or end one before accepting another request. You can decline others (they stay as requests).
                   </p>
                   {sellerHasOtherActive && (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                      This listing already has an active connection in progress. To accept this request, first finish or tap <span className="font-semibold">Release / end</span> on the active connection for this listing.
-                      <div className="mt-1 text-xs">
-                        This request is in the <span className="font-semibold">waiting list</span> until then.
-                      </div>
+                      You already have 3 active connections. To accept this request, first finish or tap <span className="font-semibold">Release / end</span> on one of your active connections.
                     </div>
                   )}
                   <div className="mt-4 flex flex-wrap justify-end gap-2">
