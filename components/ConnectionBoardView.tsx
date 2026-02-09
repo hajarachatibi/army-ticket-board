@@ -16,12 +16,14 @@ import {
   endConnection,
   fetchBrowseListingSellerDetails,
   fetchBrowseListings,
+  fetchListingSellerProfileForConnect,
   fetchMyListings,
   getConnectionBondingQuestionIds,
   hasUserBondingAnswers,
   upsertUserBondingAnswers,
   type BrowseListingCard,
   type BrowseListingSellerDetails,
+  type ListingSellerProfileForConnect,
   type MyListing,
 } from "@/lib/supabase/listings";
 import { supabase } from "@/lib/supabaseClient";
@@ -88,6 +90,11 @@ export default function ConnectionBoardView() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectConfirm, setConnectConfirm] = useState<{ listingId: string; summary: string } | null>(null);
   const [connectV2, setConnectV2] = useState<{ listingId: string; summary: string } | null>(null);
+  const [connectV2SellerProfile, setConnectV2SellerProfile] = useState<{
+    data: ListingSellerProfileForConnect | null;
+    loading: boolean;
+    error: string | null;
+  }>({ data: null, loading: false, error: null });
   const [connectV2SocialShare, setConnectV2SocialShare] = useState<boolean | null>(null);
   const [connectV2BondingAnswers, setConnectV2BondingAnswers] = useState<Record<string, string>>({});
   const [connectV2HasBonding, setConnectV2HasBonding] = useState<boolean | null>(null);
@@ -133,10 +140,33 @@ export default function ConnectionBoardView() {
       setConnectV2HasBonding(null);
       setConnectV2QuestionIds([]);
       setConnectV2Prompts([]);
+      setConnectV2SellerProfile({ data: null, loading: false, error: null });
       return;
     }
     setConnectV2SocialShare(null);
     setConnectV2BondingAnswers({});
+    setConnectV2SellerProfile({ data: null, loading: true, error: null });
+    let cancelled = false;
+    void fetchListingSellerProfileForConnect(connectV2.listingId).then((res) => {
+      if (!cancelled)
+        setConnectV2SellerProfile({
+          data: res.data ?? null,
+          loading: false,
+          error: res.error ?? null,
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [connectV2?.listingId]);
+
+  useEffect(() => {
+    if (!connectV2 || !user) {
+      setConnectV2HasBonding(null);
+      setConnectV2QuestionIds([]);
+      setConnectV2Prompts([]);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const [hasBonding, qIdsRes] = await Promise.all([
@@ -1199,7 +1229,7 @@ export default function ConnectionBoardView() {
           onClick={() => setConnectV2(null)}
         >
           <div
-            className="modal-panel w-full max-w-lg cursor-default overflow-hidden rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            className="modal-panel w-full max-w-lg cursor-default overflow-y-auto max-h-[90vh] rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="connect-v2-title" className="font-display text-xl font-bold text-army-purple">
@@ -1208,6 +1238,35 @@ export default function ConnectionBoardView() {
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
               {connectV2.summary}
             </p>
+
+            <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+              <p className="text-sm font-semibold text-army-purple">Seller profile</p>
+              {connectV2SellerProfile.loading && (
+                <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Loading seller profile…</p>
+              )}
+              {connectV2SellerProfile.error && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{connectV2SellerProfile.error}</p>
+              )}
+              {connectV2SellerProfile.data && !connectV2SellerProfile.loading && (
+                <div className="mt-2 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+                  <p><span className="font-medium text-army-purple">Username:</span> {connectV2SellerProfile.data.username}</p>
+                  <p><span className="font-medium text-army-purple">Where ticket was bought:</span> {connectV2SellerProfile.data.ticketSource || "—"}</p>
+                  <p><span className="font-medium text-army-purple">Ticketing experience:</span> {connectV2SellerProfile.data.ticketingExperience || "—"}</p>
+                  <p><span className="font-medium text-army-purple">Why selling:</span> {connectV2SellerProfile.data.sellingReason || "—"}</p>
+                  {connectV2SellerProfile.data.bondingAnswers.filter((b) => b.prompt || b.answer).length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="font-medium text-army-purple">Bonding answers:</p>
+                      {connectV2SellerProfile.data.bondingAnswers.map((b, idx) => (
+                        <div key={idx}>
+                          <p className="text-xs text-army-purple/80">{b.prompt}</p>
+                          <p className="whitespace-pre-wrap">{b.answer || "—"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="mt-4">
               <p className="text-sm font-semibold text-army-purple">Do you want to share socials with this seller?</p>

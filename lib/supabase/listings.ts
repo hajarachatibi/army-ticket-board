@@ -56,6 +56,41 @@ export type BrowseListingSellerDetails = {
   priceExplanation: string;
 };
 
+export type ListingSellerProfileForConnect = {
+  username: string;
+  ticketSource: string;
+  ticketingExperience: string;
+  sellingReason: string;
+  priceExplanation: string;
+  bondingAnswers: Array<{ prompt: string; answer: string }>;
+};
+
+export async function fetchListingSellerProfileForConnect(
+  listingId: string
+): Promise<{ data: ListingSellerProfileForConnect | null; error: string | null }> {
+  const { data, error } = await supabase.rpc("get_listing_seller_profile_for_connect", {
+    p_listing_id: listingId,
+  });
+  if (error) return { data: null, error: error.message };
+  const r = data as any;
+  if (!r) return { data: null, error: null };
+  const rawBonding = Array.isArray(r.bondingAnswers) ? r.bondingAnswers : [];
+  return {
+    data: {
+      username: String(r.username ?? "Seller"),
+      ticketSource: String(r.ticketSource ?? r.ticket_source ?? ""),
+      ticketingExperience: String(r.ticketingExperience ?? r.ticketing_experience ?? ""),
+      sellingReason: String(r.sellingReason ?? r.selling_reason ?? ""),
+      priceExplanation: String(r.priceExplanation ?? r.price_explanation ?? ""),
+      bondingAnswers: rawBonding.map((b: any) => ({
+        prompt: String(b?.prompt ?? ""),
+        answer: String(b?.answer ?? ""),
+      })),
+    },
+    error: null,
+  };
+}
+
 export async function fetchBrowseListingSellerDetails(
   listingId: string
 ): Promise<{ data: BrowseListingSellerDetails | null; error: string | null }> {
