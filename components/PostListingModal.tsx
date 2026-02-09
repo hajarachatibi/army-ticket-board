@@ -244,7 +244,7 @@ export default function PostListingModal({
           <div>
             <h2 className="font-display text-xl font-bold text-army-purple">Post Ticket (Listing)</h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Your listing will appear in All Listings after <span className="font-semibold">2 minutes</span> of processing.
+              Your listing will appear in All Listings right away.
             </p>
           </div>
           <button type="button" className="btn-army-outline" onClick={close} disabled={submitting}>

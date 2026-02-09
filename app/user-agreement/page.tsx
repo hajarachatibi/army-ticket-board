@@ -41,8 +41,7 @@ export default function UserAgreementPage() {
                   <strong>Face value only:</strong> Listings must be at face value. Non–face-value listings may be removed.
                 </li>
                 <li>
-                  <strong>Processing delay:</strong> New listings take a short processing time (about 2 minutes) before appearing in
-                  All Listings.
+                  <strong>Listings:</strong> New listings appear in All Listings right away.
                 </li>
                 <li>
                   <strong>No guarantees:</strong> A listing is not a promise of availability or successful transfer.

@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
       ticketing_experience: ticketingExperience,
       selling_reason: sellingReason,
       price_explanation: priceExplanation || null,
-      status: "processing",
-      processing_until: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+      status: "active",
+      processing_until: new Date().toISOString(),
     })
     .select("id")
     .single();
