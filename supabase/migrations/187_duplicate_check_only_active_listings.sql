@@ -28,7 +28,8 @@ BEGIN
   v_norm_row     := public.normalize_seat_field(NEW.seat_row);
   v_norm_seat    := public.normalize_seat_field(NEW.seat);
 
-  -- Only block if the same user has another listing (same city, date, seat) that is NOT sold and NOT removed.
+  -- Only block if the same user has another *active* listing (same city, date, seat).
+  -- Sold and removed (by user, system, or admin) do not count.
   IF EXISTS (
     SELECT 1
     FROM public.listings l2
@@ -37,7 +38,7 @@ BEGIN
       AND l2.id <> NEW.listing_id
       AND l2.concert_city = v_city
       AND l2.concert_date = v_date
-      AND l2.status NOT IN ('sold', 'removed')
+      AND l2.status IN ('processing', 'active', 'locked')
       AND public.normalize_seat_field(s2.section) = v_norm_section
       AND public.normalize_seat_field(s2.seat_row) = v_norm_row
       AND public.normalize_seat_field(s2.seat) = v_norm_seat

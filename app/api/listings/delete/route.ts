@@ -88,11 +88,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { error: upErr } = await service
+    const { data: updated, error: upErr } = await service
       .from("listings")
       .update({ status: "removed", locked_by: null, locked_at: null, lock_expires_at: null })
-      .eq("id", listingId);
-    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+      .eq("id", listingId)
+      .select("id");
+    if (upErr) {
+      console.error("[listings/delete] service update failed:", { message: upErr.message, code: (upErr as { code?: string }).code, listingId });
+      return NextResponse.json({ error: upErr.message }, { status: 400 });
+    }
+    if (!updated?.length) {
+      console.error("[listings/delete] service update matched 0 rows:", { listingId });
+      return NextResponse.json({ error: "Could not remove the listing. Please try again." }, { status: 400 });
+    }
   } else {
     // No service role: end connections via RPC (as seller), then soft-delete listing with user client.
     const { data: conns } = await supabase
@@ -109,12 +117,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { error: upErr } = await supabase
+    const { data: updated, error: upErr } = await supabase
       .from("listings")
       .update({ status: "removed", locked_by: null, locked_at: null, lock_expires_at: null })
       .eq("id", listingId)
-      .eq("seller_id", user.id);
-    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+      .eq("seller_id", user.id)
+      .select("id");
+    if (upErr) {
+      console.error("[listings/delete] user update failed:", { message: upErr.message, code: (upErr as { code?: string }).code, listingId });
+      return NextResponse.json({ error: upErr.message }, { status: 400 });
+    }
+    if (!updated?.length) {
+      console.error("[listings/delete] user update matched 0 rows (listing may already be removed or RLS blocked):", { listingId });
+      return NextResponse.json({ error: "Could not remove the listing. It may already be removed or unavailable." }, { status: 400 });
+    }
   }
 
   return response;
