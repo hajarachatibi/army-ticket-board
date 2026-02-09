@@ -758,7 +758,7 @@ export default function ConnectionPageContent() {
                     </div>
                   )}
                   <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
-                    Note: for this listing, you can <span className="font-semibold">accept only one connection at a time</span>. You can decline others (they will stay as requests), and once the active connection for this listing is ended/finished, you can accept another request for this listing.
+                    Note: you can have at most <span className="font-semibold">3 active connections at a time</span> (across all your listings). For each listing, only one connection can be active—so this listing can have only one accepted buyer at a time. If you already have 3 active connections, finish or end one before accepting another request. You can decline others (they stay as requests).
                   </p>
                   {sellerHasOtherActive && (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
