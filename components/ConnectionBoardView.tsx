@@ -282,6 +282,8 @@ export default function ConnectionBoardView() {
     return mine.filter((l) => ["processing", "active", "locked"].includes(l.status)).length;
   }, [mine]);
 
+  // My Listings tab: show only non-removed so removed (often 0-seat) listings don’t clutter the list.
+  const mineDisplay = useMemo(() => mine.filter((l) => l.status !== "removed"), [mine]);
 
   const sellerHasActiveAcceptedConnectionByListingId = useMemo(() => {
     if (!user) return new Map<string, boolean>();
@@ -1002,13 +1004,13 @@ export default function ConnectionBoardView() {
               )}
             </>
           )
-        ) : mine.length === 0 ? (
+        ) : mineDisplay.length === 0 ? (
           <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-10 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
-            You haven’t posted any listings yet.
+            {mine.length === 0 ? "You haven't posted any listings yet." : "You have no active listings (sold and removed are hidden)."}
           </p>
         ) : (
           <div className="space-y-4">
-            {mine.map((l) => {
+            {mineDisplay.map((l) => {
               const s = listingStatusLabel(l);
               return (
                 <div key={l.id} className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">

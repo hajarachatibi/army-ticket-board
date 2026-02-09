@@ -152,7 +152,16 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
 
-  if (listingErr) return NextResponse.json({ error: listingErr.message }, { status: 400 });
+  if (listingErr) {
+    const err = listingErr as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[listings/create] listing insert failed:", {
+      message: err.message,
+      code: err.code,
+      details: err.details,
+      hint: err.hint,
+    });
+    return NextResponse.json({ error: err.message ?? "Failed to create listing." }, { status: 400 });
+  }
 
   const { error: seatsErr } = await supabase.from("listing_seats").insert(
     seats.map((s, idx) => ({
@@ -166,7 +175,16 @@ export async function POST(request: NextRequest) {
     }))
   );
 
-  if (seatsErr) return NextResponse.json({ error: seatsErr.message }, { status: 400 });
+  if (seatsErr) {
+    const err = seatsErr as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[listings/create] listing_seats insert failed:", {
+      message: err.message,
+      code: err.code,
+      details: err.details,
+      hint: err.hint,
+    });
+    return NextResponse.json({ error: err.message ?? "Failed to save seats." }, { status: 400 });
+  }
   return NextResponse.json({ data: { listingId: listing.id } });
 }
 

@@ -140,7 +140,17 @@ export async function POST(request: NextRequest) {
       currency: s.currency,
     })),
   });
-  if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+  if (rpcErr) {
+    const err = rpcErr as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[listings/update] update_listing_with_seats failed:", {
+      message: err.message,
+      code: err.code,
+      details: err.details,
+      hint: err.hint,
+      listingId,
+    });
+    return NextResponse.json({ error: err.message ?? "Failed to update listing." }, { status: 400 });
+  }
 
   return response;
 }
