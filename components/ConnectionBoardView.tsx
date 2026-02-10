@@ -72,7 +72,16 @@ export default function ConnectionBoardView() {
   const [browse, setBrowse] = useState<BrowseListingCard[]>([]);
   const [mine, setMine] = useState<MyListing[]>([]);
   const [connections, setConnections] = useState<
-    Array<{ id: string; stage: string; stageExpiresAt: string; listingId: string; buyerId: string; sellerId: string }>
+    Array<{
+      id: string;
+      stage: string;
+      stageExpiresAt: string;
+      listingId: string;
+      buyerId: string;
+      sellerId: string;
+      endedBy: string | null;
+      endedAt: string | null;
+    }>
   >([]);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
