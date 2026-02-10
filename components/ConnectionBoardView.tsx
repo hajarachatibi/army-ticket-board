@@ -632,10 +632,18 @@ export default function ConnectionBoardView() {
             </p>
           ) : (
             <div className="space-y-3">
-              {connections.map((c) => (
+              {connections.map((c) => {
+                const stage = String(c.stage);
+                const isFinished = stage === "ended" || stage === "expired" || stage === "declined";
+                const cardBase =
+                  "rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+                const cardTone = isFinished
+                  ? "border-army-purple/10 bg-neutral-50 dark:border-army-purple/20 dark:bg-neutral-900/70"
+                  : "border-army-purple/20 bg-army-purple/5 dark:border-army-purple/30 dark:bg-army-purple/15";
+                return (
                 <div
                   key={c.id}
-                  className="rounded-2xl border border-army-purple/15 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-army-purple/25 dark:bg-neutral-900"
+                  className={`${cardBase} ${cardTone}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -702,7 +710,7 @@ export default function ConnectionBoardView() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )
         ) : tab === "all" ? (
