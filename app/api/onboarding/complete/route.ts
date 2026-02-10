@@ -81,7 +81,12 @@ export async function POST(request: NextRequest) {
   if (!body?.acceptUserAgreement) return NextResponse.json({ error: "You must accept User Agreement" }, { status: 400 });
 
   const nowIso = new Date().toISOString();
-  const update = {
+  const username = `ARMY-${user.id.slice(0, 8)}`;
+  const upsertPayload = {
+    id: user.id,
+    username,
+    email: user.email ?? null,
+    role: "user",
     first_name: firstName,
     country,
     is_18_confirmed: true,
@@ -99,8 +104,7 @@ export async function POST(request: NextRequest) {
 
   const { error } = await supabase
     .from("user_profiles")
-    .update(update)
-    .eq("id", user.id);
+    .upsert(upsertPayload, { onConflict: "id" });
 
   if (error) {
     const friendlyMessage =
