@@ -5,6 +5,7 @@
 --   - Same-user duplicate blocking
 
 -- 1) System duplicate reports: skip GA/standing sections
+DROP TRIGGER IF EXISTS listing_seats_check_duplicate_seat ON public.listing_seats;
 CREATE OR REPLACE FUNCTION public.listing_seats_duplicate_seat_trigger()
 RETURNS trigger
 LANGUAGE plpgsql
