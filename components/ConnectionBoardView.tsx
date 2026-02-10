@@ -14,6 +14,7 @@ import { useNotifications } from "@/lib/NotificationContext";
 import {
   connectToListingV2,
   endConnection,
+  undoEndConnection,
   fetchBrowseListingSellerDetails,
   fetchBrowseListings,
   fetchListingSellerProfileForConnect,
@@ -117,6 +118,8 @@ export default function ConnectionBoardView() {
   const [reportOpen, setReportOpen] = useState<{ listingId: string; summary: string } | null>(null);
   const [editing, setEditing] = useState<MyListing | null>(null);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const [justEndedConnectionId, setJustEndedConnectionId] = useState<string | null>(null);
+  const undoEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [needsSocialMigration, setNeedsSocialMigration] = useState(false);
   const [socialMigrationBannerDismissed, setSocialMigrationBannerDismissed] = useState(false);
 
@@ -201,7 +204,7 @@ export default function ConnectionBoardView() {
       fetchMyListings(user.id),
       supabase
         .from("connections")
-        .select("id, stage, stage_expires_at, listing_id, buyer_id, seller_id")
+        .select("id, stage, stage_expires_at, listing_id, buyer_id, seller_id, ended_by, ended_at")
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .order("created_at", { ascending: false }),
       supabase.from("user_profiles").select("instagram, facebook, tiktok, snapchat").eq("id", user.id).single(),
@@ -230,6 +233,8 @@ export default function ConnectionBoardView() {
         listingId: String(r.listing_id ?? ""),
         buyerId: String(r.buyer_id ?? ""),
         sellerId: String(r.seller_id ?? ""),
+        endedBy: r.ended_by ? String(r.ended_by) : null,
+        endedAt: r.ended_at ? String(r.ended_at) : null,
       }));
       // Keep active/in-progress connections at the top, and push ended/expired/declined to the bottom.
       // Preserve relative order within each group.
@@ -443,11 +448,40 @@ export default function ConnectionBoardView() {
     setError(null);
     try {
       const { error: e } = await endConnection(connectionId);
-      if (e) setError(e);
+      if (e) {
+        setError(e);
+      } else {
+        if (undoEndTimeoutRef.current) clearTimeout(undoEndTimeoutRef.current);
+        setJustEndedConnectionId(connectionId);
+        undoEndTimeoutRef.current = setTimeout(() => {
+          setJustEndedConnectionId(null);
+          undoEndTimeoutRef.current = null;
+        }, 30_000);
+      }
       await load();
     } finally {
       setMutatingId(null);
     }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (undoEndTimeoutRef.current) clearTimeout(undoEndTimeoutRef.current);
+    };
+  }, []);
+
+  const handleUndoEndConnection = async (connectionId?: string) => {
+    const id = connectionId ?? justEndedConnectionId;
+    if (!id) return;
+    setJustEndedConnectionId(null);
+    if (undoEndTimeoutRef.current) {
+      clearTimeout(undoEndTimeoutRef.current);
+      undoEndTimeoutRef.current = null;
+    }
+    setError(null);
+    const { error: e } = await undoEndConnection(id);
+    if (e) setError(e);
+    await load();
   };
 
   const activeConnectionStages = useMemo(() => {
@@ -616,6 +650,19 @@ export default function ConnectionBoardView() {
         </div>
       )}
 
+      {justEndedConnectionId && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-army-purple/20 bg-army-purple/10 px-4 py-3 text-sm text-army-purple dark:bg-army-purple/20 dark:text-army-200">
+          <span>Connection ended. The other person has been notified.</span>
+          <button
+            type="button"
+            className="font-semibold underline hover:no-underline"
+            onClick={() => handleUndoEndConnection()}
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
       {activeListingsCount >= 3 && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
           You can have a maximum of <span className="font-semibold">3 active listings</span> at a time (sold and removed do not count).
@@ -635,6 +682,13 @@ export default function ConnectionBoardView() {
               {connections.map((c) => {
                 const stage = String(c.stage);
                 const isFinished = stage === "ended" || stage === "expired" || stage === "declined";
+                const endedAt = c.endedAt ? new Date(c.endedAt) : null;
+                const canUndoFromList =
+                  stage === "ended" &&
+                  !!user &&
+                  c.endedBy === user.id &&
+                  !!endedAt &&
+                  endedAt.getTime() > Date.now() - 60 * 60 * 1000;
                 const cardBase =
                   "rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
                 const cardTone = isFinished
@@ -676,6 +730,11 @@ export default function ConnectionBoardView() {
                           Waiting list for this listing: you can accept this after the active connection for this listing ends.
                         </p>
                       )}
+                      {canUndoFromList && (
+                        <p className="mt-1 text-xs text-army-purple dark:text-army-200">
+                          You ended this connection less than 1 hour ago. You can restore it if this was a mistake.
+                        </p>
+                      )}
                     </div>
                     <div className="relative">
                       {unreadConnectionIds.has(c.id) && (
@@ -694,6 +753,15 @@ export default function ConnectionBoardView() {
                         >
                           Ticket details
                         </button>
+                        {canUndoFromList && (
+                          <button
+                            type="button"
+                            className="btn-army-outline"
+                            onClick={() => handleUndoEndConnection(c.id)}
+                          >
+                            Restore
+                          </button>
+                        )}
                         <Link
                           href={`/connections/${encodeURIComponent(c.id)}`}
                           className="btn-army"
@@ -951,8 +1019,8 @@ export default function ConnectionBoardView() {
                                   : `${l.concertCity} · ${l.concertDate}`,
                             })
                           }
-                          disabled={String(l.status) === "sold" || String(l.status) === "locked"}
-                          title={String(l.status) === "locked" ? "Only available listings can be reported" : String(l.status) === "sold" ? "Sold listings cannot be reported" : "Report listing"}
+                          disabled={String(l.status) === "sold"}
+                          title={String(l.status) === "sold" ? "Sold listings cannot be reported" : "Report listing"}
                         >
                           Report
                         </button>
@@ -1131,30 +1199,16 @@ export default function ConnectionBoardView() {
               What “Locked” means
             </h2>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              This listing is currently locked because the seller accepted a connection request for:{" "}
+              This listing is locked because either the seller accepted a connection request, or it has already reached the limit of active requests (waiting list).{" "}
               <span className="font-semibold">{lockedExplain.summary}</span>
             </p>
 
             <div className="mt-4 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
               <p>
-                While locked, other users can’t connect to it.
-              </p>
-              <p>
-                <span className="font-semibold">When will it unlock?</span>{" "}
-                {lockedExplain.lockExpiresAt ? (
-                  <>
-                    Usually around{" "}
-                    <span className="font-semibold">
-                      {new Date(lockedExplain.lockExpiresAt).toLocaleString()}
-                    </span>{" "}
-                    (if the connection isn’t completed).
-                  </>
-                ) : (
-                  <>Usually within about <span className="font-semibold">24 hours</span>, or sooner if the connection is declined/ended.</>
-                )}
+                While locked, no new connection requests can be sent. It will unlock when a slot opens in the waiting list—for example, when a buyer or seller ends or declines a connection—and the listing is not yet sold.
               </p>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                If the seller marks the listing sold/removed, it won’t unlock.
+                If the listing is marked sold or removed, it will not become available again.
               </p>
             </div>
 

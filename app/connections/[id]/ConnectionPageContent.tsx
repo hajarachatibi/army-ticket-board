@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   acceptConnectionAgreement,
   endConnection,
+  undoEndConnection,
   fetchConnectionBuyerProfileForSeller,
   sellerRespondConnection,
   setComfortDecision,
@@ -79,6 +80,8 @@ type ConnectionRow = {
   seller_id: string;
   stage: string;
   stage_expires_at: string;
+  ended_by: string | null;
+  ended_at: string | null;
   bonding_question_ids: string[];
   buyer_bonding_submitted_at: string | null;
   seller_bonding_submitted_at: string | null;
@@ -120,6 +123,8 @@ export default function ConnectionPageContent() {
   const [sellerRating, setSellerRating] = useState<number | null>(null);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
+  const [justEndedConnectionId, setJustEndedConnectionId] = useState<string | null>(null);
+  const undoEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sellerAcceptSocialShare, setSellerAcceptSocialShare] = useState<boolean | null>(null);
   const [buyerProfileForSeller, setBuyerProfileForSeller] = useState<{
     data: ListingSellerProfileForConnect | null;
@@ -147,7 +152,7 @@ export default function ConnectionPageContent() {
     const { data, error: e } = await supabase
       .from("connections")
       .select(
-        "id, listing_id, buyer_id, seller_id, stage, stage_expires_at, bonding_question_ids, buyer_bonding_submitted_at, seller_bonding_submitted_at, buyer_comfort, seller_comfort, buyer_social_share, seller_social_share, buyer_want_social_share, buyer_agreed, seller_agreed"
+        "id, listing_id, buyer_id, seller_id, stage, stage_expires_at, ended_by, ended_at, bonding_question_ids, buyer_bonding_submitted_at, seller_bonding_submitted_at, buyer_comfort, seller_comfort, buyer_social_share, seller_social_share, buyer_want_social_share, buyer_agreed, seller_agreed"
       )
       .eq("id", connectionId)
       .single();
@@ -372,9 +377,49 @@ export default function ConnectionPageContent() {
     setNotice("Saved: this connection has been ended.");
     const { error: e } = await endConnection(conn.id);
     setSubmitting(false);
-    if (e) setError(e);
-    else void load();
+    if (e) {
+      setError(e);
+    } else {
+      if (undoEndTimeoutRef.current) clearTimeout(undoEndTimeoutRef.current);
+      setJustEndedConnectionId(conn.id);
+      undoEndTimeoutRef.current = setTimeout(() => {
+        setJustEndedConnectionId(null);
+        undoEndTimeoutRef.current = null;
+      }, 30_000);
+      void load();
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (undoEndTimeoutRef.current) clearTimeout(undoEndTimeoutRef.current);
+    };
+  }, []);
+
+  const handleUndoEndConnection = async (connectionIdOverride?: string) => {
+    const id = connectionIdOverride ?? justEndedConnectionId ?? conn?.id;
+    if (!id) return;
+    setJustEndedConnectionId(null);
+    if (undoEndTimeoutRef.current) {
+      clearTimeout(undoEndTimeoutRef.current);
+      undoEndTimeoutRef.current = null;
+    }
+    setError(null);
+    setNotice(null);
+    const { error: e } = await undoEndConnection(id);
+    if (e) setError(e);
+    else setNotice("Connection restored. The other person has been notified.");
+    void load();
+  };
+
+  const canUndoFromDetails = useMemo(() => {
+    if (!conn || !user) return false;
+    if (conn.stage !== "ended") return false;
+    if (!conn.ended_by || conn.ended_by !== user.id) return false;
+    if (!conn.ended_at) return false;
+    const endedAt = new Date(conn.ended_at);
+    return endedAt.getTime() > Date.now() - 60 * 60 * 1000;
+  }, [conn, user]);
 
   const bothAgreed = useMemo(() => {
     return Boolean(conn?.buyer_agreed) && Boolean(conn?.seller_agreed);
@@ -596,7 +641,31 @@ export default function ConnectionPageContent() {
               {error}
             </div>
           )}
-          {notice && !error && (
+          {justEndedConnectionId && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-army-purple/20 bg-army-purple/10 px-4 py-3 text-sm text-army-purple dark:bg-army-purple/20 dark:text-army-200">
+              <span>Connection ended. The other person has been notified.</span>
+              <button
+                type="button"
+                className="font-semibold underline hover:no-underline"
+                onClick={() => handleUndoEndConnection()}
+              >
+                Undo
+              </button>
+            </div>
+          )}
+          {!justEndedConnectionId && canUndoFromDetails && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-army-purple/20 bg-army-purple/10 px-4 py-3 text-sm text-army-purple dark:bg-army-purple/20 dark:text-army-200">
+              <span>You ended this connection less than 1 hour ago. You can restore it if this was a mistake.</span>
+              <button
+                type="button"
+                className="font-semibold underline hover:no-underline"
+                onClick={() => handleUndoEndConnection(conn.id)}
+              >
+                Restore
+              </button>
+            </div>
+          )}
+          {notice && !error && !justEndedConnectionId && !canUndoFromDetails && (
             <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/5 px-4 py-3 text-sm text-army-purple dark:border-army-purple/30 dark:bg-army-purple/10">
               {notice}
             </div>
