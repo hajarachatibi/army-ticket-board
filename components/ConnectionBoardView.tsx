@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import EditListingModal from "@/components/EditListingModal";
 import RequireAuth from "@/components/RequireAuth";
