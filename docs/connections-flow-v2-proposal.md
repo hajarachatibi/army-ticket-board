@@ -7,7 +7,7 @@ This document describes **proposed** changes to the connection lifecycle. It doe
 ## 1. Design goals
 
 - **Trust up front:** Sellers answer 2 bonding questions when posting (if not already answered); buyers answer 2 bonding questions when connecting (if not already answered) and confirm socials intent. Same 2 questions for everyone; answers are **per user** and reused across all connections—no need to ask again once stored.
-- **Simpler limits:** Max 3 listings per user (non-removed); max 3 active connections per seller (total, not per listing).
+- **Simpler limits:** Max 3 listings per user (non-removed); max 5 active connections per buyer; max 3 active connections per seller (total, not per listing).
 - **Socials decided early:** Buyer decides “share socials with this seller?” before the request is sent; seller decides “share socials with this buyer?” when accepting. If both yes → matching message includes socials.
 
 ### Overview (v2 flows)
@@ -337,7 +337,8 @@ Optional:
 | Bonding | 3 questions per connection; both answer after seller accepts (bonding stage). | 2 questions per **user**; seller at post time, buyer at connect time; reused for all connections. |
 | Socials | Decided in “social” stage after preview/comfort. | Buyer at connect (before request); seller at accept. If both yes → match message includes socials. |
 | Listings per user | 5 active. | 3 non-removed. |
-| Seller active connections | One active (bonding→chat_open) per listing; many pending_seller. | 3 active connections total (across all listings). |
+| Buyer active connections | 3 active. | 5 active connections (not past expiry). |
+| Seller active connections | One active (bonding→chat_open) per listing; many pending_seller. | 3 active connections total (across all listings, not past expiry). |
 | Buyer connect step | Connect → request sent → seller sees request. | Connect → see seller lite profile → choose socials → answer 2 questions if first time → request sent. |
 | Seller accept step | Accept → bonding (both answer 3 Qs) → preview → comfort → social → agreement → chat. | Accept → see buyer lite profile → accept/decline → if accept, confirm socials → match message (with socials if both yes) → both confirm → chat_open. |
 

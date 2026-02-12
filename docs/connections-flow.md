@@ -79,8 +79,8 @@ stateDiagram-v2
 ```mermaid
 flowchart TB
   subgraph buyer["BUYER limits"]
-    B1["Max 3 active connection requests at a time"]
-    B2["Stages that count: pending_seller, bonding, preview, comfort, social, agreement, chat_open"]
+    B1["Max 5 active connection requests at a time"]
+    B2["Stages that count: pending_seller, bonding, preview, comfort, social, agreement, chat_open (not past expiry)"]
     B3["Only 1 request per listing (no duplicate request to same listing)"]
     B4["Cannot connect to own listing"]
     B5["Onboarding + terms + user agreement must be completed"]

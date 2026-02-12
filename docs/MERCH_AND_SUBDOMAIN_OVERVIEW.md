@@ -128,7 +128,7 @@ Recommendation: **Option B** (one `listings` table with `type` + categories for 
 ## 6. Merch-specific design (short)
 
 - **Categories / subcategories**: Tables `merch_categories` and `merch_subcategories`; listing has `category_id`, `subcategory_id` (for `type = 'merch'`).
-- **Same as listings**: Post flow, connections, bonding, preview, socials, agreement, chat, limits (e.g. 3 active listings, 3 connections), lock rules, notifications. Reuse RPCs and UI; branch only where merch fields or category filters are needed.
+- **Same as listings**: Post flow, connections, bonding, preview, socials, agreement, chat, limits (e.g. 3 active listings, 5 buyer connections, 3 seller connections), lock rules, notifications. Reuse RPCs and UI; branch only where merch fields or category filters are needed.
 - **Browse**: Merch browse page filters `listings.type = 'merch'` and optionally by category/subcategory; otherwise same pattern as ticket browse.
 
 ---

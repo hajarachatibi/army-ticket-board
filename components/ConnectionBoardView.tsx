@@ -434,10 +434,12 @@ export default function ConnectionBoardView() {
     );
     setConnectingId(null);
     if (e) {
-      if (e.toLowerCase().includes("3 active") || e.toLowerCase().includes("maximum")) {
+      // Reload connections on error to ensure we have fresh data (no cache)
+      await load();
+      if (e.toLowerCase().includes("active") || e.toLowerCase().includes("maximum")) {
         setLimitOpen({
           title: "Connection limit reached",
-          body: "You can only have up to 3 active connection requests at a time. Please end or finish one of your existing connections, then try again.",
+          body: "You can only have up to 5 active connection requests at a time. Please end or finish one of your existing connections, then try again.",
         });
       } else {
         setError(e);
