@@ -6,13 +6,13 @@ function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       global: {
-        fetch: (url, options = {}) => {
+        fetch: (url: RequestInfo | URL, options: RequestInit = {}) => {
           // Disable caching for all Supabase requests to ensure fresh data
           return fetch(url, {
             ...options,
             cache: 'no-store',
             headers: {
-              ...options.headers,
+              ...(options.headers || {}),
               'Cache-Control': 'no-cache, no-store, must-revalidate',
               'Pragma': 'no-cache',
             },
