@@ -16,7 +16,7 @@ import { useTheme } from "@/lib/ThemeContext";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Listings" },
-  { href: "/channel", label: "Chatroom" },
+  // { href: "/channel", label: "Chatroom" }, // Disabled for now
   { href: "/questions", label: "Questions" },
   { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
@@ -46,9 +46,10 @@ export default function Header() {
   const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
 
   const navLinks = useMemo(() => {
-    // Hide Chatroom and Questions for logged-out users (routes are still protected by middleware).
+    // Hide Chatroom (disabled) and Questions for logged-out users (routes are still protected by middleware).
     return NAV.filter((x) => {
-      if (!isLoggedIn && (x.href === "/channel" || x.href === "/questions")) return false;
+      if (x.href === "/channel") return false; // Chatroom disabled
+      if (!isLoggedIn && x.href === "/questions") return false;
       return true;
     });
   }, [isLoggedIn]);
@@ -180,9 +181,10 @@ export default function Header() {
     const base = [
       { href: "/tickets", label: "Listings" },
     ];
-    if (isLoggedIn) {
-      base.push({ href: "/channel", label: "Chatroom" });
-    }
+    // Chatroom disabled for now
+    // if (isLoggedIn) {
+    //   base.push({ href: "/channel", label: "Chatroom" });
+    // }
     if (showSupportLink) {
       base.push({ href: "/support", label: "Support the board 💜" });
     }
