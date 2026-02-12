@@ -16,7 +16,7 @@ import { useTheme } from "@/lib/ThemeContext";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/tickets", label: "Listings" },
-  // { href: "/channel", label: "Chatroom" }, // Disabled for now
+  { href: "/channel", label: "Chatroom" },
   { href: "/questions", label: "Questions" },
   { href: "/stories", label: "Stories" },
   { href: "/disclaimers", label: "Disclaimers" },
@@ -35,9 +35,8 @@ export default function Header() {
   const { user, isLoggedIn, isAdmin, signOut } = useAuth();
   const showAdmin = isLoggedIn && isAdmin;
   const [adminChannelUnreadCount, setAdminChannelUnreadCount] = useState(0);
-  const [communityChatUnreadCount, setCommunityChatUnreadCount] = useState(0);
+  // Community chat disabled - removed communityChatUnreadCount state
   const adminChannelLastSeenRef = useRef(0);
-  const communityChatLastSeenRef = useRef(0);
   const onChatroomPageRef = useRef(false);
   const [mobileAnnouncementOpen, setMobileAnnouncementOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,15 +45,15 @@ export default function Header() {
   const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
 
   const navLinks = useMemo(() => {
-    // Hide Chatroom (disabled) and Questions for logged-out users (routes are still protected by middleware).
+    // Hide Chatroom and Questions for logged-out users (routes are still protected by middleware).
     return NAV.filter((x) => {
-      if (x.href === "/channel") return false; // Chatroom disabled
-      if (!isLoggedIn && x.href === "/questions") return false;
+      if (!isLoggedIn && (x.href === "/channel" || x.href === "/questions")) return false;
       return true;
     });
   }, [isLoggedIn]);
 
-  const chatroomUnreadCount = adminChannelUnreadCount + communityChatUnreadCount;
+  // Community chat disabled - only count admin channel
+  const chatroomUnreadCount = adminChannelUnreadCount;
 
   useEffect(() => {
     setMounted(true);
@@ -65,19 +64,15 @@ export default function Header() {
     if (!isLoggedIn || !user?.id) return;
 
     const adminKey = `army_admin_channel_last_seen_${user.id}`;
-    const communityKey = `army_community_chat_last_seen_${user.id}`;
     const onChatroom = pathname === "/channel" || pathname.startsWith("/channel/");
     onChatroomPageRef.current = onChatroom;
 
-    // When the user visits the Chatroom page, mark both Admin Channel and Community Chat as read.
+    // When the user visits the Chatroom page, mark Admin Channel as read (community chat disabled).
     if (onChatroom) {
       const now = Date.now();
       adminChannelLastSeenRef.current = now;
-      communityChatLastSeenRef.current = now;
       window.localStorage.setItem(adminKey, String(now));
-      window.localStorage.setItem(communityKey, String(now));
       setAdminChannelUnreadCount(0);
-      setCommunityChatUnreadCount(0);
     }
   }, [isLoggedIn, pathname, user?.id]);
 
@@ -87,30 +82,19 @@ export default function Header() {
     let cancelled = false;
 
     const adminKey = `army_admin_channel_last_seen_${user.id}`;
-    const communityKey = `army_community_chat_last_seen_${user.id}`;
     const adminRaw = window.localStorage.getItem(adminKey);
-    const communityRaw = window.localStorage.getItem(communityKey);
     adminChannelLastSeenRef.current = Number.isFinite(Number(adminRaw)) ? Number(adminRaw) : 0;
-    communityChatLastSeenRef.current = Number.isFinite(Number(communityRaw)) ? Number(communityRaw) : 0;
 
+    // Community chat disabled - only fetch admin channel posts
     (async () => {
-      const sinceCommunity = new Date(communityChatLastSeenRef.current).toISOString();
-      const [{ data: adminPosts }, { count: communityCount, error: communityError }] = await Promise.all([
-        fetchAdminChannelPosts({ limit: 50, offset: 0 }),
-        supabase
-          .from("community_chat_messages")
-          .select("id", { count: "exact", head: true })
-          .gt("created_at", sinceCommunity)
-          .neq("user_id", user.id),
-      ]);
+      const { data: adminPosts } = await fetchAdminChannelPosts({ limit: 50, offset: 0 });
       if (cancelled) return;
       setAdminChannelUnreadCount(
         adminPosts.filter((p) => Date.parse(p.createdAt) > adminChannelLastSeenRef.current).length
       );
-      const communityUnread = communityError ? 0 : Math.min(99, communityCount ?? 0);
-      setCommunityChatUnreadCount(communityUnread);
     })();
 
+    // Community chat disabled - only listen for admin channel posts
     const ch = supabase
       .channel(`chatroom_unread_${user.id}`)
       .on(
@@ -129,28 +113,6 @@ export default function Header() {
           }
           if (createdAt > adminChannelLastSeenRef.current) {
             setAdminChannelUnreadCount((n) => Math.min(99, n + 1));
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "community_chat_messages" },
-        (payload) => {
-          if (cancelled) return;
-          const newRow = (payload as { new?: { created_at?: string; user_id?: string } })?.new;
-          const createdAt = Date.parse(String(newRow?.created_at ?? ""));
-          const fromUserId = newRow?.user_id;
-          if (!Number.isFinite(createdAt)) return;
-          if (fromUserId === user.id) return;
-          if (onChatroomPageRef.current) {
-            const now = Date.now();
-            communityChatLastSeenRef.current = Math.max(communityChatLastSeenRef.current, now, createdAt);
-            window.localStorage.setItem(communityKey, String(communityChatLastSeenRef.current));
-            setCommunityChatUnreadCount(0);
-            return;
-          }
-          if (createdAt > communityChatLastSeenRef.current) {
-            setCommunityChatUnreadCount((n) => Math.min(99, n + 1));
           }
         }
       )
@@ -181,10 +143,9 @@ export default function Header() {
     const base = [
       { href: "/tickets", label: "Listings" },
     ];
-    // Chatroom disabled for now
-    // if (isLoggedIn) {
-    //   base.push({ href: "/channel", label: "Chatroom" });
-    // }
+    if (isLoggedIn) {
+      base.push({ href: "/channel", label: "Chatroom" });
+    }
     if (showSupportLink) {
       base.push({ href: "/support", label: "Support the board 💜" });
     }
