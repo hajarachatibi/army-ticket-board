@@ -437,9 +437,29 @@ export default function AdminPanelContent() {
     }
   }, []);
 
+  const loadSupportProgress = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await adminGetSupportProgress();
+    setLoading(false);
+    if (e) setError(e);
+    else if (data) {
+      setSupportProgress(data);
+      setSupportProgressTargetDollars((data.targetAmountCents / 100).toFixed(2));
+      setSupportProgressCurrentDollars((data.currentAmountCents / 100).toFixed(2));
+      setSupportProgressVisible(data.visible);
+    } else {
+      setSupportProgress(null);
+      setSupportProgressTargetDollars("0");
+      setSupportProgressCurrentDollars("0");
+      setSupportProgressVisible(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user?.id || !isAdmin) return;
     if (tab === "dashboard") void loadDashboard();
+    if (tab === "supportProgress") void loadSupportProgress();
     if (tab === "cron") void loadPushStats();
     if (tab === "listingReports") void loadListingReports();
     if (tab === "merchListingReports") void loadMerchListingReports();
