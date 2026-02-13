@@ -210,8 +210,8 @@ export default function Header() {
       </div>
       )}
 
-      {/* Scam warning */}
-      <div className="border-b border-red-500/30 bg-gradient-to-r from-red-600 to-amber-500 px-4 py-2 text-white shadow-sm">
+      {/* Scam alert removed per request */}
+      {false && <div className="border-b border-red-500/30 bg-gradient-to-r from-red-600 to-amber-500 px-4 py-2 text-white shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-center text-xs font-semibold sm:text-sm">
           <span className="relative inline-flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-75" />
@@ -237,7 +237,7 @@ export default function Header() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -430,8 +430,9 @@ export default function Header() {
                 </p>
               </div>
               )}
+              {false && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Scam alert</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Scam alert (removed)</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
                   Admins will never ask for ticket transfer, order numbers, or payment info.
                 </p>
@@ -442,6 +443,7 @@ export default function Header() {
                   If someone claims they’re an admin, check for the blue verified <span className="font-semibold">Admin</span> badge. If there’s no badge (or the message feels suspicious), tap <span className="font-semibold">Report</span> inside the chat.
                 </p>
               </div>
+              )}
             </div>
             <div className="mt-5 flex justify-end">
               <button

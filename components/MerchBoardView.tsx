@@ -23,6 +23,7 @@ import {
   type MerchSellerProfileForConnect,
 } from "@/lib/supabase/merch";
 import { hasUserBondingAnswers } from "@/lib/supabase/listings";
+import { uploadMerchListingImage } from "@/lib/supabase/uploadChannelImage";
 
 type MerchTab = "all" | "connections" | "my";
 
@@ -65,7 +66,8 @@ export default function MerchBoardView() {
   const [postDescription, setPostDescription] = useState("");
   const [postQuantity, setPostQuantity] = useState(1);
   const [postPrice, setPostPrice] = useState("");
-  const [postImages, setPostImages] = useState("");
+  const [postImage1, setPostImage1] = useState<File | null>(null);
+  const [postImage2, setPostImage2] = useState<File | null>(null);
   const [postCategorySlug, setPostCategorySlug] = useState("other");
   const [postSubcategorySlug, setPostSubcategorySlug] = useState("");
   const [postIsFanmade, setPostIsFanmade] = useState(false);
@@ -175,7 +177,6 @@ export default function MerchBoardView() {
       setError("You must accept the fanmade disclaimer for fanmade items.");
       return;
     }
-    const images = postImages.trim() ? postImages.split(/\s+/).map((u) => u.trim()).filter(Boolean) : [];
     setPostSubmitting(true);
     setError(null);
     const filterOptions: Record<string, string> = {};
@@ -186,13 +187,35 @@ export default function MerchBoardView() {
     if (postFilterOfficialReplica.trim()) filterOptions.official_replica = postFilterOfficialReplica.trim();
     if (postFilterVersion.trim()) filterOptions.version = postFilterVersion.trim();
 
+    const images: string[] = [];
+    if (user?.id) {
+      if (postImage1) {
+        const r1 = await uploadMerchListingImage(postImage1, user.id);
+        if ("error" in r1) {
+          setPostSubmitting(false);
+          setError(r1.error);
+          return;
+        }
+        images.push(r1.url);
+      }
+      if (postImage2) {
+        const r2 = await uploadMerchListingImage(postImage2, user.id);
+        if ("error" in r2) {
+          setPostSubmitting(false);
+          setError(r2.error);
+          return;
+        }
+        images.push(r2.url);
+      }
+    }
+
     const { listingId, error: e } = await createMerchListing({
       title,
       description: postDescription.trim() || undefined,
       quantity: postQuantity,
       price: priceNum,
       currency: "USD",
-      images,
+      images: images.length ? images : undefined,
       categorySlug: postCategorySlug || "other",
       subcategorySlug: postSubcategorySlug || null,
       isFanmade: postIsFanmade,
@@ -210,7 +233,8 @@ export default function MerchBoardView() {
     setPostDescription("");
     setPostQuantity(1);
     setPostPrice("");
-    setPostImages("");
+    setPostImage1(null);
+    setPostImage2(null);
     setPostCategorySlug("other");
     setPostSubcategorySlug("");
     setPostIsFanmade(false);
@@ -262,7 +286,7 @@ export default function MerchBoardView() {
           <div className="min-w-0">
             <h2 className="font-display text-2xl font-bold text-army-purple sm:text-3xl">Merch</h2>
             <p className="mt-1 max-w-2xl text-sm text-neutral-600 dark:text-neutral-400">
-              BTS merch at face value. Same connection flow as tickets—bonding, preview, chat. No limit on listings or connections.
+              BTS merch at face value.
             </p>
           </div>
           <button type="button" className="btn-army" title="Post a merch listing" onClick={() => setPostOpen(true)}>
@@ -623,8 +647,29 @@ export default function MerchBoardView() {
                   <input type="text" value={postFilterVersion} onChange={(e) => setPostFilterVersion(e.target.value)} className="mt-0.5 w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800" placeholder="e.g. Version A" />
                 </div>
               </div>
-              <label className="block text-sm font-medium">Image URLs (one per line)</label>
-              <textarea value={postImages} onChange={(e) => setPostImages(e.target.value)} rows={2} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="https://..." />
+              <p className="text-sm font-medium">Photos (optional, up to 2)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Photo 1</label>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    className="w-full text-sm text-neutral-600 file:mr-2 file:rounded-lg file:border-0 file:bg-army-purple file:px-3 file:py-1.5 file:text-white file:text-sm dark:text-neutral-400"
+                    onChange={(e) => setPostImage1(e.target.files?.[0] ?? null)}
+                  />
+                  {postImage1 && <p className="mt-1 text-xs text-neutral-500 truncate">{postImage1.name}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Photo 2</label>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    className="w-full text-sm text-neutral-600 file:mr-2 file:rounded-lg file:border-0 file:bg-army-purple file:px-3 file:py-1.5 file:text-white file:text-sm dark:text-neutral-400"
+                    onChange={(e) => setPostImage2(e.target.files?.[0] ?? null)}
+                  />
+                  {postImage2 && <p className="mt-1 text-xs text-neutral-500 truncate">{postImage2.name}</p>}
+                </div>
+              </div>
             </div>
             <div className="mt-6 flex gap-2 justify-end">
               <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => !postSubmitting && setPostOpen(false)} disabled={postSubmitting}>Cancel</button>

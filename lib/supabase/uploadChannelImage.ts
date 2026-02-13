@@ -63,3 +63,29 @@ export async function uploadCommunityChatImage(
   return { url: data.publicUrl };
 }
 
+/** Upload image for merch listing (same bucket, path: merch-listings/{userId}/). */
+export async function uploadMerchListingImage(
+  file: File,
+  userId: string
+): Promise<{ url: string } | { error: string }> {
+  if (!ALLOWED.includes(file.type)) {
+    return { error: "Only JPEG, PNG, GIF, and WebP images are allowed." };
+  }
+  if (file.size > MAX_SIZE) {
+    return { error: "Image must be 5MB or smaller." };
+  }
+
+  const ext = extFromMime(file.type);
+  const path = `merch-listings/${userId}/${crypto.randomUUID()}.${ext}`;
+
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+
+  if (error) return { error: error.message };
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl };
+}
+
