@@ -477,12 +477,17 @@ export default function MerchBoardView() {
   };
 
   const handleMarkSold = async (m: MyMerchListing) => {
-    const { data, error: e } = await updateMerchListing(m.id, { status: "sold" });
-    if (e) {
-      setError(e);
+    setError(null);
+    const res = await fetch("/api/merch-listings/mark-sold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ merchListingId: m.id }),
+    });
+    const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+    if (!res.ok || !j?.ok) {
+      setError(j?.error ?? `HTTP ${res.status}`);
       return;
     }
-    if (data) setMine((prev) => prev.map((x) => (x.id === m.id ? data : x)));
     await load();
   };
 

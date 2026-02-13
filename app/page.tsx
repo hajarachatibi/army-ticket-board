@@ -27,11 +27,14 @@ export default function HomePage() {
             Army Ticket Board
           </h1>
           <p className="max-w-xl text-lg text-white/90 sm:text-xl">
-            Browse and post face-value BTS concert listings with ARMY.
+            Browse and post face-value BTS concert tickets and merch with ARMY.
           </p>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
             <Link href="/tickets" className="btn-army rounded-xl px-8 py-4 text-lg">
-              Browse Listings
+              Tickets
+            </Link>
+            <Link href="/tickets?mode=merch" className="btn-army rounded-xl px-8 py-4 text-lg">
+              Merch
             </Link>
             <Link href="/tickets" className="btn-army-outline rounded-xl px-8 py-4 text-lg">
               Post Listing
@@ -46,7 +49,7 @@ export default function HomePage() {
             Made by Army, for Army.
           </p>
           <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 sm:text-base">
-            Only <strong>face value</strong> is accepted. If you list or buy above face value, ARMY will report you and you will be <strong>banned from the platform</strong>.
+            Only <strong>face value</strong> is accepted for tickets and merch. If you list or buy above face value, ARMY will report you and you will be <strong>banned from the platform</strong>.
           </p>
         </div>
       </section>

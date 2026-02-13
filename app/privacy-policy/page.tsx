@@ -25,13 +25,13 @@ export default function PrivacyPolicyPage() {
                   <strong>Onboarding info:</strong> basic profile fields and ARMY profile answers you provide during “Finish setup”.
                 </li>
                 <li>
-                  <strong>Listings:</strong> event/seat/price details for listings you submit.
+                  <strong>Listings:</strong> event/seat/price details for ticket listings; title, description, quantity, price, category, filters, and images for merch listings you submit.
                 </li>
                 <li>
                   <strong>Reports:</strong> reports you submit (and optional proof images).
                 </li>
                 <li>
-                  <strong>Connections:</strong> connection steps and answers used to help buyers and sellers confirm comfort and safety.
+                  <strong>Connections:</strong> connection steps and answers (for both ticket and merch connections) used to help buyers and sellers confirm comfort and safety.
                 </li>
               </ul>
             </section>
@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">How we use data</h2>
               <ul className="mt-2 list-disc pl-5 space-y-1">
-                <li>To operate the app (listings, connections, chatroom, notifications).</li>
+                <li>To operate the app (ticket and merch listings, connections, chatroom, notifications).</li>
                 <li>To prevent abuse and improve security (moderation, rate limiting, bot protection).</li>
                 <li>To respond to reports and enforce rules.</li>
               </ul>

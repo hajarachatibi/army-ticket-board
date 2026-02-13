@@ -27,31 +27,50 @@ export default function UserManualPage() {
               Home
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              The home page has a hero section and links to browse <strong>Listings</strong>. This is not a marketplace. Only face-value listings are allowed; non–face-value listings can be reported. See <strong>Disclaimers</strong> for safe-trading tips.
+              The home page has a hero section and links to <strong>Tickets</strong>, <strong>Merch</strong>, and <strong>Post Listing</strong>. This is not a marketplace. Only face-value listings (tickets and merch) are allowed; non–face-value listings can be reported. See <strong>Disclaimers</strong> for safe-trading tips.
             </p>
           </div>
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
             <h2 className="font-display text-xl font-bold text-army-purple">
-              Listings &amp; connections
+              Listings &amp; connections (Tickets)
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              Use <strong>Listings</strong> to browse or manage your posts. You can switch between <strong>All Listings</strong>, <strong>My Listings</strong>, and <strong>My Connections</strong>.
+              Under <strong>Listings</strong>, the <strong>Tickets</strong> tab lets you browse or manage ticket listings. You can switch between <strong>All Listings</strong>, <strong>My Listings</strong>, and <strong>My Connections</strong>.
             </p>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              <strong>Limits:</strong> Up to <strong>3 active listings</strong> at a time (sold and removed do not count toward the limit). Up to <strong>5 active connection requests</strong> as a buyer; sellers can have up to <strong>3 active connections</strong> in progress. Once a seller has 3 active connections, that listing is locked to new requests. When you connect, you answer <strong>2 bonding questions</strong> once (reused for all connections) and choose whether to share socials. Contact socials are <strong>Instagram or Facebook</strong> only.
+              <strong>Limits:</strong> Up to <strong>3 active ticket listings</strong> at a time (sold and removed do not count). Up to <strong>5 active connection requests</strong> as a buyer; sellers can have up to <strong>3 active connections</strong> in progress. Once a seller has 3 active connections, that listing is locked to new requests. When you connect, you answer <strong>2 bonding questions</strong> once (reused for all connections) and choose whether to share socials. Contact socials are <strong>Instagram or Facebook</strong> only.
             </p>
             <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
               <li><strong>Post Ticket:</strong> Create a listing (up to 4 seats per listing). You may be asked to answer 2 bonding questions first if you haven’t already. Your listing appears in <strong>All Listings</strong> right away.</li>
               <li><strong>View more details:</strong> On <strong>All Listings</strong>, tap <strong>View more details</strong> on a listing to see the seller’s answers (where the ticket was bought, ticketing experience, why they’re selling).</li>
               <li><strong>CONNECT:</strong> Choose whether to share socials with the seller and answer 2 bonding questions (if first time). Then the request is sent. Seller has 24 hours to accept or decline. If accepted, you both see the match message and confirm; if you both chose to share socials, your <strong>Instagram or Facebook</strong> are shown so you can continue on social media.</li>
-              <li><strong>Connection alerts:</strong> If there’s an update in one of your connections, you’ll see a <strong>red dot</strong> on <strong>My Connections</strong>, and on the specific connection card.</li>
+              <li><strong>Connection alerts:</strong> If there’s an update in one of your connections, you’ll see a <strong>purple badge</strong> on <strong>My Connections</strong>, and on the specific connection card.</li>
               <li><strong>No in-app buyer/seller chat:</strong> For ARMY safety, buyer/seller chat inside the app is not available. If you both choose to share socials and both confirm, your socials (Instagram or Facebook) will be shown so you can contact each other.</li>
               <li><strong>Report:</strong> Report suspicious or non–face-value listings. After multiple reports from different users, listings can be removed and users can be banned.</li>
             </ul>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              In <strong>My Listings</strong>, you can <strong>Edit</strong>, <strong>Delete</strong>, or <strong>Mark sold</strong>. Sold listings stay visible in browsing but can’t be connected to.
+              In <strong>My Listings</strong>, you can <strong>Edit</strong>, <strong>Delete</strong>, or <strong>Mark sold</strong>. When you mark a ticket as sold, all its active connections are ended and buyers are notified. Sold listings stay visible in browsing but can’t be connected to.
             </p>
+          </div>
+
+          <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
+            <h2 className="font-display text-xl font-bold text-army-purple">
+              Merch
+            </h2>
+            <p className="mt-3 text-neutral-700 dark:text-neutral-300">
+              The <strong>Merch</strong> tab under Listings works like Tickets: you can browse <strong>All Listings</strong>, manage <strong>My Listings</strong>, and see <strong>My Connections</strong>. Same connection flow: bonding questions (reused if you’ve already answered them for tickets), social sharing (Instagram or Facebook), safety screen, and match confirmation. Only face value is accepted for merch; report non–face-value or suspicious listings.
+            </p>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              <strong>Differences from tickets:</strong> There is no limit on how many merch listings you can post. Connection limits (buyer/seller) do not apply to merch. When you <strong>Mark sold</strong> a merch listing, all its active connections are ended and buyers are notified, same as for tickets.
+            </p>
+            <ul className="mt-3 list-inside list-disc space-y-2 text-neutral-700 dark:text-neutral-300">
+              <li><strong>Post Merch Listing:</strong> Add title, description, quantity, price, category (e.g. Official Merch, Fanmade, BT21), optional filters (member, tour, condition), and up to 2 photos. You’ll be asked for bonding answers and social/safety confirmation if you haven’t already.</li>
+              <li><strong>Connect:</strong> Tap a listing to view details, then <strong>Connect</strong>. You’ll see the seller’s lite profile, choose whether to share socials, and answer bonding questions if needed. Seller can accept or decline; same match and social exchange as tickets.</li>
+              <li><strong>My Listings:</strong> Edit, remove, or <strong>Mark sold</strong>. Marking sold ends all connections for that listing and notifies buyers.</li>
+              <li><strong>Connection alerts:</strong> Unread merch connection updates show a purple badge on the Merch <strong>My Connections</strong> tab and on each connection card.</li>
+              <li><strong>Report:</strong> Use <strong>Report</strong> on any merch listing or connection for scams or policy violations.</li>
+            </ul>
           </div>
 
           <div className="rounded-xl border border-army-purple/20 bg-white p-6 shadow-card dark:border-army-purple/25 dark:bg-neutral-900">
@@ -80,7 +99,7 @@ export default function UserManualPage() {
               Header &amp; notifications
             </h2>
             <p className="mt-3 text-neutral-700 dark:text-neutral-300">
-              The header has <strong>dark/light mode</strong> and (when signed in) a <strong>notification bell</strong> and an <strong>Account</strong> menu. Notifications can include important connection updates (request received/accepted/declined, next steps, and match confirmation). Opening a notification marks it read.
+              The header has <strong>dark/light mode</strong> and (when signed in) a <strong>notification bell</strong> and an <strong>Account</strong> menu. Notifications can include important connection updates for both tickets and merch (request received/accepted/declined, next steps, and match confirmation). Opening a notification marks it read.
             </p>
           </div>
 

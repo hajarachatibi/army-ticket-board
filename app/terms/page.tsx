@@ -14,8 +14,7 @@ export default function TermsPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">What this app is</h2>
               <p className="mt-2">
-                Army Ticket Board is a community tool to connect buyers and sellers. We are not a payment processor and we do not
-                guarantee tickets, transfers, or transactions.
+                Army Ticket Board is a community tool to connect buyers and sellers for face-value BTS concert tickets and merch. We are not a payment processor and we do not guarantee tickets, merch, transfers, or transactions.
               </p>
             </section>
 
@@ -30,11 +29,9 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="font-display text-lg font-bold text-army-purple">Listings &amp; reviews</h2>
+              <h2 className="font-display text-lg font-bold text-army-purple">Listings (tickets &amp; merch) &amp; reviews</h2>
               <p className="mt-2">
-                Listings are community-run: admins do not approve or verify listings before they appear publicly. Please use the
-                Report feature for non–face-value listings, scams, or abuse. After multiple reports from different users, listings
-                may be removed and users may be banned.
+                Ticket and merch listings are community-run: admins do not approve or verify listings before they appear publicly. Please use the Report feature for non–face-value listings, scams, or abuse. After multiple reports from different users, listings may be removed and users may be banned.
               </p>
             </section>
 

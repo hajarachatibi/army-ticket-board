@@ -16,9 +16,7 @@ export default function UserAgreementPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">1) What this platform is (and isn’t)</h2>
               <p className="mt-2">
-                ARMY Ticket Board is a community tool that helps buyers and sellers find each other. We are not a ticketing
-                company, not a broker, and not a payment processor. We do not guarantee tickets, transfers, transactions, or
-                outcomes.
+                ARMY Ticket Board is a community tool that helps buyers and sellers find each other for face-value BTS concert tickets and merch. We are not a ticketing company, not a broker, and not a payment processor. We do not guarantee tickets, merch, transfers, transactions, or outcomes.
               </p>
               <p className="mt-2">
                 This platform is community-run. Admins do not approve or verify listings or users before listings appear.
@@ -35,13 +33,13 @@ export default function UserAgreementPage() {
             </section>
 
             <section>
-              <h2 className="font-display text-lg font-bold text-army-purple">3) Listings rules (face value only)</h2>
+              <h2 className="font-display text-lg font-bold text-army-purple">3) Listings rules (tickets &amp; merch, face value only)</h2>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>
-                  <strong>Face value only:</strong> Listings must be at face value. Non–face-value listings may be removed.
+                  <strong>Face value only:</strong> Ticket and merch listings must be at face value. Non–face-value listings may be removed.
                 </li>
                 <li>
-                  <strong>Listings:</strong> New listings appear in All Listings right away.
+                  <strong>Listings:</strong> New ticket and merch listings appear in All Listings right away (under the Tickets or Merch tab).
                 </li>
                 <li>
                   <strong>No guarantees:</strong> A listing is not a promise of availability or successful transfer.
@@ -50,7 +48,7 @@ export default function UserAgreementPage() {
             </section>
 
             <section>
-              <h2 className="font-display text-lg font-bold text-army-purple">4) Connections &amp; communication</h2>
+              <h2 className="font-display text-lg font-bold text-army-purple">4) Connections &amp; communication (tickets &amp; merch)</h2>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>
                   <strong>No in-app buyer/seller chat:</strong> For community safety, buyer/seller chat inside the app is not
@@ -58,11 +56,10 @@ export default function UserAgreementPage() {
                 </li>
                 <li>
                   <strong>Social exchange:</strong> If both sides choose to share socials and both confirm, socials are shown so you
-                  can continue on social media. Contact socials are <strong>Instagram or Facebook</strong> only.
+                  can continue on social media. Contact socials are <strong>Instagram or Facebook</strong> only. This applies to both ticket and merch connections.
                 </li>
                 <li>
-                  <strong>Locked listings:</strong> When a seller accepts a connection, the listing can become locked while you go
-                  through the flow. While locked, other users can’t connect to it.
+                  <strong>Locked listings:</strong> When a seller accepts a connection (tickets or merch), the listing can become locked while you go through the flow. While locked, other users can’t connect to it. Marking a listing as sold ends all its connections and notifies buyers.
                 </li>
               </ul>
             </section>
@@ -92,16 +89,14 @@ export default function UserAgreementPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">7) Content you submit</h2>
               <p className="mt-2">
-                You are responsible for the content you submit (listings, reports, and any optional submissions). Do not submit
-                illegal content, hate/harassment, impersonation, or scams.
+                You are responsible for the content you submit (ticket and merch listings, reports, and any optional submissions). Do not submit illegal content, hate/harassment, impersonation, or scams.
               </p>
             </section>
 
             <section>
               <h2 className="font-display text-lg font-bold text-army-purple">8) Privacy</h2>
               <p className="mt-2">
-                We collect and use information needed to operate the app (account/profile details, onboarding info, listings,
-                reports, and connection status). See the Privacy Policy for details.
+                We collect and use information needed to operate the app (account/profile details, onboarding info, ticket and merch listings, reports, and connection status). See the Privacy Policy for details.
               </p>
             </section>
 
