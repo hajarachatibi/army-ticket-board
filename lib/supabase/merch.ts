@@ -154,6 +154,37 @@ export async function fetchBrowseMerchListings(filters?: {
   };
 }
 
+export async function fetchMerchListingById(
+  listingId: string
+): Promise<{ data: MerchListingCard | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from("merch_listings")
+    .select("id, seller_id, title, description, quantity, price, currency, images, status, created_at, category_slug, subcategory_slug, is_fanmade, filter_options")
+    .eq("id", listingId)
+    .single();
+  if (error || !data) return { data: null, error: error?.message ?? null };
+  const r = data as any;
+  return {
+    data: {
+      id: String(r.id),
+      sellerId: String(r.seller_id),
+      title: String(r.title ?? ""),
+      description: r.description != null ? String(r.description) : null,
+      quantity: Number(r.quantity ?? 1),
+      price: Number(r.price ?? 0),
+      currency: String(r.currency ?? "USD"),
+      images: Array.isArray(r.images) ? r.images.map((x: any) => String(x)) : [],
+      status: String(r.status ?? "active"),
+      createdAt: String(r.created_at ?? ""),
+      categorySlug: r.category_slug != null ? String(r.category_slug) : undefined,
+      subcategorySlug: r.subcategory_slug != null ? String(r.subcategory_slug) : null,
+      isFanmade: r.is_fanmade === true,
+      filterOptions: typeof r.filter_options === "object" && r.filter_options !== null ? r.filter_options : undefined,
+    },
+    error: null,
+  };
+}
+
 export async function fetchMyMerchListings(userId: string): Promise<{
   data: MyMerchListing[];
   error: string | null;

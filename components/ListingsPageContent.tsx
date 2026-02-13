@@ -89,7 +89,7 @@ export default function ListingsPageContent() {
       </div>
 
       {mode === "tickets" && <ConnectionBoardView />}
-      {mode === "merch" && showMerch && <MerchBoardView />}
+      {mode === "merch" && showMerch && <MerchBoardView openListingId={searchParams.get("open") ?? undefined} />}
     </>
   );
 }

@@ -522,8 +522,13 @@ export default function MerchConnectionPageContent() {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href="/tickets?mode=merch" className="btn-army-outline">Back to Listings</Link>
+            {conn?.merch_listing_id && (
+              <Link href={`/tickets?mode=merch&open=${encodeURIComponent(conn.merch_listing_id)}`} className="btn-army-outline">
+                View item
+              </Link>
+            )}
             <button type="button" className="btn-army-outline" onClick={() => setReportOpen(true)} disabled={!otherUserId || submitting} title={!otherUserId ? "Only connection participants can report." : "Report this user"}>
               Report user
             </button>

@@ -15,7 +15,6 @@ import {
   fetchMyMerchConnections,
   createMerchListing,
   updateMerchListing,
-  deleteMerchListing,
   connectToMerchListingV2,
   endMerchConnection,
   fetchMerchListingSellerProfileForConnect,
@@ -97,7 +96,9 @@ function formatFilterOptionKey(key: string): string {
   return FILTER_OPTION_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function MerchBoardView() {
+type MerchBoardViewProps = { openListingId?: string };
+
+export default function MerchBoardView({ openListingId }: MerchBoardViewProps = {}) {
   const { user } = useAuth();
   const [tab, setTab] = useState<MerchTab>("all");
   const [loading, setLoading] = useState(true);
@@ -202,6 +203,8 @@ export default function MerchBoardView() {
     return map;
   }, [connections, user]);
 
+  const activeMine = useMemo(() => mine.filter((m) => m.status !== "removed"), [mine]);
+
   const load = async () => {
     if (!user) return;
     setLoading(true);
@@ -268,6 +271,19 @@ export default function MerchBoardView() {
       setPostCollectionEvent("none_general");
     }
   }, [editListing?.id]);
+
+  useEffect(() => {
+    if (!openListingId?.trim()) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await fetchMerchListingById(openListingId.trim());
+      if (!cancelled && data) {
+        setTab("all");
+        setDetailListing(data);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [openListingId]);
 
   useEffect(() => {
     if (!connectListingId || !user) return;
@@ -503,12 +519,18 @@ export default function MerchBoardView() {
   };
 
   const handleDelete = async (m: MyMerchListing) => {
-    const { error: e } = await deleteMerchListing(m.id);
-    if (e) {
-      setError(e);
+    const res = await fetch("/api/merch-listings/remove", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ merchListingId: m.id }),
+    });
+    const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+    if (!res.ok || !j?.ok) {
+      setError(j?.error ?? `HTTP ${res.status}`);
       return;
     }
-    setMine((prev) => prev.filter((x) => x.id !== m.id));
+    setMine((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: "removed" as const } : x)));
     setDeleteConfirm(null);
   };
 
@@ -844,9 +866,8 @@ export default function MerchBoardView() {
                     ? "border-army-purple/10 bg-neutral-50 dark:border-army-purple/20 dark:bg-neutral-900/70"
                     : "border-army-purple/20 bg-army-purple/5 dark:border-army-purple/30 dark:bg-army-purple/15";
                   return (
-                    <Link
+                    <div
                       key={c.id}
-                      href={`/merch/connections/${c.id}`}
                       className={`relative block rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardTone}`}
                     >
                       {unreadMerchConnectionIds.has(c.id) && (
@@ -862,20 +883,35 @@ export default function MerchBoardView() {
                         <span className="text-sm text-neutral-600 dark:text-neutral-400">{c.stage.replace(/_/g, " ")}</span>
                       </div>
                       <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Listing ID: {c.merchListingId.slice(0, 8)}…</p>
-                    </Link>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/merch/connections/${c.id}`}
+                          className="rounded-lg bg-army-purple px-3 py-1.5 text-sm font-semibold text-white hover:bg-army-purple/90 dark:hover:bg-army-purple/80"
+                        >
+                          Open connection
+                        </Link>
+                        <Link
+                          href={`/tickets?mode=merch&open=${encodeURIComponent(c.merchListingId)}`}
+                          className="rounded-lg border border-army-purple/50 px-3 py-1.5 text-sm font-medium text-army-purple hover:bg-army-purple/10 dark:border-army-purple/60 dark:text-army-300 dark:hover:bg-army-purple/20"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View item
+                        </Link>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             )
           ) : (
             <>
-              {mine.length === 0 ? (
+              {activeMine.length === 0 ? (
                 <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-10 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
                   You haven’t posted any merch listings yet.
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {mine.map((m) => {
+                  {activeMine.map((m) => {
                     const pill = merchStatusPill(m.status);
                     const firstImage = m.images?.[0];
                     const isSold = m.status === "sold";
