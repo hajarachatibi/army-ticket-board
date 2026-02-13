@@ -93,6 +93,7 @@ export default function MerchBoardView() {
   const [browseFilterTour, setBrowseFilterTour] = useState<string>("");
   const [browseFilterCondition, setBrowseFilterCondition] = useState<string>("");
   const [browseFilterOfficialReplica, setBrowseFilterOfficialReplica] = useState<string>("");
+  const [browseFilterCollectionEvent, setBrowseFilterCollectionEvent] = useState<string>("");
 
   const [postOpen, setPostOpen] = useState(false);
   const [postSubmitting, setPostSubmitting] = useState(false);
