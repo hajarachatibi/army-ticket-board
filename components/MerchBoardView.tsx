@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import ImageLightbox from "@/components/ImageLightbox";
 import MerchListingReportModal from "@/components/MerchListingReportModal";
