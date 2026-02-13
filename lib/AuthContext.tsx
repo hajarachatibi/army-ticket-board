@@ -30,7 +30,8 @@ type AuthContextValue = {
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
-  signInWithGoogle: () => Promise<void>;
+  /** Optional redirectAfterLogin: path to send user after OAuth (e.g. /tickets?mode=merch). */
+  signInWithGoogle: (redirectAfterLogin?: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Use when calling Supabase with explicit JWT (e.g. tickets/requests insert). */
   getAccessToken: () => Promise<string | null>;
@@ -62,10 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (redirectAfterLogin?: string) => {
     setError(null);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const redirectTo = `${origin}/auth/callback`;
+    let redirectTo = `${origin}/auth/callback`;
+    if (redirectAfterLogin && redirectAfterLogin.startsWith("/")) {
+      redirectTo += `?next=${encodeURIComponent(redirectAfterLogin)}`;
+    }
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },

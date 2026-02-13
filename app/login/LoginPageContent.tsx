@@ -38,11 +38,13 @@ export default function LoginPageContent() {
   const rateLimited = searchParams.get("rate_limited") === "1";
   const retry = Number(searchParams.get("retry") ?? "0");
   const kind = searchParams.get("kind") || "ip";
+  const nextRedirect = searchParams.get("next");
+  const redirectPath = nextRedirect && nextRedirect.startsWith("/") && !nextRedirect.startsWith("//") ? nextRedirect : "/tickets";
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && user) router.replace("/tickets");
-  }, [isLoading, user, router]);
+    if (!isLoading && user) router.replace(redirectPath);
+  }, [isLoading, user, router, redirectPath]);
 
   useEffect(() => {
     if (!banned && !rateLimited) clearError();
@@ -53,7 +55,7 @@ export default function LoginPageContent() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(redirectPath);
     } catch {
       /* error set in context */
     } finally {

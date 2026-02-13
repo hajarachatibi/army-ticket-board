@@ -8,15 +8,20 @@ import { rateLimitSigninByAccount } from "@/lib/rateLimit";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+  const nextPath = searchParams.get("next");
   const origin = request.nextUrl.origin;
-  const redirectTo = new URL("/tickets", origin);
   const loginUrl = new URL("/login", origin);
+  const defaultRedirect = new URL("/tickets", origin);
+  const redirectTo =
+    nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+      ? new URL(nextPath, origin)
+      : defaultRedirect;
 
   if (!code) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const redirectResponse = NextResponse.redirect(redirectTo);
+  const redirectResponse = NextResponse.redirect(redirectTo.toString());
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -33,7 +33,7 @@ export default function HomePage() {
             <Link href="/tickets" className="btn-army rounded-xl px-8 py-4 text-lg">
               Tickets
             </Link>
-            <Link href="/tickets?mode=merch" className="btn-army rounded-xl px-8 py-4 text-lg">
+            <Link href="/login?next=/tickets%3Fmode%3Dmerch" className="btn-army rounded-xl px-8 py-4 text-lg">
               Merch
             </Link>
             <Link href="/tickets" className="btn-army-outline rounded-xl px-8 py-4 text-lg">
