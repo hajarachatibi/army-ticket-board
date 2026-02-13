@@ -46,16 +46,17 @@ const MERCH_TOUR_OPTIONS: { value: string; label: string }[] = [
 
 /** Required Collection / Event filter for merch listings. */
 const MERCH_COLLECTION_EVENT_OPTIONS: { value: string; label: string }[] = [
-  { value: "run_bts", label: "Run BTS" },
+  { value: "tour", label: "Tour" },
+  { value: "are_you_sure", label: "Are you Sure ?" },
   { value: "bon_voyage", label: "Bon Voyage" },
-  { value: "in_the_soop", label: "In the SOOP" },
   { value: "festa", label: "Festa" },
   { value: "muster", label: "Muster" },
   { value: "seasons_greetings", label: "Season's Greetings" },
   { value: "memories", label: "Memories" },
   { value: "popup_store", label: "Pop-up Store" },
   { value: "artist_made", label: "Artist Made Collection" },
-  { value: "tour_name", label: "Tour name (LY, SY, PTD, D-DAY, FACE, GOLDEN etc.)" },
+  { value: "run_bts", label: "Run BTS" },
+  { value: "in_the_soop", label: "In the SOOP" },
   { value: "none_general", label: "None / General" },
 ];
 
