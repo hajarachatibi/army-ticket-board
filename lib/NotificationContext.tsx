@@ -43,6 +43,9 @@ export type Notification = {
   listingId?: string;
   listingSummary?: string;
   connectionId?: string;
+  /** Merch connection (link to /merch/connections/[id]). */
+  merchConnectionId?: string;
+  merchListingId?: string;
   message?: string;
   /** Ticket basic info (e.g. "Event · City · Day") for display instead of ticket ID. */
   ticketSummary?: string;

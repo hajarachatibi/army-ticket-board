@@ -26,7 +26,7 @@ export async function runProcessPush(db?: SupabaseClient): Promise<Record<string
   const pushCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: notifications } = await supabase
     .from("user_notifications")
-    .select("id, user_id, type, message, listing_id, listing_summary, connection_id")
+    .select("id, user_id, type, message, listing_id, listing_summary, connection_id, merch_connection_id, merch_listing_id")
     .eq("push_sent", false)
     .gte("created_at", pushCutoff)
     .limit(50);
@@ -75,7 +75,9 @@ export async function runProcessPush(db?: SupabaseClient): Promise<Record<string
       const body = n.message ?? n.listing_summary ?? "New notification";
       const data: Record<string, string> = { type: n.type };
       if (n.connection_id) data.connectionId = n.connection_id;
+      if (n.merch_connection_id) data.merchConnectionId = n.merch_connection_id;
       if (n.listing_id) data.listingId = n.listing_id;
+      if (n.merch_listing_id) data.merchListingId = n.merch_listing_id;
 
       for (const token of tokens) {
         if (!FCM_OK) continue;

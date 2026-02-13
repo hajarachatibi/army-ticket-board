@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import ConnectionBoardView from "@/components/ConnectionBoardView";
+import ListingsPageContent from "@/components/ListingsPageContent";
 
 function TicketsLoading() {
   return (
@@ -16,7 +16,7 @@ export default function TicketsPage() {
     <main className="min-h-screen bg-gradient-army-subtle">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Suspense fallback={<TicketsLoading />}>
-          <ConnectionBoardView />
+          <ListingsPageContent />
         </Suspense>
       </div>
     </main>

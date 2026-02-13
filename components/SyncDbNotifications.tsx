@@ -39,6 +39,8 @@ type DbNotificationRow = {
   listing_id?: string | null;
   listing_summary?: string | null;
   connection_id?: string | null;
+  merch_connection_id?: string | null;
+  merch_listing_id?: string | null;
   story_id?: string | null;
   message: string | null;
   report_reasons?: string | null;
@@ -57,6 +59,8 @@ function dbRowToNotification(r: DbNotificationRow): { id: string; type: Notifica
     listingId: r.listing_id ?? undefined,
     listingSummary: r.listing_summary ?? undefined,
     connectionId: r.connection_id ?? undefined,
+    merchConnectionId: r.merch_connection_id ?? undefined,
+    merchListingId: r.merch_listing_id ?? undefined,
     storyId: r.story_id ?? undefined,
     message: r.message ?? undefined,
     reportReasons: r.report_reasons ?? undefined,
@@ -162,6 +166,8 @@ export default function SyncDbNotifications() {
             listingId: r.listing_id ?? undefined,
             listingSummary: r.listing_summary ?? undefined,
             connectionId: r.connection_id ?? undefined,
+            merchConnectionId: r.merch_connection_id ?? undefined,
+            merchListingId: r.merch_listing_id ?? undefined,
             storyId: r.story_id ?? undefined,
             message: r.message ?? undefined,
             reportReasons: r.report_reasons ?? undefined,

@@ -264,6 +264,138 @@ export async function adminRemoveListing(
   }
 }
 
+export type AdminMerchListing = {
+  id: string;
+  title: string;
+  status: string;
+  quantity: number;
+  price: number;
+  currency: string;
+  createdAt: string;
+  sellerEmail: string | null;
+};
+
+export type AdminMerchListingReport = {
+  id: string;
+  merchListingId: string;
+  reporterId: string | null;
+  reporterEmail: string | null;
+  reportedByUsername: string | null;
+  reason: string;
+  details: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  sellerId: string | null;
+  sellerEmail: string | null;
+  title: string;
+  listingStatus: string;
+  quantity: number;
+  price: number;
+  currency: string;
+};
+
+export async function fetchAdminMerchListingsFiltered(params: {
+  page: number;
+  search?: string;
+  status?: string;
+  pageSize?: number;
+}): Promise<{ data: AdminMerchListing[]; total: number; error: string | null }> {
+  const pageSize = params.pageSize ?? 24;
+  try {
+    const { data, error } = await supabase.rpc("admin_merch_listings_paged_filtered", {
+      p_limit: pageSize,
+      p_offset: params.page * pageSize,
+      p_search: params.search ?? "",
+      p_status: params.status ?? "",
+    });
+    if (error) return { data: [], total: 0, error: error.message };
+    const obj = data as { data: Array<Record<string, unknown>>; total?: number | string } | null;
+    const list = Array.isArray(obj?.data) ? obj.data : [];
+    const total = Math.max(0, Number(obj?.total ?? 0));
+    return {
+      data: list.map((d) => ({
+        id: String(d.id),
+        title: String(d.title ?? ""),
+        status: String(d.status ?? ""),
+        quantity: Number(d.quantity ?? 0),
+        price: Number(d.price ?? 0),
+        currency: String(d.currency ?? "USD"),
+        createdAt: String(d.created_at ?? ""),
+        sellerEmail: d.seller_email != null ? String(d.seller_email) : null,
+      })),
+      total,
+      error: null,
+    };
+  } catch (e) {
+    return { data: [], total: 0, error: e instanceof Error ? e.message : "Failed to fetch merch listings" };
+  }
+}
+
+export async function fetchAdminMerchListingReports(): Promise<{
+  data: AdminMerchListingReport[];
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_merch_listing_reports_with_details");
+    if (error) return { data: [], error: error.message };
+    const rows = Array.isArray(data) ? data : (typeof data === "object" && data !== null && "json" in data ? (data as { json: unknown }).json : data) as Array<Record<string, unknown>>;
+    const list = Array.isArray(rows) ? rows : [];
+    return {
+      data: list.map((r) => ({
+        id: String(r.id),
+        merchListingId: String(r.merch_listing_id ?? ""),
+        reporterId: r.reporter_id != null ? String(r.reporter_id) : null,
+        reporterEmail: r.reporter_email != null ? String(r.reporter_email) : null,
+        reportedByUsername: r.reported_by_username != null ? String(r.reported_by_username) : null,
+        reason: String(r.reason ?? ""),
+        details: r.details != null ? String(r.details) : null,
+        createdAt: String(r.created_at ?? ""),
+        resolvedAt: r.resolved_at != null ? String(r.resolved_at) : null,
+        sellerId: r.seller_id != null ? String(r.seller_id) : null,
+        sellerEmail: r.seller_email != null ? String(r.seller_email) : null,
+        title: String(r.title ?? ""),
+        listingStatus: String(r.listing_status ?? ""),
+        quantity: Number(r.quantity ?? 0),
+        price: Number(r.price ?? 0),
+        currency: String(r.currency ?? "USD"),
+      })),
+      error: null,
+    };
+  } catch (e) {
+    return { data: [], error: e instanceof Error ? e.message : "Failed to fetch merch listing reports" };
+  }
+}
+
+export async function adminSetMerchListingReportResolved(
+  reportId: string,
+  resolved: boolean
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_set_merch_listing_report_resolved", {
+      p_report_id: reportId,
+      p_resolved: resolved,
+    });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to set merch report resolved" };
+  }
+}
+
+export async function adminRemoveMerchListing(
+  merchListingId: string,
+  adminMessage?: string | null
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_remove_merch_listing", {
+      p_merch_listing_id: merchListingId,
+      p_admin_message: adminMessage ?? null,
+    });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to remove merch listing" };
+  }
+}
+
 export async function fetchAdminListingsFiltered(params: {
   page: number;
   search?: string;
@@ -802,6 +934,8 @@ export type AdminDashboardStats = {
   banned: number;
   sellers: number;
   buyers: number;
+  merchListings: number;
+  merchReports: number;
 };
 
 export type ConnectionStats = {
@@ -869,6 +1003,8 @@ export async function fetchAdminDashboardStats(): Promise<{
         banned: Number(o.banned) || 0,
         sellers: Number(o.sellers) || 0,
         buyers: Number(o.buyers) || 0,
+        merchListings: Number((o as any).merch_listings) || 0,
+        merchReports: Number((o as any).merch_reports) || 0,
       },
       error: null,
     };
@@ -958,5 +1094,56 @@ export async function fetchAdminMessagesForUser(userId: string): Promise<{
     };
   } catch (e) {
     return { data: [], error: e instanceof Error ? e.message : "Failed to fetch messages" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Support page progress (one-year cost bar)
+// ---------------------------------------------------------------------------
+
+export type AdminSupportProgress = {
+  targetAmountCents: number;
+  currentAmountCents: number;
+  visible: boolean;
+  updatedAt: string;
+};
+
+export async function adminGetSupportProgress(): Promise<{
+  data: AdminSupportProgress | null;
+  error: string | null;
+}> {
+  try {
+    const { data, error } = await supabase.rpc("admin_get_support_progress");
+    if (error) return { data: null, error: error.message };
+    const o = data as Record<string, unknown> | null;
+    if (!o) return { data: null, error: "No data" };
+    return {
+      data: {
+        targetAmountCents: Number(o.target_amount_cents) ?? 0,
+        currentAmountCents: Number(o.current_amount_cents) ?? 0,
+        visible: Boolean(o.visible),
+        updatedAt: String(o.updated_at ?? ""),
+      },
+      error: null,
+    };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "Failed to fetch support progress" };
+  }
+}
+
+export async function adminSetSupportProgress(
+  targetAmountCents: number,
+  currentAmountCents: number,
+  visible: boolean
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc("admin_set_support_progress", {
+      p_target_amount_cents: Math.max(0, Math.floor(targetAmountCents)),
+      p_current_amount_cents: Math.max(0, Math.floor(currentAmountCents)),
+      p_visible: Boolean(visible),
+    });
+    return { error: error?.message ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to update support progress" };
   }
 }

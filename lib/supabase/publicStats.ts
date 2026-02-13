@@ -6,20 +6,26 @@ export type PublicStats = {
   sold: number;
   /** Total ticket/seat count sold: sum(quantity) from legacy tickets + count(seats) from sold listings */
   ticketsSold: number;
+  /** Active merch listings (active + locked) */
+  merchListings: number;
+  /** Merch listings sold */
+  merchSold: number;
 };
 
 export async function fetchPublicStats(): Promise<{ data: PublicStats | null; error: string | null }> {
   try {
     const { data, error } = await supabase.rpc("public_stats");
     if (error) return { data: null, error: error.message };
-    const o = data as Record<string, number> | null;
+    const o = data as Record<string, unknown> | null;
     if (!o) return { data: null, error: "No stats" };
     return {
       data: {
         tickets: Number(o.tickets) || 0,
         events: Number(o.events) || 0,
         sold: Number(o.sold) || 0,
-        ticketsSold: Number((o as Record<string, unknown>).tickets_sold) || 0,
+        ticketsSold: Number(o.tickets_sold) || 0,
+        merchListings: Number(o.merch_listings) || 0,
+        merchSold: Number(o.merch_sold) || 0,
       },
       error: null,
     };

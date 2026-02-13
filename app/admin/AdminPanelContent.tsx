@@ -30,7 +30,9 @@ import {
   adminDeleteListingReport,
   adminReleaseUserListings,
   adminRemoveListing,
+  adminRemoveMerchListing,
   adminSetListingReportResolved,
+  adminSetMerchListingReportResolved,
   adminSetUserReportResolved,
   adminUnbanUser,
   fetchAdminAllUsersPage,
@@ -40,14 +42,21 @@ import {
   fetchAdminGrowthAndFlowStats,
   fetchAdminListingReports,
   fetchAdminListingsFiltered,
+  fetchAdminMerchListingReports,
+  fetchAdminMerchListingsFiltered,
   fetchAdminSellersPage,
   fetchAdminUserReports,
   fetchAdminUsersUnderReview,
   fetchConnectionStats,
+  adminGetSupportProgress,
+  adminSetSupportProgress,
   type AdminDashboardStats,
   type AdminGrowthAndFlowStats,
   type AdminListing,
   type AdminListingReport,
+  type AdminMerchListing,
+  type AdminMerchListingReport,
+  type AdminSupportProgress,
   type AdminUser,
   type AdminUserReport,
   type AdminUserUnderReview,
@@ -57,11 +66,14 @@ import {
 
 type Tab =
   | "dashboard"
+  | "supportProgress"
   | "cron"
   | "listingReports"
+  | "merchListingReports"
   | "userReports"
   | "usersUnderReview"
   | "listings"
+  | "merchListings"
   | "armyProfileQuestions"
   | "bondingQuestions"
   | "stories"
@@ -105,6 +117,16 @@ export default function AdminPanelContent() {
   const [listingsSearch, setListingsSearch] = useState("");
   const [listingsSearchApplied, setListingsSearchApplied] = useState("");
   const [listingsStatus, setListingsStatus] = useState("");
+
+  const [merchListings, setMerchListings] = useState<AdminMerchListing[]>([]);
+  const [merchListingsTotal, setMerchListingsTotal] = useState(0);
+  const [merchListingsPage, setMerchListingsPage] = useState(0);
+  const [merchListingsSearch, setMerchListingsSearch] = useState("");
+  const [merchListingsSearchApplied, setMerchListingsSearchApplied] = useState("");
+  const [merchListingsStatus, setMerchListingsStatus] = useState("");
+  const [merchListingReports, setMerchListingReports] = useState<AdminMerchListingReport[]>([]);
+  const [removeMerchListingModal, setRemoveMerchListingModal] = useState<{ merchListingId: string } | null>(null);
+  const [removeMerchListingMessage, setRemoveMerchListingMessage] = useState("");
 
   const [sellers, setSellers] = useState<AdminUser[]>([]);
   const [sellersTotal, setSellersTotal] = useState(0);
@@ -166,14 +188,23 @@ export default function AdminPanelContent() {
   } | null>(null);
   const [pushStatsLoading, setPushStatsLoading] = useState(false);
 
+  const [supportProgress, setSupportProgress] = useState<AdminSupportProgress | null>(null);
+  const [supportProgressTargetDollars, setSupportProgressTargetDollars] = useState("");
+  const [supportProgressCurrentDollars, setSupportProgressCurrentDollars] = useState("");
+  const [supportProgressVisible, setSupportProgressVisible] = useState(false);
+  const [supportProgressSaving, setSupportProgressSaving] = useState(false);
+
   const TABS: { id: Tab; label: string }[] = useMemo(
     () => [
       { id: "dashboard", label: "Dashboard" },
+      { id: "supportProgress", label: "Support progress" },
       { id: "cron", label: "Cron & Push" },
       { id: "listingReports", label: "Listing reports" },
+      { id: "merchListingReports", label: "Merch listing reports" },
       { id: "userReports", label: "User reports" },
       { id: "usersUnderReview", label: "Users under review" },
       { id: "listings", label: "Listings" },
+      { id: "merchListings", label: "Merch listings" },
       { id: "armyProfileQuestions", label: "ARMY Profile Questions" },
       { id: "bondingQuestions", label: "Connection bonding questions" },
       { id: "stories", label: "ARMY Stories & Feedback" },
@@ -248,6 +279,31 @@ export default function AdminPanelContent() {
       setListingsTotal(total);
     }
   }, [listingsPage, listingsSearchApplied, listingsStatus]);
+
+  const loadMerchListings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, total, error: e } = await fetchAdminMerchListingsFiltered({
+      page: merchListingsPage,
+      search: merchListingsSearchApplied,
+      status: merchListingsStatus,
+    });
+    setLoading(false);
+    if (e) setError(e);
+    else {
+      setMerchListings(data);
+      setMerchListingsTotal(total);
+    }
+  }, [merchListingsPage, merchListingsSearchApplied, merchListingsStatus]);
+
+  const loadMerchListingReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await fetchAdminMerchListingReports();
+    setLoading(false);
+    if (e) setError(e);
+    else setMerchListingReports(data);
+  }, []);
 
   const loadSellers = useCallback(async () => {
     setLoading(true);
@@ -386,8 +442,10 @@ export default function AdminPanelContent() {
     if (tab === "dashboard") void loadDashboard();
     if (tab === "cron") void loadPushStats();
     if (tab === "listingReports") void loadListingReports();
+    if (tab === "merchListingReports") void loadMerchListingReports();
     if (tab === "userReports") void loadUserReports();
     if (tab === "listings") void loadListings();
+    if (tab === "merchListings") void loadMerchListings();
     if (tab === "armyProfileQuestions") void loadArmyProfileQuestions();
     if (tab === "bondingQuestions") void loadBondingQuestions();
     if (tab === "stories") void loadStories();
@@ -411,7 +469,10 @@ export default function AdminPanelContent() {
     loadDashboard,
     loadListingReports,
     loadListings,
+    loadMerchListingReports,
+    loadMerchListings,
     loadRecommendations,
+    loadSupportProgress,
     loadUnansweredQuestions,
     loadSellers,
     loadStories,
@@ -422,6 +483,10 @@ export default function AdminPanelContent() {
   useEffect(() => {
     if (tab === "listings") void loadListings();
   }, [listingsPage, listingsSearchApplied, listingsStatus, tab, loadListings]);
+
+  useEffect(() => {
+    if (tab === "merchListings") void loadMerchListings();
+  }, [merchListingsPage, merchListingsSearchApplied, merchListingsStatus, tab, loadMerchListings]);
 
   useEffect(() => {
     if (tab === "sellers") void loadSellers();
@@ -539,6 +604,24 @@ export default function AdminPanelContent() {
     [loadUserReports]
   );
 
+  const setMerchListingReportResolved = useCallback(
+    async (reportId: string, resolved: boolean) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminSetMerchListingReportResolved(reportId, resolved);
+        if (e) setFeedback(`Error: ${e}`);
+        else {
+          setFeedback(resolved ? "Report marked resolved." : "Report marked unresolved.");
+          await loadMerchListingReports();
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadMerchListingReports]
+  );
+
   const openRemoveListingModal = useCallback((listingId: string) => {
     setRemoveListingModal({ listingId });
     setRemoveListingMessage("");
@@ -567,6 +650,35 @@ export default function AdminPanelContent() {
     const msg = removeListingMessage.trim() || undefined;
     void removeListing(removeListingModal.listingId, msg);
   }, [removeListingModal, removeListingMessage, removeListing]);
+
+  const openRemoveMerchListingModal = useCallback((merchListingId: string) => {
+    setRemoveMerchListingModal({ merchListingId });
+    setRemoveMerchListingMessage("");
+  }, []);
+
+  const removeMerchListing = useCallback(
+    async (merchListingId: string, adminMessage?: string | null) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error: e } = await adminRemoveMerchListing(merchListingId, adminMessage);
+        if (e) setFeedback(`Error: ${e}`);
+        else setFeedback("Merch listing removed.");
+        setRemoveMerchListingModal(null);
+        setRemoveMerchListingMessage("");
+        await Promise.all([loadMerchListings(), loadMerchListingReports(), loadDashboard()]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadDashboard, loadMerchListingReports, loadMerchListings]
+  );
+
+  const confirmRemoveMerchListing = useCallback(() => {
+    if (!removeMerchListingModal) return;
+    const msg = removeMerchListingMessage.trim() || undefined;
+    void removeMerchListing(removeMerchListingModal.merchListingId, msg);
+  }, [removeMerchListingModal, removeMerchListingMessage, removeMerchListing]);
 
   const saveArmyProfileQuestion = useCallback(async (q: { key: string; prompt: string; active: boolean; position: number }) => {
     setLoading(true);
@@ -854,6 +966,14 @@ export default function AdminPanelContent() {
                     <p className="text-sm font-medium text-army-purple dark:text-army-300">Banned</p>
                     <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{dashboardStats.banned}</p>
                   </div>
+                  <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                    <p className="text-sm font-medium text-army-purple dark:text-army-300">Merch listings</p>
+                    <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{dashboardStats.merchListings}</p>
+                  </div>
+                  <div className="rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                    <p className="text-sm font-medium text-army-purple dark:text-army-300">Merch reports</p>
+                    <p className="mt-1 text-2xl font-bold text-neutral-800 dark:text-neutral-200">{dashboardStats.merchReports}</p>
+                  </div>
                 </div>
               )}
 
@@ -987,7 +1107,81 @@ export default function AdminPanelContent() {
               )}
             </section>
           )}
-
+          {tab === "supportProgress" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Support page progress bar</h2>
+              <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                One-year cost progress shown on the Support page. Set target and current amounts (USD). Percentage is calculated automatically. Toggle visibility to show or hide the bar.
+              </p>
+              {supportProgress === null && !loading ? (
+                <p className="text-neutral-500">No data yet. Set values and save.</p>
+              ) : (
+                <div className="max-w-md space-y-4 rounded-xl border border-army-purple/15 bg-white/80 p-4 dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div>
+                    <label className="block text-sm font-medium text-army-purple dark:text-army-300">Target amount (USD)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={supportProgressTargetDollars}
+                      onChange={(e) => setSupportProgressTargetDollars(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-army-purple dark:text-army-300">Amount reached (USD)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={supportProgressCurrentDollars}
+                      onChange={(e) => setSupportProgressCurrentDollars(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+                    />
+                  </div>
+                  {(() => {
+                    const targetCents = Math.round(parseFloat(supportProgressTargetDollars || "0") * 100) || 0;
+                    const currentCents = Math.round(parseFloat(supportProgressCurrentDollars || "0") * 100) || 0;
+                    const pct = targetCents > 0 ? Math.min(100, (currentCents / targetCents) * 100) : 0;
+                    return (
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                        <strong className="text-army-purple">Percentage:</strong> {pct.toFixed(1)}%
+                      </p>
+                    );
+                  })()}
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={supportProgressVisible}
+                      onChange={(e) => setSupportProgressVisible(e.target.checked)}
+                      className="rounded border-army-purple text-army-purple focus:ring-army-purple"
+                    />
+                    <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Show progress bar on Support page</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={supportProgressSaving}
+                    onClick={async () => {
+                      const targetCents = Math.round(parseFloat(supportProgressTargetDollars || "0") * 100) || 0;
+                      const currentCents = Math.round(parseFloat(supportProgressCurrentDollars || "0") * 100) || 0;
+                      setSupportProgressSaving(true);
+                      setError(null);
+                      const { error: e } = await adminSetSupportProgress(targetCents, currentCents, supportProgressVisible);
+                      setSupportProgressSaving(false);
+                      if (e) setError(e);
+                      else {
+                        setFeedback("Support progress updated.");
+                        await loadSupportProgress();
+                      }
+                    }}
+                    className="rounded-lg bg-army-purple px-4 py-2 text-sm font-semibold text-white hover:bg-army-purple/90 disabled:opacity-50"
+                  >
+                    {supportProgressSaving ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
           {tab === "cron" && (
             <section>
               <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Cron &amp; Push</h2>
@@ -1151,6 +1345,91 @@ export default function AdminPanelContent() {
                                 <button type="button" className="rounded bg-army-purple/20 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/30 dark:bg-army-purple/30 dark:hover:bg-army-purple/40" onClick={() => deleteListingReport(r.id)}>
                                   Delete report
                                 </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "merchListingReports" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Merch listing reports</h2>
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : merchListingReports.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-8 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No merch listing reports.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[900px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Date</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reporter</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Seller</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Listing</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Reason</th>
+                          <th className="min-w-[180px] max-w-[320px] px-3 py-2 font-semibold text-army-purple dark:text-army-300">Details</th>
+                          <th className="whitespace-nowrap px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {merchListingReports.map((r) => (
+                          <tr key={r.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(r.createdAt)}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.reporterEmail ?? r.reportedByUsername ?? "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{r.sellerEmail ?? "—"}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">
+                              <div className="text-xs text-neutral-500 dark:text-neutral-400">{r.listingStatus}</div>
+                              <div className="font-medium">{r.title}</div>
+                              <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                Qty {r.quantity} · {formatPrice(r.price, r.currency)}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{r.reason}</td>
+                            <td className="px-3 py-2 align-top">
+                              <div className="max-h-24 min-w-[160px] max-w-[300px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded border border-army-purple/15 bg-neutral-50/80 px-2 py-1.5 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300">
+                                {r.details ?? "—"}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  type="button"
+                                  disabled={!r.sellerId}
+                                  className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-army-purple/20 dark:hover:bg-army-purple/30"
+                                  onClick={() => r.sellerId && openUserProfile({ userId: r.sellerId, title: `Seller: ${r.sellerEmail ?? "User"}` })}
+                                >
+                                  Seller profile
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!r.sellerEmail}
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => r.sellerEmail && banAndDelete(r.sellerEmail)}
+                                >
+                                  Ban seller
+                                </button>
+                                <button type="button" className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300" onClick={() => openRemoveMerchListingModal(r.merchListingId)}>
+                                  Remove listing
+                                </button>
+                                {r.resolvedAt ? (
+                                  <button type="button" className="rounded bg-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-500" onClick={() => setMerchListingReportResolved(r.id, false)}>
+                                    Unresolve
+                                  </button>
+                                ) : (
+                                  <button type="button" className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50" onClick={() => setMerchListingReportResolved(r.id, true)}>
+                                    Set as resolved
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1443,6 +1722,90 @@ export default function AdminPanelContent() {
                     Prev
                   </button>
                   <button type="button" className="btn-army-outline" disabled={(listingsPage + 1) * 24 >= listingsTotal} onClick={() => setListingsPage((p) => p + 1)}>
+                    Next
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {tab === "merchListings" && (
+            <section>
+              <h2 className="mb-4 font-display text-xl font-bold text-army-purple">Merch listings</h2>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Status</label>
+                <select className="input-army" value={merchListingsStatus} onChange={(e) => { setMerchListingsStatus(e.target.value); setMerchListingsPage(0); }}>
+                  <option value="">All</option>
+                  <option value="active">active</option>
+                  <option value="locked">locked</option>
+                  <option value="sold">sold</option>
+                  <option value="removed">removed</option>
+                </select>
+                <input className="input-army w-[320px]" placeholder="Search title or seller email…" value={merchListingsSearch} onChange={(e) => setMerchListingsSearch(e.target.value)} />
+                <button type="button" className="btn-army" onClick={() => { setMerchListingsSearchApplied(merchListingsSearch.trim()); setMerchListingsPage(0); }}>
+                  Search
+                </button>
+              </div>
+
+              {loading ? (
+                <p className="text-neutral-500">Loading…</p>
+              ) : merchListings.length === 0 ? (
+                <p className="rounded-xl border border-army-purple/15 bg-white/80 px-4 py-6 text-center text-neutral-600 dark:border-army-purple/25 dark:bg-neutral-900/80 dark:text-neutral-400">
+                  No merch listings.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-army-purple/15 bg-white/80 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900/80">
+                  <div className="max-h-[70vh] overflow-auto">
+                    <table className="w-full min-w-[800px] text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-army-purple/15 bg-army-purple/5 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Created</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Seller</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Title</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Status</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Qty · Price</th>
+                          <th className="px-3 py-2 font-semibold text-army-purple dark:text-army-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {merchListings.map((l) => (
+                          <tr key={l.id} className="border-b border-army-purple/10 last:border-0 hover:bg-army-purple/5 dark:border-army-purple/20 dark:hover:bg-army-purple/10">
+                            <td className="whitespace-nowrap px-3 py-2 text-neutral-600 dark:text-neutral-400">{formatDate(l.createdAt)}</td>
+                            <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">{l.sellerEmail ?? "—"}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200 font-medium">{l.title}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{l.status}</td>
+                            <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">{l.quantity} · {formatPrice(l.price, l.currency)}</td>
+                            <td className="whitespace-nowrap px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <Link href="/listings?merch" className="rounded bg-army-purple/10 px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/20 dark:bg-army-purple/20 dark:hover:bg-army-purple/30">
+                                  View on site
+                                </Link>
+                                <button
+                                  type="button"
+                                  className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                  onClick={() => openRemoveMerchListingModal(l.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 flex items-center justify-between text-sm text-neutral-600 dark:text-neutral-400">
+                <span>
+                  Page {merchListingsPage + 1} · {merchListingsTotal} total
+                </span>
+                <div className="flex gap-2">
+                  <button type="button" className="btn-army-outline" disabled={merchListingsPage === 0} onClick={() => setMerchListingsPage((p) => Math.max(0, p - 1))}>
+                    Prev
+                  </button>
+                  <button type="button" className="btn-army-outline" disabled={(merchListingsPage + 1) * 24 >= merchListingsTotal} onClick={() => setMerchListingsPage((p) => p + 1)}>
                     Next
                   </button>
                 </div>
@@ -2240,6 +2603,60 @@ export default function AdminPanelContent() {
                 disabled={loading}
               >
                 {loading ? "Removing…" : "Remove listing"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {removeMerchListingModal && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-merch-listing-title"
+          onClick={() => setRemoveMerchListingModal(null)}
+        >
+          <div
+            className="modal-panel w-full max-w-md cursor-default rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="remove-merch-listing-title" className="font-display text-xl font-bold text-army-purple">
+              Remove merch listing
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              This will remove the merch listing and end any connections. The seller will not be notified unless you add a message below.
+            </p>
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-army-purple" htmlFor="remove-merch-listing-message">
+                Message to seller (optional)
+              </label>
+              <textarea
+                id="remove-merch-listing-message"
+                className="input-army mt-1 min-h-[100px] w-full resize-y"
+                placeholder="e.g. Reason for removal…"
+                value={removeMerchListingMessage}
+                onChange={(e) => setRemoveMerchListingMessage(e.target.value)}
+                disabled={loading}
+                rows={3}
+              />
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-army-outline"
+                onClick={() => setRemoveMerchListingModal(null)}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
+                onClick={confirmRemoveMerchListing}
+                disabled={loading}
+              >
+                {loading ? "Removing…" : "Remove merch listing"}
               </button>
             </div>
           </div>

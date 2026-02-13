@@ -43,6 +43,7 @@ export default function Header() {
   const [mounted, setMounted] = useState(false);
   const supportEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_ENABLE_SUPPORT_PAGE);
   const showSupportLink = (supportEnabled || isAdmin) && isLoggedIn;
+  const showSafetyUpdate = false; // Hidden per request
 
   const navLinks = useMemo(() => {
     // Hide Chatroom and Questions for logged-out users (routes are still protected by middleware).
@@ -179,7 +180,8 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-army-purple/10 bg-white/95 shadow-header backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-army-purple/20 dark:bg-[#0f0f0f]/95 dark:supports-[backdrop-filter]:bg-[#0f0f0f]/80">
-      {/* Safety update notice */}
+      {/* Safety update notice - hidden per request */}
+      {showSafetyUpdate && (
       <div className="border-b border-army-purple/20 bg-gradient-to-r from-army-purple to-army-700 px-4 py-2 text-white shadow-sm dark:border-army-purple/30">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-center text-xs font-semibold sm:text-sm">
           <span className="relative inline-flex h-2.5 w-2.5">
@@ -206,6 +208,7 @@ export default function Header() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Scam warning */}
       <div className="border-b border-red-500/30 bg-gradient-to-r from-red-600 to-amber-500 px-4 py-2 text-white shadow-sm">
@@ -412,9 +415,10 @@ export default function Header() {
               ✕
             </button>
             <h2 id="mobile-safety-title" className="font-display text-lg font-bold text-army-purple">
-              Safety updates
+              Announcements
             </h2>
             <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto text-left">
+              {showSafetyUpdate && (
               <div className="rounded-xl border border-army-purple/15 bg-army-purple/5 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-army-purple">Safety update</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
@@ -425,6 +429,7 @@ export default function Header() {
                   After multiple reports from different users, tickets can be removed and scammers can be banned.
                 </p>
               </div>
+              )}
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Scam alert</p>
                 <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">

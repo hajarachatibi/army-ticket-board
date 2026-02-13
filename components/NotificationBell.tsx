@@ -70,6 +70,7 @@ function label(type: NotificationType, n?: Notification): string {
 }
 
 function notificationHref(n: Notification, isAdmin?: boolean): string {
+  if (n.merchConnectionId) return `/merch/connections/${encodeURIComponent(n.merchConnectionId)}`;
   if (n.connectionId) return `/connections/${encodeURIComponent(n.connectionId)}`;
   if (n.type === "story_published" || n.type === "story_admin_replied") return "/stories";
   const ticket = n.ticketId;
@@ -102,6 +103,12 @@ export default function NotificationBell() {
   const markRelatedRead = (n: Notification) => {
     // If the user reads one connection notification, clear all unread for that connection
     // so the red dots/counts around the app disappear immediately.
+    if (n.merchConnectionId) {
+      notifications
+        .filter((x) => !x.read && x.merchConnectionId === n.merchConnectionId)
+        .forEach((x) => markRead(x.id));
+      return;
+    }
     if (n.connectionId) {
       notifications
         .filter((x) => !x.read && x.connectionId === n.connectionId)
@@ -448,9 +455,9 @@ export default function NotificationBell() {
                 </p>
               )}
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                {connectionEndedPopup.connectionId && (
+                {(connectionEndedPopup.connectionId || connectionEndedPopup.merchConnectionId) && (
                   <Link
-                    href={`/connections/${encodeURIComponent(connectionEndedPopup.connectionId)}`}
+                    href={notificationHref(connectionEndedPopup)}
                     className="btn-army rounded-lg px-4 py-2 text-sm"
                     onClick={() => setConnectionEndedPopup(null)}
                   >
@@ -497,9 +504,9 @@ export default function NotificationBell() {
                 <p>If that deal doesn&apos;t work out, the seller can release the connection and accept another buyer. You can remain on the waiting list, or end your request anytime from My connections.</p>
               </div>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                {waitingListPopup.connectionId && (
+                {(waitingListPopup.connectionId || waitingListPopup.merchConnectionId) && (
                   <Link
-                    href={`/connections/${encodeURIComponent(waitingListPopup.connectionId)}`}
+                    href={notificationHref(waitingListPopup)}
                     className="btn-army rounded-lg px-4 py-2 text-sm"
                     onClick={() => setWaitingListPopup(null)}
                   >

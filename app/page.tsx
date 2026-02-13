@@ -5,7 +5,6 @@ import HomeStats from "@/components/HomeStats";
 const NEWS = [
   { title: "Arirang World Tour — Seoul dates announced", date: "2025-01-15" },
   { title: "Ticket request window opens next week", date: "2025-01-10" },
-  { title: "New safety guidelines for venue entry", date: "2025-01-05" },
 ];
 
 export default function HomePage() {
