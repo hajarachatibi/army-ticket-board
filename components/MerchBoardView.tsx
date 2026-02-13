@@ -7,6 +7,7 @@ import RequireAuth from "@/components/RequireAuth";
 import ImageLightbox from "@/components/ImageLightbox";
 import MerchListingReportModal from "@/components/MerchListingReportModal";
 import { useAuth } from "@/lib/AuthContext";
+import { useNotifications } from "@/lib/NotificationContext";
 import {
   fetchBrowseMerchListings,
   fetchMerchCategories,
@@ -163,10 +164,33 @@ export default function MerchBoardView() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState("");
+  const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [reportOpen, setReportOpen] = useState<{ merchListingId: string; summary: string } | null>(null);
   const [detailListing, setDetailListing] = useState<MerchListingCard | null>(null);
   const [editListing, setEditListing] = useState<MyMerchListing | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<MyMerchListing | null>(null);
+
+  const { notifications } = useNotifications();
+  const unreadMerchConnectionNotificationCount = useMemo(
+    () => notifications.filter((n) => !n.read && !!n.merchConnectionId).length,
+    [notifications]
+  );
+  const unreadMerchConnectionIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of notifications) {
+      if (!n.read && n.merchConnectionId) set.add(n.merchConnectionId);
+    }
+    return set;
+  }, [notifications]);
+  const unreadMerchConnectionCountById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const n of notifications) {
+      if (n.read || !n.merchConnectionId) continue;
+      map.set(n.merchConnectionId, (map.get(n.merchConnectionId) ?? 0) + 1);
+    }
+    return map;
+  }, [notifications]);
 
   const load = async () => {
     if (!user) return;
@@ -576,12 +600,22 @@ export default function MerchBoardView() {
           </button>
           <button
             type="button"
-            className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+            className={`relative flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
               tab === "connections" ? "bg-army-purple text-white" : "text-army-purple hover:bg-army-purple/10"
             }`}
             onClick={() => setTab("connections")}
           >
             My Connections
+            {unreadMerchConnectionNotificationCount > 0 && (
+              <span
+                className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                  tab === "connections" ? "bg-white text-army-purple" : "bg-army-purple text-white"
+                }`}
+                aria-label={`${unreadMerchConnectionNotificationCount} unread merch connection updates`}
+              >
+                {unreadMerchConnectionNotificationCount > 99 ? "99+" : unreadMerchConnectionNotificationCount}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -704,14 +738,14 @@ export default function MerchBoardView() {
                       {m.images && m.images.length > 0 ? (
                         <div
                           className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800"
-                          onClick={(e) => { e.stopPropagation(); setLightboxSrc(m.images![0]); setLightboxOpen(true); }}
+                          onClick={(e) => { e.stopPropagation(); setLightboxImages(m.images!); setLightboxIndex(0); setLightboxSrc(m.images![0]); setLightboxOpen(true); }}
                         >
                           {m.images.length === 1 ? (
                             <Image src={m.images[0]} alt={m.title} fill className="object-cover" sizes="(max-width: 384px) 100vw, 33vw" unoptimized />
                           ) : (
                             <div className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
                               {m.images.map((src, i) => (
-                                <div key={i} className="relative h-full w-full flex-shrink-0 snap-center" onClick={(e) => { e.stopPropagation(); setLightboxSrc(src); setLightboxOpen(true); }}>
+                                <div key={i} className="relative h-full w-full flex-shrink-0 snap-center" onClick={(e) => { e.stopPropagation(); setLightboxImages(m.images!); setLightboxIndex(i); setLightboxSrc(src); setLightboxOpen(true); }}>
                                   <Image src={src} alt={`${m.title} ${i + 1}`} fill className="object-cover" sizes="(max-width: 384px) 100vw, 33vw" unoptimized />
                                 </div>
                               ))}
@@ -771,8 +805,16 @@ export default function MerchBoardView() {
                     <Link
                       key={c.id}
                       href={`/merch/connections/${c.id}`}
-                      className={`block rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardTone}`}
+                      className={`relative block rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardTone}`}
                     >
+                      {unreadMerchConnectionIds.has(c.id) && (
+                        <span
+                          className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+                          aria-label={`${unreadMerchConnectionCountById.get(c.id) ?? 1} unread updates for this connection`}
+                        >
+                          {(unreadMerchConnectionCountById.get(c.id) ?? 1) > 99 ? "99+" : (unreadMerchConnectionCountById.get(c.id) ?? 1)}
+                        </span>
+                      )}
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-army-purple">Merch connection</span>
                         <span className="text-sm text-neutral-600 dark:text-neutral-400">{c.stage.replace(/_/g, " ")}</span>
@@ -806,7 +848,7 @@ export default function MerchBoardView() {
                             <button
                               type="button"
                               className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-army-purple"
-                              onClick={() => { setLightboxSrc(firstImage); setLightboxOpen(true); }}
+                              onClick={() => { setLightboxImages(m.images ?? null); setLightboxIndex(0); setLightboxSrc(firstImage); setLightboxOpen(true); }}
                             >
                               <Image src={firstImage} alt={m.title} fill className="object-cover" sizes="80px" unoptimized />
                             </button>
@@ -1137,7 +1179,7 @@ export default function MerchBoardView() {
                 <div className="mt-4 overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800">
                   <div className="flex snap-x snap-mandatory gap-0 overflow-x-auto overscroll-x-contain scroll-smooth pb-2" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
                     {detailListing.images.map((src, i) => (
-                      <button key={i} type="button" className="relative h-48 min-w-full shrink-0 snap-center overflow-hidden md:h-56" onClick={() => { setLightboxSrc(src); setLightboxOpen(true); setDetailListing(null); }}>
+                      <button key={i} type="button" className="relative h-48 min-w-full shrink-0 snap-center overflow-hidden md:h-56" onClick={() => { setLightboxImages(detailListing.images!); setLightboxIndex(i); setLightboxSrc(src); setLightboxOpen(true); setDetailListing(null); }}>
                         <Image src={src} alt={`${detailListing.title} ${i + 1}`} fill className="object-contain" sizes="(max-width: 512px) 100vw, 512px" unoptimized />
                       </button>
                     ))}
@@ -1282,7 +1324,7 @@ export default function MerchBoardView() {
         );
       })()}
 
-      <ImageLightbox src={lightboxSrc} alt="" open={lightboxOpen} onClose={() => setLightboxOpen(false)} />
+      <ImageLightbox src={lightboxSrc} alt="" open={lightboxOpen} onClose={() => setLightboxOpen(false)} images={lightboxImages ?? undefined} initialIndex={lightboxIndex} />
 
       <MerchListingReportModal
         open={!!reportOpen}

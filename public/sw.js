@@ -20,7 +20,16 @@ self.addEventListener("push", function (event) {
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
   const data = event.notification.data || {};
-  const url = "/";
+  // Same as ticket connections: open the connection page when we have an id
+  let path = "/";
+  if (data.merchConnectionId) {
+    path = "/merch/connections/" + encodeURIComponent(data.merchConnectionId);
+  } else if (data.connectionId) {
+    path = "/connections/" + encodeURIComponent(data.connectionId);
+  } else if (data.listingId && data.type === "listing_alert") {
+    path = "/tickets";
+  }
+  const url = new URL(path, self.location.origin).href;
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {

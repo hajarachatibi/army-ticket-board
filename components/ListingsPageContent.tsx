@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import ConnectionBoardView from "@/components/ConnectionBoardView";
 import MerchBoardView from "@/components/MerchBoardView";
 import { useAuth } from "@/lib/AuthContext";
@@ -18,9 +19,17 @@ function canSeeMerch(isAdmin: boolean, email: string | undefined): boolean {
 }
 
 export default function ListingsPageContent() {
+  const searchParams = useSearchParams();
+  const modeParam = searchParams.get("mode");
+  const initialMode: ListingsMode = modeParam === "merch" ? "merch" : "tickets";
   const { user, isAdmin } = useAuth();
-  const [mode, setMode] = useState<ListingsMode>("tickets");
+  const [mode, setMode] = useState<ListingsMode>(initialMode);
   const showMerch = canSeeMerch(isAdmin, user?.email);
+
+  useEffect(() => {
+    const m = modeParam === "merch" ? "merch" : "tickets";
+    setMode(m);
+  }, [modeParam]);
 
   return (
     <>

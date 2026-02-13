@@ -389,6 +389,13 @@ export async function endMerchConnection(connectionId: string): Promise<{ error:
   return { error: error?.message ?? null };
 }
 
+export async function undoMerchConnection(connectionId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("undo_merch_connection", {
+    p_connection_id: connectionId,
+  });
+  return { error: error?.message ?? null };
+}
+
 export async function getMerchConnectionPreview(connectionId: string): Promise<{ data: any; error: string | null }> {
   const { data, error } = await supabase.rpc("get_merch_connection_preview", { p_connection_id: connectionId });
   if (error) return { data: null, error: error.message };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import RequireAuth from "@/components/RequireAuth";
 import UserReportModal from "@/components/UserReportModal";
@@ -17,6 +17,7 @@ import {
   setMerchComfortDecision,
   setMerchSocialShareDecision,
   submitMerchBondingAnswers,
+  undoMerchConnection,
   type MerchSellerProfileForConnect,
 } from "@/lib/supabase/merch";
 
@@ -37,6 +38,7 @@ type MerchConnectionRow = {
   stage_expires_at: string;
   ended_by: string | null;
   ended_at: string | null;
+  stage_before_ended: string | null;
   bonding_question_ids: string[];
   buyer_bonding_submitted_at: string | null;
   seller_bonding_submitted_at: string | null;
@@ -73,6 +75,11 @@ export default function MerchConnectionPageContent() {
   const [matchAck2, setMatchAck2] = useState(false);
   const [bondingIntroOpen, setBondingIntroOpen] = useState(false);
   const bondingSectionRef = useRef<HTMLDivElement | null>(null);
+  const [justEndedConnectionId, setJustEndedConnectionId] = useState<string | null>(null);
+  const undoEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [sellerRating, setSellerRating] = useState<number | null>(null);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingError, setRatingError] = useState<string | null>(null);
 
   const [sellerAcceptSocialShare, setSellerAcceptSocialShare] = useState<boolean | null>(null);
   const [buyerProfileForSeller, setBuyerProfileForSeller] = useState<{
@@ -101,7 +108,7 @@ export default function MerchConnectionPageContent() {
     const { data, error: e } = await supabase
       .from("merch_connections")
       .select(
-        "id, merch_listing_id, buyer_id, seller_id, stage, stage_expires_at, ended_by, ended_at, bonding_question_ids, buyer_bonding_submitted_at, seller_bonding_submitted_at, buyer_comfort, seller_comfort, buyer_social_share, seller_social_share, buyer_want_social_share, buyer_agreed, seller_agreed"
+        "id, merch_listing_id, buyer_id, seller_id, stage, stage_expires_at, ended_by, ended_at, stage_before_ended, bonding_question_ids, buyer_bonding_submitted_at, seller_bonding_submitted_at, buyer_comfort, seller_comfort, buyer_social_share, seller_social_share, buyer_want_social_share, buyer_agreed, seller_agreed"
       )
       .eq("id", connectionId)
       .single();
@@ -138,6 +145,18 @@ export default function MerchConnectionPageContent() {
       }
     } else {
       setPreview(null);
+    }
+
+    if (user && (data as any)?.buyer_id === user.id && ["chat_open", "ended"].includes(stage)) {
+      const { data: ratingRow } = await supabase
+        .from("merch_connection_ratings")
+        .select("rating")
+        .eq("merch_connection_id", connectionId)
+        .eq("rater_id", user.id)
+        .maybeSingle();
+      setSellerRating((ratingRow as { rating?: number } | null)?.rating != null ? Number((ratingRow as any).rating) : null);
+    } else {
+      setSellerRating(null);
     }
 
     setLoading(false);
@@ -291,12 +310,45 @@ export default function MerchConnectionPageContent() {
     if (!confirm(message)) return;
     setSubmitting(true);
     setError(null);
-    setNotice("Saved: this connection has been ended.");
     const { error: e } = await endMerchConnection(conn.id);
     setSubmitting(false);
     if (e) setError(e);
-    else void load();
+    else {
+      setNotice("Saved: this connection has been ended.");
+      setJustEndedConnectionId(conn.id);
+      if (undoEndTimeoutRef.current) clearTimeout(undoEndTimeoutRef.current);
+      undoEndTimeoutRef.current = setTimeout(() => {
+        setJustEndedConnectionId(null);
+        undoEndTimeoutRef.current = null;
+      }, 30_000);
+      void load();
+    }
   };
+
+  const canUndoFromDetails = useMemo(() => {
+    if (!conn || !user) return false;
+    if (conn.stage !== "ended") return false;
+    if (!conn.ended_by || conn.ended_by !== user.id) return false;
+    if (!conn.ended_at) return false;
+    const endedAt = new Date(conn.ended_at);
+    return endedAt.getTime() > Date.now() - 60 * 60 * 1000;
+  }, [conn, user]);
+
+  const handleUndoMerchConnection = useCallback(async () => {
+    const id = justEndedConnectionId ?? conn?.id;
+    if (!id) return;
+    setJustEndedConnectionId(null);
+    if (undoEndTimeoutRef.current) {
+      clearTimeout(undoEndTimeoutRef.current);
+      undoEndTimeoutRef.current = null;
+    }
+    setError(null);
+    setNotice(null);
+    const { error: e } = await undoMerchConnection(id);
+    if (e) setError(e);
+    else setNotice("Connection restored. The other person has been notified.");
+    void load();
+  }, [justEndedConnectionId, conn?.id]);
 
   const bothAgreed = useMemo(() => Boolean(conn?.buyer_agreed) && Boolean(conn?.seller_agreed), [conn?.buyer_agreed, conn?.seller_agreed]);
   const myAgreed = useMemo(() => {
@@ -426,11 +478,11 @@ export default function MerchConnectionPageContent() {
             )}
           </div>
           <div className="flex gap-2">
-            <Link href="/listings" className="btn-army-outline">Back to Listings</Link>
+            <Link href="/tickets?mode=merch" className="btn-army-outline">Back to Listings</Link>
             <button type="button" className="btn-army-outline" onClick={() => setReportOpen(true)} disabled={!otherUserId || submitting} title={!otherUserId ? "Only connection participants can report." : "Report this user"}>
               Report user
             </button>
-            <button type="button" className="btn-army-outline" onClick={() => void load()} disabled={submitting}>Refresh</button>
+            <button type="button" className="btn-army-outline" onClick={async () => { await load(); }} disabled={submitting || loading}>Refresh</button>
           </div>
         </div>
 
@@ -443,7 +495,23 @@ export default function MerchConnectionPageContent() {
             {error && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">{error}</div>
             )}
-            {notice && !error && (
+            {justEndedConnectionId && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-army-purple/20 bg-army-purple/10 px-4 py-3 text-sm text-army-purple dark:bg-army-purple/20 dark:text-army-200">
+                <span>Connection ended. The other person has been notified.</span>
+                <button type="button" className="font-semibold underline hover:no-underline" onClick={() => void handleUndoMerchConnection()}>
+                  Undo
+                </button>
+              </div>
+            )}
+            {!justEndedConnectionId && canUndoFromDetails && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-army-purple/20 bg-army-purple/10 px-4 py-3 text-sm text-army-purple dark:bg-army-purple/20 dark:text-army-200">
+                <span>You ended this connection less than 1 hour ago. You can restore it if this was a mistake.</span>
+                <button type="button" className="font-semibold underline hover:no-underline" onClick={() => void handleUndoMerchConnection()}>
+                  Restore
+                </button>
+              </div>
+            )}
+            {notice && !error && !justEndedConnectionId && !canUndoFromDetails && (
               <div className="mt-4 rounded-xl border border-army-purple/20 bg-army-purple/5 px-4 py-3 text-sm text-army-purple dark:border-army-purple/30 dark:bg-army-purple/10">{notice}</div>
             )}
 
@@ -694,15 +762,50 @@ export default function MerchConnectionPageContent() {
             {(conn.stage === "chat_open" || conn.stage === "ended") && (
               <div className="mt-6 rounded-2xl border border-army-purple/15 bg-white p-5 dark:border-army-purple/25 dark:bg-neutral-900">
                 <p className="text-sm text-neutral-700 dark:text-neutral-300">Connection complete. If both agreed to share socials, you can connect there (no in-app chat).</p>
+                {isBuyer && (
+                  <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                    <p className="text-sm font-semibold text-army-purple">Optional: rate the seller</p>
+                    {sellerRating != null ? (
+                      <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">Thanks — you rated this seller {sellerRating}/5.</p>
+                    ) : (
+                      <div className="mt-2">
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className="h-9 w-9 rounded-lg border border-army-purple/30 bg-white text-sm font-semibold text-army-purple hover:bg-army-purple/10 dark:border-army-purple/40 dark:bg-neutral-900 dark:hover:bg-army-purple/20"
+                              onClick={async () => {
+                                setRatingError(null);
+                                setRatingSubmitting(true);
+                                const { error: err } = await supabase.rpc("submit_merch_connection_rating", {
+                                  p_connection_id: connectionId,
+                                  p_rating: n,
+                                });
+                                setRatingSubmitting(false);
+                                if (err) setRatingError(err.message);
+                                else setSellerRating(n);
+                              }}
+                              disabled={ratingSubmitting}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                        {ratingError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{ratingError}</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="mt-4 flex justify-end">
-                  <Link href="/listings" className="btn-army">Back to Listings</Link>
+                  <Link href="/tickets?mode=merch" className="btn-army">Back to Listings</Link>
                 </div>
               </div>
             )}
           </>
         )}
 
-        <UserReportModal open={reportOpen} onClose={() => setReportOpen(false)} reportedUserId={otherUserId} reportedLabel={otherLabel} onReported={() => setError("Thanks — your report has been submitted.")} />
+        <UserReportModal open={reportOpen} onClose={() => setReportOpen(false)} reportedUserId={otherUserId} reportedLabel={otherLabel} onReported={() => setNotice("Thanks — your report has been submitted.")} />
 
         {matchOpen && conn && (
           <div className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="match-modal-title" onClick={() => setMatchOpen(false)}>

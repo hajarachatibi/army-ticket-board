@@ -26,7 +26,28 @@ export async function GET() {
     '    var options = { body: body, icon: "/army-ticket-board-logo.png", data: payload.data || {} };\n' +
     "    self.registration.showNotification(title, options);\n" +
     "  });\n" +
-    "}\n";
+    "}\n" +
+    "self.addEventListener(\"notificationclick\", function(event) {\n" +
+    "  event.notification.close();\n" +
+    "  var data = event.notification.data || {};\n" +
+    "  var path = \"/\";\n" +
+    "  if (data.merchConnectionId) path = \"/merch/connections/\" + encodeURIComponent(data.merchConnectionId);\n" +
+    "  else if (data.connectionId) path = \"/connections/\" + encodeURIComponent(data.connectionId);\n" +
+    "  else if (data.listingId && data.type === \"listing_alert\") path = \"/tickets\";\n" +
+    "  var url = new URL(path, self.location.origin).href;\n" +
+    "  event.waitUntil(\n" +
+    "    clients.matchAll({ type: \"window\", includeUncontrolled: true }).then(function(clientList) {\n" +
+    "      for (var i = 0; i < clientList.length; i++) {\n" +
+    "        var client = clientList[i];\n" +
+    "        if (client.url.indexOf(self.location.origin) !== -1 && \"focus\" in client) {\n" +
+    "          client.navigate(url);\n" +
+    "          return client.focus();\n" +
+    "        }\n" +
+    "      }\n" +
+    "      if (clients.openWindow) return clients.openWindow(url);\n" +
+    "    })\n" +
+    "  );\n" +
+    "});\n";
   return new NextResponse(js, {
     headers: {
       "Content-Type": "application/javascript",
