@@ -56,9 +56,8 @@ export default function AccountMenu() {
         aria-expanded={open}
         aria-label="Account menu"
       >
-        <span className="font-semibold sm:hidden">Account</span>
-        <span className="hidden max-w-[180px] truncate sm:inline" title={email}>
-          {email}
+        <span className="font-semibold" title={email}>
+          Account
         </span>
         <span aria-hidden>▾</span>
       </button>

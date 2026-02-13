@@ -125,12 +125,12 @@ export default function Header() {
     };
   }, [isLoggedIn, user?.id]);
 
+  // Mobile popup announcements disabled per request.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    // Auto-open only on mobile, once per session.
-    if (window.innerWidth >= 640) return;
-    const KEY = "army_safety_mobile_popup_v1_dismissed";
-    if (window.sessionStorage.getItem(KEY) !== "1") setMobileAnnouncementOpen(true);
+    // if (window.innerWidth >= 640) return;
+    // const KEY = "army_safety_mobile_popup_v1_dismissed";
+    // if (window.sessionStorage.getItem(KEY) !== "1") setMobileAnnouncementOpen(true);
   }, []);
 
   const closeMobileAnnouncement = () => {
@@ -252,7 +252,7 @@ export default function Header() {
                 height={36}
                 className="h-9 w-9 shrink-0 rounded-lg object-contain"
               />
-              <span className="hidden sm:inline">Army Ticket Board</span>
+              <span className="hidden sm:inline">ATM</span>
               <span className="sm:hidden">ATB</span>
             </Link>
             <button

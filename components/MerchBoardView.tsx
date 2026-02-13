@@ -16,6 +16,7 @@ import {
   updateMerchListing,
   deleteMerchListing,
   connectToMerchListingV2,
+  endMerchConnection,
   fetchMerchListingSellerProfileForConnect,
   getConnectionBondingQuestionIds,
   type MerchCategory,
@@ -155,6 +156,7 @@ export default function MerchBoardView() {
   const [connectSocialShare, setConnectSocialShare] = useState<boolean | null>(null);
   const [connectBondingAnswers, setConnectBondingAnswers] = useState<Record<string, string>>({});
   const [connectQuestionIds, setConnectQuestionIds] = useState<string[]>([]);
+  const [connectBondingPrompts, setConnectBondingPrompts] = useState<Array<{ id: string; prompt: string }>>([]);
   const [connectHasBonding, setConnectHasBonding] = useState<boolean | null>(null);
   const [connectSubmitting, setConnectSubmitting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -247,7 +249,15 @@ export default function MerchBoardView() {
       ]);
       setConnectSellerProfile({ data: profileRes.data, loading: false, error: profileRes.error });
       setConnectHasBonding(hasBonding);
-      if (qRes.data?.length === 2) setConnectQuestionIds(qRes.data);
+      if (qRes.data?.length === 2) {
+        setConnectQuestionIds(qRes.data);
+        const { data: rows } = await supabase.from("bonding_questions").select("id, prompt").in("id", qRes.data);
+        setConnectBondingPrompts(
+          (rows ?? []).map((r: { id: string; prompt: string }) => ({ id: r.id, prompt: r.prompt ?? "Question" }))
+        );
+      } else {
+        setConnectBondingPrompts([]);
+      }
       if (profileRes.data && qRes.data?.length === 2 && !hasBonding) {
         const init: Record<string, string> = {};
         qRes.data.forEach((id) => { init[id] = ""; });
@@ -691,14 +701,23 @@ export default function MerchBoardView() {
                       onClick={() => setDetailListing(m)}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailListing(m); } }}
                     >
-                      {firstImage ? (
-                        <button
-                          type="button"
-                          className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-army-purple block"
-                          onClick={(e) => { e.stopPropagation(); setLightboxSrc(firstImage); setLightboxOpen(true); }}
+                      {m.images && m.images.length > 0 ? (
+                        <div
+                          className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800"
+                          onClick={(e) => { e.stopPropagation(); setLightboxSrc(m.images![0]); setLightboxOpen(true); }}
                         >
-                          <Image src={firstImage} alt={m.title} fill className="object-cover" sizes="(max-width: 384px) 100vw, 33vw" unoptimized />
-                        </button>
+                          {m.images.length === 1 ? (
+                            <Image src={m.images[0]} alt={m.title} fill className="object-cover" sizes="(max-width: 384px) 100vw, 33vw" unoptimized />
+                          ) : (
+                            <div className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                              {m.images.map((src, i) => (
+                                <div key={i} className="relative h-full w-full flex-shrink-0 snap-center" onClick={(e) => { e.stopPropagation(); setLightboxSrc(src); setLightboxOpen(true); }}>
+                                  <Image src={src} alt={`${m.title} ${i + 1}`} fill className="object-cover" sizes="(max-width: 384px) 100vw, 33vw" unoptimized />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <div className="aspect-square w-full rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-400 text-sm">No image</div>
                       )}
@@ -780,25 +799,27 @@ export default function MerchBoardView() {
                     return (
                       <div
                         key={m.id}
-                        className="flex flex-wrap items-center gap-4 rounded-2xl border border-army-purple/20 bg-white p-4 dark:border-army-purple/30 dark:bg-neutral-900/80"
+                        className="rounded-2xl border border-army-purple/20 bg-white p-4 dark:border-army-purple/30 dark:bg-neutral-900/80"
                       >
-                        {firstImage ? (
-                          <button
-                            type="button"
-                            className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-army-purple"
-                            onClick={() => { setLightboxSrc(firstImage); setLightboxOpen(true); }}
-                          >
-                            <Image src={firstImage} alt={m.title} fill className="object-cover" sizes="80px" unoptimized />
-                          </button>
-                        ) : (
-                          <div className="h-20 w-20 shrink-0 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-400 text-xs">No image</div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-army-purple">{m.title}</h3>
-                          <p className="text-sm text-neutral-600 dark:text-neutral-400">Qty: {m.quantity} · {formatPrice(m.price, m.currency)}</p>
+                        <div className="flex flex-wrap items-start gap-3 sm:gap-4">
+                          {firstImage ? (
+                            <button
+                              type="button"
+                              className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-army-purple"
+                              onClick={() => { setLightboxSrc(firstImage); setLightboxOpen(true); }}
+                            >
+                              <Image src={firstImage} alt={m.title} fill className="object-cover" sizes="80px" unoptimized />
+                            </button>
+                          ) : (
+                            <div className="h-20 w-20 shrink-0 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-400 text-xs">No image</div>
+                          )}
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <h3 className="font-semibold text-army-purple break-words">{m.title}</h3>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">Qty: {m.quantity} · {formatPrice(m.price, m.currency)}</p>
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${pill.cls}`}>{pill.label}</span>
+                          </div>
                         </div>
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${pill.cls}`}>{pill.label}</span>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-army-purple/10 pt-3 dark:border-army-purple/20">
                           {connectionCount > 0 && (
                             <button
                               type="button"
@@ -812,7 +833,7 @@ export default function MerchBoardView() {
                             <button
                               type="button"
                               onClick={() => handleMarkSold(m)}
-                              className="rounded-lg px-2 py-1 text-xs font-semibold text-army-600 hover:bg-army-200/40 dark:text-army-400 dark:hover:bg-army-800/30"
+                              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-army-600 hover:bg-army-200/40 dark:text-army-400 dark:hover:bg-army-800/30"
                             >
                               Mark sold
                             </button>
@@ -820,14 +841,14 @@ export default function MerchBoardView() {
                           <button
                             type="button"
                             onClick={() => { setEditListing(m); setPostOpen(true); }}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/10 dark:hover:bg-army-purple/20"
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-army-purple hover:bg-army-purple/10 dark:hover:bg-army-purple/20"
                           >
                             Edit
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteConfirm(m)}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
+                            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
                           >
                             Delete
                           </button>
@@ -1113,12 +1134,17 @@ export default function MerchBoardView() {
                 <button type="button" className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800" onClick={() => setDetailListing(null)} aria-label="Close">×</button>
               </div>
               {detailListing.images && detailListing.images.length > 0 ? (
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-                  {detailListing.images.map((src, i) => (
-                    <button key={i} type="button" className="relative h-40 w-40 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800" onClick={() => { setLightboxSrc(src); setLightboxOpen(true); setDetailListing(null); }}>
-                      <Image src={src} alt={`${detailListing.title} ${i + 1}`} fill className="object-cover" sizes="160px" unoptimized />
-                    </button>
-                  ))}
+                <div className="mt-4 overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800">
+                  <div className="flex snap-x snap-mandatory gap-0 overflow-x-auto overscroll-x-contain scroll-smooth pb-2" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                    {detailListing.images.map((src, i) => (
+                      <button key={i} type="button" className="relative h-48 min-w-full shrink-0 snap-center overflow-hidden md:h-56" onClick={() => { setLightboxSrc(src); setLightboxOpen(true); setDetailListing(null); }}>
+                        <Image src={src} alt={`${detailListing.title} ${i + 1}`} fill className="object-contain" sizes="(max-width: 512px) 100vw, 512px" unoptimized />
+                      </button>
+                    ))}
+                  </div>
+                  {detailListing.images.length > 1 && (
+                    <p className="py-1 text-center text-xs text-neutral-500 dark:text-neutral-400">Swipe to see more photos</p>
+                  )}
                 </div>
               ) : (
                 <div className="mt-4 h-40 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-400 text-sm">No image</div>
@@ -1164,44 +1190,97 @@ export default function MerchBoardView() {
         </div>
       )}
 
-      {connectListingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !connectSubmitting && setConnectListingId(null)}>
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/30" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-army-purple">Connect to: {connectSummary}</h3>
-            {connectSellerProfile.loading && <p className="mt-2 text-sm text-neutral-500">Loading seller…</p>}
-            {connectSellerProfile.error && <p className="mt-2 text-sm text-red-600">{connectSellerProfile.error}</p>}
-            {connectSellerProfile.data && (
-              <>
-                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Seller: {connectSellerProfile.data.username}</p>
-                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Price: {connectSellerProfile.data.priceExplanation}</p>
-                <div className="mt-4">
-                  <p className="text-sm font-medium">Share your socials with this seller?</p>
-                  <div className="mt-2 flex gap-4">
-                    <label className="flex items-center gap-2"><input type="radio" name="merchSocial" checked={connectSocialShare === true} onChange={() => setConnectSocialShare(true)} /> Yes</label>
-                    <label className="flex items-center gap-2"><input type="radio" name="merchSocial" checked={connectSocialShare === false} onChange={() => setConnectSocialShare(false)} /> No</label>
+      {connectListingId && (() => {
+        const pendingConnection = user ? connections.find((c) => c.merchListingId === connectListingId && c.buyerId === user.id && c.stage === "pending_seller") : null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !connectSubmitting && setConnectListingId(null)}>
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/30" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-army-purple">Connect to: {connectSummary}</h3>
+              {pendingConnection ? (
+                <>
+                  <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">You have a pending request. The seller has up to 24 hours to accept or decline.</p>
+                  <div className="mt-6 flex gap-2 justify-end">
+                    <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => setConnectListingId(null)} disabled={connectSubmitting}>Close</button>
+                    <button
+                      type="button"
+                      className="btn-army-outline text-red-600 border-red-300 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                      onClick={async () => {
+                        setConnectSubmitting(true);
+                        setConnectError(null);
+                        const { error: e } = await endMerchConnection(pendingConnection.id);
+                        setConnectSubmitting(false);
+                        if (e) setConnectError(e);
+                        else { await load(); setConnectListingId(null); }
+                      }}
+                      disabled={connectSubmitting}
+                    >
+                      {connectSubmitting ? "Cancelling…" : "Cancel request"}
+                    </button>
                   </div>
-                </div>
-                {connectHasBonding === false && connectQuestionIds.length >= 2 && (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-sm font-medium">Bonding questions</p>
-                    {connectQuestionIds.map((qid) => (
-                      <div key={qid}>
-                        <label className="block text-xs text-neutral-500">Answer</label>
-                        <input type="text" value={connectBondingAnswers[qid] ?? ""} onChange={(e) => setConnectBondingAnswers((prev) => ({ ...prev, [qid]: e.target.value }))} className="w-full rounded border px-2 py-1 text-sm dark:bg-neutral-800" />
+                </>
+              ) : (
+                <>
+                  {connectSellerProfile.loading && <p className="mt-2 text-sm text-neutral-500">Loading seller…</p>}
+                  {connectSellerProfile.error && <p className="mt-2 text-sm text-red-600">{connectSellerProfile.error}</p>}
+                  {connectSellerProfile.data && (
+                    <>
+                      <div className="mt-4 rounded-xl border border-army-purple/15 bg-army-purple/5 p-4 dark:border-army-purple/25 dark:bg-army-purple/10">
+                        <p className="text-sm font-semibold text-army-purple">Seller profile</p>
+                        <div className="mt-2 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+                          <p><span className="font-medium text-army-purple">Username:</span> {connectSellerProfile.data.username}</p>
+                          {connectSellerProfile.data.country && <p><span className="font-medium text-army-purple">Country:</span> {connectSellerProfile.data.country}</p>}
+                          <p><span className="font-medium text-army-purple">Price:</span> {connectSellerProfile.data.priceExplanation}</p>
+                          {connectSellerProfile.data.sellingReason && <p><span className="font-medium text-army-purple">Why selling:</span> {connectSellerProfile.data.sellingReason}</p>}
+                          {(connectSellerProfile.data.armyBiasAnswer || connectSellerProfile.data.armyYearsArmy || connectSellerProfile.data.armyFavoriteAlbum) && (
+                            <div className="mt-2 space-y-1">
+                              <p className="font-medium text-army-purple">ARMY profile</p>
+                              {connectSellerProfile.data.armyBiasAnswer && <div><p className="text-xs text-army-purple/80">{connectSellerProfile.data.armyBiasPrompt}</p><p className="whitespace-pre-wrap">{connectSellerProfile.data.armyBiasAnswer}</p></div>}
+                              {connectSellerProfile.data.armyYearsArmy && <div><p className="text-xs text-army-purple/80">{connectSellerProfile.data.armyYearsArmyPrompt}</p><p className="whitespace-pre-wrap">{connectSellerProfile.data.armyYearsArmy}</p></div>}
+                              {connectSellerProfile.data.armyFavoriteAlbum && <div><p className="text-xs text-army-purple/80">{connectSellerProfile.data.armyFavoriteAlbumPrompt}</p><p className="whitespace-pre-wrap">{connectSellerProfile.data.armyFavoriteAlbum}</p></div>}
+                            </div>
+                          )}
+                          {connectSellerProfile.data.bondingAnswers.filter((b) => b.prompt || b.answer).length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              <p className="font-medium text-army-purple">Bonding answers:</p>
+                              {connectSellerProfile.data.bondingAnswers.map((b, idx) => (
+                                <div key={idx}><p className="text-xs text-army-purple/80">{b.prompt}</p><p className="whitespace-pre-wrap">{b.answer || "—"}</p></div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {connectError && <p className="mt-2 text-sm text-red-600">{connectError}</p>}
-                <div className="mt-6 flex gap-2 justify-end">
-                  <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => !connectSubmitting && setConnectListingId(null)} disabled={connectSubmitting}>Cancel</button>
-                  <button type="button" className="btn-army" onClick={handleConnectSubmit} disabled={connectSubmitting}>{connectSubmitting ? "Connecting…" : "Send request"}</button>
-                </div>
-              </>
-            )}
+                      <div className="mt-4">
+                        <p className="text-sm font-semibold text-army-purple">Do you want to share your socials with this seller?</p>
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">If you both agree later, you’ll see each other’s socials in the match message.</p>
+                        <div className="mt-2 flex gap-4">
+                          <label className="flex items-center gap-2"><input type="radio" name="merchSocial" checked={connectSocialShare === true} onChange={() => setConnectSocialShare(true)} /> Yes</label>
+                          <label className="flex items-center gap-2"><input type="radio" name="merchSocial" checked={connectSocialShare === false} onChange={() => setConnectSocialShare(false)} /> No</label>
+                        </div>
+                      </div>
+                      {connectHasBonding === false && connectQuestionIds.length >= 2 && (
+                        <div className="mt-4 space-y-3">
+                          <p className="text-sm font-semibold text-army-purple">Answer these 2 questions to build trust with the seller</p>
+                          {connectQuestionIds.map((qid) => (
+                            <div key={qid}>
+                              <label className="block text-sm text-neutral-700 dark:text-neutral-300">{connectBondingPrompts.find((p) => p.id === qid)?.prompt ?? "Question"}</label>
+                              <textarea className="mt-1 w-full min-h-[80px] rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" value={connectBondingAnswers[qid] ?? ""} onChange={(e) => setConnectBondingAnswers((prev) => ({ ...prev, [qid]: e.target.value }))} placeholder="Your answer…" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {connectError && <p className="mt-2 text-sm text-red-600">{connectError}</p>}
+                      <div className="mt-6 flex gap-2 justify-end">
+                        <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => !connectSubmitting && setConnectListingId(null)} disabled={connectSubmitting}>Cancel</button>
+                        <button type="button" className="btn-army" onClick={handleConnectSubmit} disabled={connectSubmitting}>{connectSubmitting ? "Connecting…" : "Send request"}</button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <ImageLightbox src={lightboxSrc} alt="" open={lightboxOpen} onClose={() => setLightboxOpen(false)} />
 

@@ -700,93 +700,86 @@ export default function ConnectionBoardView() {
                   c.endedBy === user.id &&
                   !!endedAt &&
                   endedAt.getTime() > Date.now() - 60 * 60 * 1000;
-                const cardBase =
-                  "rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+                const stageLabel = (() => {
+                  if (
+                    stage === "pending_seller" &&
+                    user &&
+                    c.sellerId === user.id &&
+                    sellerHasActiveAcceptedConnectionByListingId.get(String(c.listingId))
+                  ) {
+                    return "waiting list";
+                  }
+                  if (stage === "chat_open") return "connected";
+                  return stage.replace(/_/g, " ");
+                })();
                 const cardTone = isFinished
                   ? "border-army-purple/10 bg-neutral-50 dark:border-army-purple/20 dark:bg-neutral-900/70"
                   : "border-army-purple/20 bg-army-purple/5 dark:border-army-purple/30 dark:bg-army-purple/15";
+                const listingSummary = `Listing ${String(c.listingId).slice(0, 8)}…`;
                 return (
                 <div
                   key={c.id}
-                  className={`${cardBase} ${cardTone}`}
+                  className={`rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardTone}`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wide text-army-purple/70">Stage</p>
-                      <p className="mt-1 font-display text-lg font-bold text-army-purple">
-                        {(() => {
-                          const s = String(c.stage);
-                          if (
-                            s === "pending_seller" &&
-                            user &&
-                            c.sellerId === user.id &&
-                            sellerHasActiveAcceptedConnectionByListingId.get(String(c.listingId))
-                          ) {
-                            return "waiting_list";
-                          }
-                          if (s === "chat_open") return "connected";
-                          return s;
-                        })()}
-                      </p>
-                      {c.stageExpiresAt ? (
-                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                          Expires: {new Date(c.stageExpiresAt).toLocaleString()}
-                        </p>
-                      ) : null}
-                      {String(c.stage) === "pending_seller" &&
-                        user &&
-                        c.sellerId === user.id &&
-                        sellerHasActiveAcceptedConnectionByListingId.get(String(c.listingId)) && (
-                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                          Waiting list for this listing: you can accept this after the active connection for this listing ends.
-                        </p>
-                      )}
-                      {canUndoFromList && (
-                        <p className="mt-1 text-xs text-army-purple dark:text-army-200">
-                          You ended this connection less than 1 hour ago. You can restore it if this was a mistake.
-                        </p>
-                      )}
-                    </div>
-                    <div className="relative">
-                      {unreadConnectionIds.has(c.id) && (
-                        <span
-                          className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
-                          aria-label={`${unreadConnectionCountById.get(c.id) ?? 1} unread updates for this connection`}
-                        >
-                          {(unreadConnectionCountById.get(c.id) ?? 1) > 99 ? "99+" : (unreadConnectionCountById.get(c.id) ?? 1)}
-                        </span>
-                      )}
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <button
-                          type="button"
-                          className="btn-army-outline"
-                          onClick={() => setTicketDetailsOpen({ connectionId: c.id })}
-                        >
-                          Ticket details
-                        </button>
-                        {canUndoFromList && (
-                          <button
-                            type="button"
-                            className="btn-army-outline"
-                            onClick={() => handleUndoEndConnection(c.id)}
-                          >
-                            Restore
-                          </button>
-                        )}
-                        <Link
-                          href={`/connections/${encodeURIComponent(c.id)}`}
-                          className="btn-army"
-                          onClick={() => {
-                            // Mark related notifications read so the red dot clears once the user opens the connection.
-                            notifications
-                              .filter((n) => !n.read && n.connectionId === c.id)
-                              .forEach((n) => markRead(n.id));
-                          }}
-                        >
-                          Open
-                        </Link>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-army-purple">Ticket connection</span>
+                    <span className="text-sm text-neutral-600 dark:text-neutral-400">{stageLabel}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{listingSummary}</p>
+                  {c.stageExpiresAt ? (
+                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                      Expires: {new Date(c.stageExpiresAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {String(c.stage) === "pending_seller" &&
+                    user &&
+                    c.sellerId === user.id &&
+                    sellerHasActiveAcceptedConnectionByListingId.get(String(c.listingId)) && (
+                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                      Waiting list for this listing: you can accept this after the active connection for this listing ends.
+                    </p>
+                  )}
+                  {canUndoFromList && (
+                    <p className="mt-1 text-xs text-army-purple dark:text-army-200">
+                      You ended this connection less than 1 hour ago. You can restore it if this was a mistake.
+                    </p>
+                  )}
+                  <div className="relative mt-4 flex flex-wrap justify-end gap-2">
+                    {unreadConnectionIds.has(c.id) && (
+                      <span
+                        className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-army-purple px-1 text-[10px] font-bold text-white"
+                        aria-label={`${unreadConnectionCountById.get(c.id) ?? 1} unread updates for this connection`}
+                      >
+                        {(unreadConnectionCountById.get(c.id) ?? 1) > 99 ? "99+" : (unreadConnectionCountById.get(c.id) ?? 1)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-army-outline"
+                      onClick={() => setTicketDetailsOpen({ connectionId: c.id })}
+                    >
+                      Ticket details
+                    </button>
+                    {canUndoFromList && (
+                      <button
+                        type="button"
+                        className="btn-army-outline"
+                        onClick={() => handleUndoEndConnection(c.id)}
+                      >
+                        Restore
+                      </button>
+                    )}
+                    <Link
+                      href={`/connections/${encodeURIComponent(c.id)}`}
+                      className="btn-army"
+                      onClick={() => {
+                        notifications
+                          .filter((n) => !n.read && n.connectionId === c.id)
+                          .forEach((n) => markRead(n.id));
+                      }}
+                    >
+                      Open
+                    </Link>
                   </div>
                 </div>
               )})}
