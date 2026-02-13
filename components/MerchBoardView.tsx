@@ -490,6 +490,7 @@ export default function MerchBoardView() {
     setError(null);
     const res = await fetch("/api/merch-listings/mark-sold", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ merchListingId: m.id }),
     });
@@ -512,7 +513,7 @@ export default function MerchBoardView() {
   };
 
   const handleEditSubmit = async () => {
-    if (!editListing) return;
+    if (!editListing || !user) return;
     const price = parseFloat(postPrice);
     if (Number.isNaN(price) || price < 0) {
       setError("Enter a valid price.");
@@ -532,12 +533,37 @@ export default function MerchBoardView() {
     setPostSubmitting(true);
     setError(null);
     try {
+      const images: string[] = [];
+      if (postImage1) {
+        const r1 = await uploadMerchListingImage(postImage1, user.id);
+        if ("error" in r1) {
+          setError(r1.error);
+          setPostSubmitting(false);
+          return;
+        }
+        images.push(r1.url);
+      } else if (editListing.images?.[0]) {
+        images.push(editListing.images[0]);
+      }
+      if (postImage2) {
+        const r2 = await uploadMerchListingImage(postImage2, user.id);
+        if ("error" in r2) {
+          setError(r2.error);
+          setPostSubmitting(false);
+          return;
+        }
+        images.push(r2.url);
+      } else if (editListing.images?.[1]) {
+        images.push(editListing.images[1]);
+      }
+
       const { data, error: e } = await updateMerchListing(editListing.id, {
         title: postTitle.trim(),
         description: postDescription.trim() || null,
         quantity: postQuantity,
         price,
         currency: postCurrency,
+        images: images.length ? images : undefined,
         categorySlug: postCategorySlug || "other",
         subcategorySlug: postSubcategorySlug || null,
         isFanmade: postIsFanmade,

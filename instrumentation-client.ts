@@ -15,6 +15,7 @@ try {
       { path: "/api/onboarding/complete", method: "POST" },
       { path: "/api/listings/mark-sold", method: "POST" },
       { path: "/api/listings/mark-not-sold", method: "POST" },
+      { path: "/api/merch-listings/mark-sold", method: "POST" },
       { path: "/api/listings/update", method: "POST" },
       { path: "/api/listings/delete", method: "POST" },
     ],
