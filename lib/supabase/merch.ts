@@ -35,6 +35,10 @@ export type MyMerchListing = {
   images: string[];
   status: string;
   createdAt: string;
+  categorySlug?: string;
+  subcategorySlug?: string | null;
+  isFanmade?: boolean;
+  filterOptions?: Record<string, unknown>;
 };
 
 export type MerchConnectionRow = {
@@ -156,7 +160,7 @@ export async function fetchMyMerchListings(userId: string): Promise<{
 }> {
   const { data, error } = await supabase
     .from("merch_listings")
-    .select("id, title, description, quantity, price, currency, images, status, created_at")
+    .select("id, title, description, quantity, price, currency, images, status, created_at, category_slug, subcategory_slug, is_fanmade, filter_options")
     .eq("seller_id", userId)
     .order("created_at", { ascending: false });
 
@@ -173,6 +177,10 @@ export async function fetchMyMerchListings(userId: string): Promise<{
       images: Array.isArray(r.images) ? r.images.map((x: any) => String(x)) : [],
       status: String(r.status ?? "active"),
       createdAt: String(r.created_at ?? ""),
+      categorySlug: r.category_slug != null ? String(r.category_slug) : undefined,
+      subcategorySlug: r.subcategory_slug != null ? String(r.subcategory_slug) : null,
+      isFanmade: r.is_fanmade === true,
+      filterOptions: typeof r.filter_options === "object" && r.filter_options !== null ? r.filter_options as Record<string, unknown> : undefined,
     })),
     error: null,
   };
@@ -235,6 +243,91 @@ export async function createMerchListing(params: {
   });
   if (error) return { listingId: null, error: error.message };
   return { listingId: String(data ?? ""), error: null };
+}
+
+export type UpdateMerchListingParams = {
+  title?: string;
+  description?: string | null;
+  quantity?: number;
+  price?: number;
+  currency?: string;
+  images?: string[];
+  status?: "active" | "locked" | "sold" | "removed";
+  categorySlug?: string;
+  subcategorySlug?: string | null;
+  isFanmade?: boolean;
+  filterOptions?: Record<string, unknown>;
+};
+
+export async function updateMerchListing(
+  listingId: string,
+  params: UpdateMerchListingParams
+): Promise<{ data: MyMerchListing | null; error: string | null }> {
+  const body: Record<string, unknown> = {};
+  if (params.title !== undefined) body.title = params.title.trim();
+  if (params.description !== undefined) body.description = params.description ?? "";
+  if (params.quantity !== undefined) body.quantity = params.quantity;
+  if (params.price !== undefined) body.price = params.price;
+  if (params.currency !== undefined) body.currency = params.currency;
+  if (params.images !== undefined) body.images = params.images;
+  if (params.status !== undefined) body.status = params.status;
+  if (params.categorySlug !== undefined) body.category_slug = params.categorySlug;
+  if (params.subcategorySlug !== undefined) body.subcategory_slug = params.subcategorySlug;
+  if (params.isFanmade !== undefined) body.is_fanmade = params.isFanmade;
+  if (params.filterOptions !== undefined) body.filter_options = params.filterOptions;
+
+  if (Object.keys(body).length === 0) {
+    const { data, error } = await supabase
+      .from("merch_listings")
+      .select("id, title, description, quantity, price, currency, images, status, created_at")
+      .eq("id", listingId)
+      .single();
+    if (error) return { data: null, error: error.message };
+    const r = data as any;
+    return {
+      data: {
+        id: String(r.id),
+        title: String(r.title ?? ""),
+        description: r.description != null ? String(r.description) : null,
+        quantity: Number(r.quantity ?? 1),
+        price: Number(r.price ?? 0),
+        currency: String(r.currency ?? "USD"),
+        images: Array.isArray(r.images) ? r.images.map((x: any) => String(x)) : [],
+        status: String(r.status ?? "active"),
+        createdAt: String(r.created_at ?? ""),
+      },
+      error: null,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("merch_listings")
+    .update(body)
+    .eq("id", listingId)
+    .select("id, title, description, quantity, price, currency, images, status, created_at")
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  const r = (data ?? {}) as any;
+  return {
+    data: {
+      id: String(r.id),
+      title: String(r.title ?? ""),
+      description: r.description != null ? String(r.description) : null,
+      quantity: Number(r.quantity ?? 1),
+      price: Number(r.price ?? 0),
+      currency: String(r.currency ?? "USD"),
+      images: Array.isArray(r.images) ? r.images.map((x: any) => String(x)) : [],
+      status: String(r.status ?? "active"),
+      createdAt: String(r.created_at ?? ""),
+    },
+    error: null,
+  };
+}
+
+export async function deleteMerchListing(listingId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("merch_listings").delete().eq("id", listingId);
+  return { error: error?.message ?? null };
 }
 
 export async function fetchMerchListingSellerProfileForConnect(

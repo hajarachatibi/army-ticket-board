@@ -13,6 +13,8 @@ import {
   fetchMyMerchListings,
   fetchMyMerchConnections,
   createMerchListing,
+  updateMerchListing,
+  deleteMerchListing,
   connectToMerchListingV2,
   fetchMerchListingSellerProfileForConnect,
   getConnectionBondingQuestionIds,
@@ -23,7 +25,8 @@ import {
   type MerchSellerProfileForConnect,
 } from "@/lib/supabase/merch";
 import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
-import { hasUserBondingAnswers } from "@/lib/supabase/listings";
+import { hasUserBondingAnswers, upsertUserBondingAnswers } from "@/lib/supabase/listings";
+import { supabase } from "@/lib/supabaseClient";
 import { uploadMerchListingImage } from "@/lib/supabase/uploadChannelImage";
 
 /** BTS official tours (OT7 and solo) for merch tour filter. */
@@ -77,6 +80,21 @@ function merchStatusPill(status: string): { label: string; cls: string } {
   return { label: "Active", cls: "bg-army-200/60 text-army-900 dark:bg-army-300/25 dark:text-army-200" };
 }
 
+const FILTER_OPTION_LABELS: Record<string, string> = {
+  sealed: "Sealed",
+  member: "Member",
+  tour: "Tour",
+  condition: "Condition",
+  official_replica: "Official / Replica",
+  version: "Version",
+  size: "Size",
+  color: "Color",
+  collection_event: "Collection / Event",
+};
+function formatFilterOptionKey(key: string): string {
+  return FILTER_OPTION_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function MerchBoardView() {
   const { user } = useAuth();
   const [tab, setTab] = useState<MerchTab>("all");
@@ -119,6 +137,18 @@ export default function MerchBoardView() {
   const [postFilterOfficialReplica, setPostFilterOfficialReplica] = useState("");
   const [postFilterVersion, setPostFilterVersion] = useState("");
 
+  const [showBondingModal, setShowBondingModal] = useState(false);
+  const [bondingAnswers, setBondingAnswers] = useState<Record<string, string>>({});
+  const [bondingPrompts, setBondingPrompts] = useState<Array<{ id: string; prompt: string }>>([]);
+  const [bondingQuestionIds, setBondingQuestionIds] = useState<string[]>([]);
+  const [bondingSubmitting, setBondingSubmitting] = useState(false);
+  const [pendingMerchCreate, setPendingMerchCreate] = useState<Parameters<typeof createMerchListing>[0] | null>(null);
+  const [showSocialsModal, setShowSocialsModal] = useState(false);
+  const [sellerComfortableSocials, setSellerComfortableSocials] = useState<boolean | null>(null);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [safetyAck1, setSafetyAck1] = useState(false);
+  const [safetyAck2, setSafetyAck2] = useState(false);
+
   const [connectListingId, setConnectListingId] = useState<string | null>(null);
   const [connectSummary, setConnectSummary] = useState("");
   const [connectSellerProfile, setConnectSellerProfile] = useState<{ data: MerchSellerProfileForConnect | null; loading: boolean; error: string | null }>({ data: null, loading: false, error: null });
@@ -132,6 +162,9 @@ export default function MerchBoardView() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState("");
   const [reportOpen, setReportOpen] = useState<{ merchListingId: string; summary: string } | null>(null);
+  const [detailListing, setDetailListing] = useState<MerchListingCard | null>(null);
+  const [editListing, setEditListing] = useState<MyMerchListing | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<MyMerchListing | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -173,6 +206,32 @@ export default function MerchBoardView() {
       if (r.data.length) setCategories(r.data);
     });
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!editListing) return;
+    setPostTitle(editListing.title);
+    setPostDescription(editListing.description ?? "");
+    setPostQuantity(editListing.quantity);
+    setPostPrice(String(editListing.price));
+    setPostCurrency(editListing.currency);
+    setPostCategorySlug(editListing.categorySlug ?? "other");
+    setPostSubcategorySlug(editListing.subcategorySlug ?? "");
+    setPostIsFanmade(editListing.isFanmade ?? false);
+    const fo = editListing.filterOptions as Record<string, string> | undefined;
+    if (fo) {
+      setPostSize(fo.size ?? "");
+      setPostColor(fo.color ?? "");
+      setPostFilterSealed(fo.sealed ?? "");
+      setPostFilterMember(fo.member ?? "");
+      setPostFilterTour(fo.tour ?? "");
+      setPostFilterCondition(fo.condition ?? "");
+      setPostFilterOfficialReplica(fo.official_replica ?? "");
+      setPostFilterVersion(fo.version ?? "");
+      setPostCollectionEvent(fo.collection_event ?? "none_general");
+    } else {
+      setPostCollectionEvent("none_general");
+    }
+  }, [editListing?.id]);
 
   useEffect(() => {
     if (!connectListingId || !user) return;
@@ -235,7 +294,7 @@ export default function MerchBoardView() {
     filterOptions.collection_event = postCollectionEvent.trim();
 
     const images: string[] = [];
-    if (user?.id) {
+    if (user.id) {
       if (postImage1) {
         const r1 = await uploadMerchListingImage(postImage1, user.id);
         if ("error" in r1) {
@@ -256,7 +315,7 @@ export default function MerchBoardView() {
       }
     }
 
-    const { listingId, error: e } = await createMerchListing({
+    const params: Parameters<typeof createMerchListing>[0] = {
       title,
       description: postDescription.trim() || undefined,
       quantity: postQuantity,
@@ -268,13 +327,47 @@ export default function MerchBoardView() {
       isFanmade: postIsFanmade,
       fanmadeDisclaimerAccepted: postIsFanmade ? postFanmadeDisclaimerAccepted : undefined,
       filterOptions: Object.keys(filterOptions).length ? filterOptions : undefined,
-    });
+    };
+    setPendingMerchCreate(params);
     setPostSubmitting(false);
-    if (e) {
-      setError(e);
-      return;
+
+    try {
+      const hasBonding = await hasUserBondingAnswers(user.id);
+      if (hasBonding) {
+        setShowSocialsModal(true);
+      } else {
+        const { data: ids } = await getConnectionBondingQuestionIds();
+        const idList = ids ?? [];
+        setBondingQuestionIds(idList);
+        if (idList.length >= 2) {
+          const { data: rows } = await supabase.from("bonding_questions").select("id, prompt").in("id", idList);
+          setBondingPrompts(
+            idList.map((id) => ({ id, prompt: String((rows as any[]).find((r: any) => r.id === id)?.prompt ?? "Question") }))
+          );
+          setShowBondingModal(true);
+        } else {
+          setShowSocialsModal(true);
+        }
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to check setup");
     }
-    setPostOpen(false);
+  };
+
+  const resetPostFlow = () => {
+    setShowBondingModal(false);
+    setBondingAnswers({});
+    setBondingPrompts([]);
+    setBondingQuestionIds([]);
+    setPendingMerchCreate(null);
+    setShowSocialsModal(false);
+    setSellerComfortableSocials(null);
+    setShowSafetyModal(false);
+    setSafetyAck1(false);
+    setSafetyAck2(false);
+  };
+
+  const resetPostForm = () => {
     setPostTitle("");
     setPostDescription("");
     setPostQuantity(1);
@@ -295,8 +388,126 @@ export default function MerchBoardView() {
     setPostFilterCondition("");
     setPostFilterOfficialReplica("");
     setPostFilterVersion("");
+  };
+
+  const submitBondingThenSocials = async () => {
+    if (!pendingMerchCreate || bondingQuestionIds.length < 2) return;
+    const a = bondingAnswers;
+    if (!bondingQuestionIds.every((id) => (a[id] ?? "").trim())) {
+      setError("Please answer both questions.");
+      return;
+    }
+    setBondingSubmitting(true);
+    setError(null);
+    try {
+      const answers = Object.fromEntries(bondingQuestionIds.map((id) => [id, (a[id] ?? "").trim()]));
+      const { error: e } = await upsertUserBondingAnswers(bondingQuestionIds, answers);
+      if (e) {
+        setError(e);
+        return;
+      }
+      setShowBondingModal(false);
+      setBondingAnswers({});
+      setShowSocialsModal(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setBondingSubmitting(false);
+    }
+  };
+
+  const doCreateMerchListing = async () => {
+    if (!pendingMerchCreate) return;
+    setPostSubmitting(true);
+    setError(null);
+    try {
+      const { error: e } = await createMerchListing(pendingMerchCreate);
+      if (e) {
+        setError(e);
+        return;
+      }
+      setShowSafetyModal(false);
+      setPendingMerchCreate(null);
+      setSafetyAck1(false);
+      setSafetyAck2(false);
+      setPostOpen(false);
+      resetPostForm();
+      resetPostFlow();
+      await load();
+      setTab("my");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create listing");
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
+
+  const handleMarkSold = async (m: MyMerchListing) => {
+    const { data, error: e } = await updateMerchListing(m.id, { status: "sold" });
+    if (e) {
+      setError(e);
+      return;
+    }
+    if (data) setMine((prev) => prev.map((x) => (x.id === m.id ? data : x)));
     await load();
-    if (listingId) setTab("my");
+  };
+
+  const handleDelete = async (m: MyMerchListing) => {
+    const { error: e } = await deleteMerchListing(m.id);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setMine((prev) => prev.filter((x) => x.id !== m.id));
+    setDeleteConfirm(null);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editListing) return;
+    const price = parseFloat(postPrice);
+    if (Number.isNaN(price) || price < 0) {
+      setError("Enter a valid price.");
+      return;
+    }
+    const filterOptions: Record<string, string> = {};
+    if (postFilterSealed.trim()) filterOptions.sealed = postFilterSealed.trim();
+    if (postFilterMember.trim()) filterOptions.member = postFilterMember.trim();
+    if (postFilterTour.trim()) filterOptions.tour = postFilterTour.trim();
+    if (postFilterCondition.trim()) filterOptions.condition = postFilterCondition.trim();
+    if (postFilterOfficialReplica.trim()) filterOptions.official_replica = postFilterOfficialReplica.trim();
+    if (postFilterVersion.trim()) filterOptions.version = postFilterVersion.trim();
+    if (postSize.trim()) filterOptions.size = postSize.trim();
+    if (postColor.trim()) filterOptions.color = postColor.trim();
+    filterOptions.collection_event = postCollectionEvent.trim();
+
+    setPostSubmitting(true);
+    setError(null);
+    try {
+      const { data, error: e } = await updateMerchListing(editListing.id, {
+        title: postTitle.trim(),
+        description: postDescription.trim() || null,
+        quantity: postQuantity,
+        price,
+        currency: postCurrency,
+        categorySlug: postCategorySlug || "other",
+        subcategorySlug: postSubcategorySlug || null,
+        isFanmade: postIsFanmade,
+        filterOptions: Object.keys(filterOptions).length ? filterOptions : undefined,
+      });
+      if (e) {
+        setError(e);
+        return;
+      }
+      if (data) setMine((prev) => prev.map((x) => (x.id === editListing.id ? data : x)));
+      setEditListing(null);
+      setPostOpen(false);
+      resetPostForm();
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update listing");
+    } finally {
+      setPostSubmitting(false);
+    }
   };
 
   const handleConnectSubmit = async () => {
@@ -338,7 +549,7 @@ export default function MerchBoardView() {
               BTS merch at face value.
             </p>
           </div>
-          <button type="button" className="btn-army" title="Post a merch listing" onClick={() => setPostOpen(true)}>
+          <button type="button" className="btn-army" title="Post a merch listing" onClick={() => { setEditListing(null); resetPostForm(); setPostOpen(true); }}>
             Post Merch Listing
           </button>
         </div>
@@ -474,13 +685,17 @@ export default function MerchBoardView() {
                   return (
                     <div
                       key={m.id}
-                      className="rounded-2xl border border-army-purple/20 bg-white p-4 shadow-sm dark:border-army-purple/30 dark:bg-neutral-900/80"
+                      role="button"
+                      tabIndex={0}
+                      className="rounded-2xl border border-army-purple/20 bg-white p-4 shadow-sm cursor-pointer transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-army-purple dark:border-army-purple/30 dark:bg-neutral-900/80"
+                      onClick={() => setDetailListing(m)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailListing(m); } }}
                     >
                       {firstImage ? (
                         <button
                           type="button"
                           className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-army-purple block"
-                          onClick={() => { setLightboxSrc(firstImage); setLightboxOpen(true); }}
+                          onClick={(e) => { e.stopPropagation(); setLightboxSrc(firstImage); setLightboxOpen(true); }}
                         >
                           <Image src={firstImage} alt={m.title} fill className="object-cover" sizes="(max-width: 384px) 100vw, 33vw" unoptimized />
                         </button>
@@ -491,7 +706,7 @@ export default function MerchBoardView() {
                       <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Qty: {m.quantity} · {formatPrice(m.price, m.currency)}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${pill.cls}`}>{pill.label}</span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                           {canReport && (
                             <button
                               type="button"
@@ -560,6 +775,8 @@ export default function MerchBoardView() {
                   {mine.map((m) => {
                     const pill = merchStatusPill(m.status);
                     const firstImage = m.images?.[0];
+                    const isSold = m.status === "sold";
+                    const connectionCount = connections.filter((c) => c.merchListingId === m.id && !["ended", "expired", "declined"].includes(c.stage)).length;
                     return (
                       <div
                         key={m.id}
@@ -581,6 +798,40 @@ export default function MerchBoardView() {
                           <p className="text-sm text-neutral-600 dark:text-neutral-400">Qty: {m.quantity} · {formatPrice(m.price, m.currency)}</p>
                         </div>
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${pill.cls}`}>{pill.label}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {connectionCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setTab("connections")}
+                              className="rounded-lg border-2 border-army-purple/40 bg-transparent px-3 py-1.5 text-sm font-semibold text-army-purple hover:bg-army-purple/10 dark:border-army-purple/60 dark:text-army-300 dark:hover:bg-army-purple/20"
+                            >
+                              Connections ({connectionCount})
+                            </button>
+                          )}
+                          {!isSold && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkSold(m)}
+                              className="rounded-lg px-2 py-1 text-xs font-semibold text-army-600 hover:bg-army-200/40 dark:text-army-400 dark:hover:bg-army-800/30"
+                            >
+                              Mark sold
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => { setEditListing(m); setPostOpen(true); }}
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-army-purple hover:bg-army-purple/10 dark:hover:bg-army-purple/20"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm(m)}
+                            className="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -593,9 +844,9 @@ export default function MerchBoardView() {
 
       {/* Post Merch modal */}
       {postOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !postSubmitting && setPostOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { if (!postSubmitting) { resetPostFlow(); setEditListing(null); setPostOpen(false); } }}>
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/30" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-army-purple">Post Merch Listing</h3>
+            <h3 className="text-lg font-bold text-army-purple">{editListing ? "Edit listing" : "Post Merch Listing"}</h3>
             <div className="mt-4 space-y-3">
               <label className="block text-sm font-medium">Category *</label>
               <select value={postCategorySlug} onChange={(e) => { setPostCategorySlug(e.target.value); setPostSubcategorySlug(""); }} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800">
@@ -745,14 +996,174 @@ export default function MerchBoardView() {
               </div>
             </div>
             <div className="mt-6 flex gap-2 justify-end">
-              <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => !postSubmitting && setPostOpen(false)} disabled={postSubmitting}>Cancel</button>
-              <button type="button" className="btn-army" onClick={handlePostSubmit} disabled={postSubmitting}>{postSubmitting ? "Posting…" : "Post"}</button>
+              <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => { if (!postSubmitting) { resetPostFlow(); setEditListing(null); setPostOpen(false); } }} disabled={postSubmitting}>Cancel</button>
+              {editListing ? (
+                <button type="button" className="btn-army" onClick={() => void handleEditSubmit()} disabled={postSubmitting}>{postSubmitting ? "Updating…" : "Update listing"}</button>
+              ) : (
+                <button type="button" className="btn-army" onClick={handlePostSubmit} disabled={postSubmitting}>{postSubmitting ? "Posting…" : "Continue"}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBondingModal && bondingPrompts.length >= 2 && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowBondingModal(false)}>
+          <div className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-bold text-army-purple">Build trust with buyers</h3>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Answer these 2 questions once. Your answers will be shown to buyers when they connect to your listings.
+            </p>
+            <div className="mt-4 space-y-3">
+              {bondingPrompts.map((q) => (
+                <div key={q.id}>
+                  <label className="block text-sm font-medium text-army-purple">{q.prompt}</label>
+                  <textarea
+                    className="mt-1 w-full min-h-[80px] rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                    value={bondingAnswers[q.id] ?? ""}
+                    onChange={(e) => setBondingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder="Your answer…"
+                  />
+                </div>
+              ))}
+            </div>
+            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => setShowBondingModal(false)} disabled={bondingSubmitting}>Cancel</button>
+              <button type="button" className="btn-army" onClick={() => void submitBondingThenSocials()} disabled={bondingSubmitting}>{bondingSubmitting ? "Saving…" : "Save & continue"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSocialsModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowSocialsModal(false)}>
+          <div className="w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/25" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-bold text-army-purple">Before your listing goes live</h3>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Are you comfortable sharing your socials (Instagram or Facebook) with buyers who connect to this listing?
+            </p>
+            <div className="mt-4 flex gap-4">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="radio" name="merch-seller-socials" checked={sellerComfortableSocials === true} onChange={() => setSellerComfortableSocials(true)} />
+                <span>Yes</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="radio" name="merch-seller-socials" checked={sellerComfortableSocials === false} onChange={() => setSellerComfortableSocials(false)} />
+                <span>No</span>
+              </label>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => setShowSocialsModal(false)}>Cancel</button>
+              <button
+                type="button"
+                className="btn-army"
+                onClick={() => { setShowSocialsModal(false); setShowSafetyModal(true); }}
+                disabled={sellerComfortableSocials === null}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSafetyModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowSafetyModal(false)}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/25" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-bold text-army-purple">Warnings &amp; safety</h3>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Please read and confirm before your listing goes live.</p>
+            <div className="mt-4 max-h-[50vh] overflow-y-auto space-y-4 rounded-xl border border-army-purple/15 p-4 text-sm text-neutral-800 dark:border-army-purple/25 dark:bg-neutral-900/60 dark:text-neutral-200">
+              <p className="font-semibold text-army-purple">Before you list</p>
+              <p>This platform is only here to help ARMYs connect. We do not verify merch, identities, or payments. You list at your own discretion.</p>
+              <hr className="border-army-purple/15 dark:border-army-purple/25" />
+              <p className="font-semibold text-army-purple">Face value only</p>
+              <p>Only <strong>face value</strong> is accepted. By listing, you agree to sell at face value only. Listing above face value can lead to reports and a ban.</p>
+              <hr className="border-army-purple/15 dark:border-army-purple/25" />
+              <p className="font-semibold text-army-purple">By posting, you confirm:</p>
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={safetyAck1} onChange={(e) => setSafetyAck1(e.target.checked)} />
+                  <span>I understand the admins do not verify merch, handle payments, or take responsibility for transactions.</span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={safetyAck2} onChange={(e) => setSafetyAck2(e.target.checked)} />
+                  <span>I choose to list at my own discretion.</span>
+                </label>
+              </div>
+            </div>
+            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => setShowSafetyModal(false)} disabled={postSubmitting}>Back</button>
+              <button type="button" className="btn-army" onClick={() => void doCreateMerchListing()} disabled={postSubmitting || !safetyAck1 || !safetyAck2}>
+                {postSubmitting ? "Posting…" : "Post listing"}
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* Connect to merch modal */}
+      {detailListing && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={() => setDetailListing(null)}>
+          <div className="my-8 w-full max-w-lg rounded-2xl border border-army-purple/20 bg-white shadow-xl dark:bg-neutral-900 dark:border-army-purple/25" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-xl font-bold text-army-purple">{detailListing.title}</h3>
+                <button type="button" className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800" onClick={() => setDetailListing(null)} aria-label="Close">×</button>
+              </div>
+              {detailListing.images && detailListing.images.length > 0 ? (
+                <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+                  {detailListing.images.map((src, i) => (
+                    <button key={i} type="button" className="relative h-40 w-40 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800" onClick={() => { setLightboxSrc(src); setLightboxOpen(true); setDetailListing(null); }}>
+                      <Image src={src} alt={`${detailListing.title} ${i + 1}`} fill className="object-cover" sizes="160px" unoptimized />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 h-40 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-400 text-sm">No image</div>
+              )}
+              <p className="mt-4 text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{detailListing.description || "—"}</p>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-neutral-500 dark:text-neutral-400">Quantity</dt>
+                <dd className="font-medium">{detailListing.quantity}</dd>
+                <dt className="text-neutral-500 dark:text-neutral-400">Price</dt>
+                <dd className="font-medium">{formatPrice(detailListing.price, detailListing.currency)}</dd>
+                <dt className="text-neutral-500 dark:text-neutral-400">Status</dt>
+                <dd><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${merchStatusPill(detailListing.status).cls}`}>{merchStatusPill(detailListing.status).label}</span></dd>
+                {detailListing.filterOptions && typeof detailListing.filterOptions === "object" && Object.entries(detailListing.filterOptions).map(([key, val]) => (val != null && String(val).trim() !== "" ? (
+                  <span key={key} className="contents">
+                    <dt className="text-neutral-500 dark:text-neutral-400">{formatFilterOptionKey(key)}</dt>
+                    <dd className="font-medium">{String(val)}</dd>
+                  </span>
+                ) : null))}
+              </dl>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <button type="button" className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600" onClick={() => setDetailListing(null)}>Close</button>
+                {user && detailListing.sellerId !== user.id && detailListing.status !== "sold" && detailListing.status !== "locked" && (
+                  <button
+                    type="button"
+                    className="rounded-lg bg-army-purple px-4 py-2 text-sm font-semibold text-white hover:bg-army-purple/90"
+                    onClick={() => { setConnectListingId(detailListing.id); setConnectSummary(detailListing.title); setDetailListing(null); }}
+                  >
+                    Connect
+                  </button>
+                )}
+                {user && detailListing.sellerId !== user.id && detailListing.status !== "sold" && (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20"
+                    onClick={() => { setReportOpen({ merchListingId: detailListing.id, summary: detailListing.title }); setDetailListing(null); }}
+                  >
+                    Report
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {connectListingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !connectSubmitting && setConnectListingId(null)}>
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/30" onClick={(e) => e.stopPropagation()}>
@@ -800,6 +1211,40 @@ export default function MerchBoardView() {
         listing={reportOpen ? { merchListingId: reportOpen.merchListingId, summary: reportOpen.summary } : null}
         onReported={() => { setError(null); load(); }}
       />
+
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="merch-delete-confirm-title"
+          onClick={() => setDeleteConfirm(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-army-purple/20 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:border-army-purple/30"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="merch-delete-confirm-title" className="font-display text-lg font-bold text-army-purple">
+              Delete listing?
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              {deleteConfirm.title}. This cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleteConfirm(null)} className="btn-army-outline">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete(deleteConfirm)}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RequireAuth>
   );
 }
