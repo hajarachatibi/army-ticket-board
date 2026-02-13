@@ -7,13 +7,24 @@ import { useAuth } from "@/lib/AuthContext";
 
 type ListingsMode = "tickets" | "merch";
 
+/** Emails that can see the Merch tab during testing (in addition to admins). */
+const MERCH_TESTER_EMAILS = new Set([
+  "achatibihajar1@gmail.com",
+  "acwebdev1@gmail.com",
+]);
+
+function canSeeMerch(isAdmin: boolean, email: string | undefined): boolean {
+  return isAdmin || (!!email && MERCH_TESTER_EMAILS.has(email.toLowerCase()));
+}
+
 export default function ListingsPageContent() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [mode, setMode] = useState<ListingsMode>("tickets");
+  const showMerch = canSeeMerch(isAdmin, user?.email);
 
   return (
     <>
-      {/* Top-level tab: Tickets | Merch (Merch visible only to admins during testing) */}
+      {/* Top-level tab: Tickets | Merch (Merch visible to admins and testers during testing) */}
       <div className="mb-6 inline-flex w-full max-w-xl rounded-2xl border border-army-purple/15 bg-white p-1 shadow-sm dark:border-army-purple/25 dark:bg-neutral-900">
         <button
           type="button"
@@ -24,7 +35,7 @@ export default function ListingsPageContent() {
         >
           Tickets
         </button>
-        {isAdmin && (
+        {showMerch && (
           <button
             type="button"
             className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
@@ -38,7 +49,7 @@ export default function ListingsPageContent() {
       </div>
 
       {mode === "tickets" && <ConnectionBoardView />}
-      {mode === "merch" && isAdmin && <MerchBoardView />}
+      {mode === "merch" && showMerch && <MerchBoardView />}
     </>
   );
 }

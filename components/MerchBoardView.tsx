@@ -22,8 +22,42 @@ import {
   type MerchConnectionRow,
   type MerchSellerProfileForConnect,
 } from "@/lib/supabase/merch";
+import { CURRENCY_OPTIONS } from "@/lib/data/currencies";
 import { hasUserBondingAnswers } from "@/lib/supabase/listings";
 import { uploadMerchListingImage } from "@/lib/supabase/uploadChannelImage";
+
+/** BTS official tours (OT7 and solo) for merch tour filter. */
+const MERCH_TOUR_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "—" },
+  { value: "red_bullet", label: "The Red Bullet Tour" },
+  { value: "hyyh_on_stage", label: "The Most Beautiful Moment in Life On Stage" },
+  { value: "wings", label: "The Wings Tour" },
+  { value: "love_yourself", label: "Love Yourself World Tour" },
+  { value: "speak_yourself", label: "Love Yourself: Speak Yourself" },
+  { value: "map_of_the_soul", label: "Map of the Soul Tour" },
+  { value: "ptd", label: "Permission to Dance on Stage" },
+  { value: "wake_up", label: "Wake Up: Open Your Eyes" },
+  { value: "agust_d_day", label: "SUGA | Agust D Tour 'D-Day'" },
+  { value: "hope_on_stage", label: "j-hope Tour 'HOPE ON THE STAGE'" },
+  { value: "runseokjin_ep", label: "Jin - RunSeokjin Ep. Tour" },
+  { value: "muster", label: "Muster / Fanmeeting" },
+  { value: "other", label: "Other" },
+];
+
+/** Required Collection / Event filter for merch listings. */
+const MERCH_COLLECTION_EVENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "run_bts", label: "Run BTS" },
+  { value: "bon_voyage", label: "Bon Voyage" },
+  { value: "in_the_soop", label: "In the SOOP" },
+  { value: "festa", label: "Festa" },
+  { value: "muster", label: "Muster" },
+  { value: "seasons_greetings", label: "Season's Greetings" },
+  { value: "memories", label: "Memories" },
+  { value: "popup_store", label: "Pop-up Store" },
+  { value: "artist_made", label: "Artist Made Collection" },
+  { value: "tour_name", label: "Tour name (LY, SY, PTD, D-DAY, FACE, GOLDEN etc.)" },
+  { value: "none_general", label: "None / General" },
+];
 
 type MerchTab = "all" | "connections" | "my";
 
@@ -66,13 +100,16 @@ export default function MerchBoardView() {
   const [postDescription, setPostDescription] = useState("");
   const [postQuantity, setPostQuantity] = useState(1);
   const [postPrice, setPostPrice] = useState("");
+  const [postCurrency, setPostCurrency] = useState("USD");
+  const [postSize, setPostSize] = useState("");
+  const [postColor, setPostColor] = useState("");
   const [postImage1, setPostImage1] = useState<File | null>(null);
   const [postImage2, setPostImage2] = useState<File | null>(null);
   const [postCategorySlug, setPostCategorySlug] = useState("other");
   const [postSubcategorySlug, setPostSubcategorySlug] = useState("");
+  const [postCollectionEvent, setPostCollectionEvent] = useState("none_general");
   const [postIsFanmade, setPostIsFanmade] = useState(false);
   const [postFanmadeDisclaimerAccepted, setPostFanmadeDisclaimerAccepted] = useState(false);
-  const [postProofUrl, setPostProofUrl] = useState("");
   const [postFilterSealed, setPostFilterSealed] = useState("");
   const [postFilterMember, setPostFilterMember] = useState("");
   const [postFilterTour, setPostFilterTour] = useState("");
@@ -107,6 +144,7 @@ export default function MerchBoardView() {
         filterTour: browseFilterTour || null,
         filterCondition: browseFilterCondition || null,
         filterOfficialReplica: browseFilterOfficialReplica || null,
+        filterCollectionEvent: browseFilterCollectionEvent || null,
       }),
       fetchMyMerchListings(user.id),
       fetchMyMerchConnections(user.id),
@@ -125,7 +163,7 @@ export default function MerchBoardView() {
 
   useEffect(() => {
     load();
-  }, [user?.id, browseCategorySlug, browseSubcategorySlug, browseFilterSealed, browseFilterMember, browseFilterTour, browseFilterCondition, browseFilterOfficialReplica]);
+  }, [user?.id, browseCategorySlug, browseSubcategorySlug, browseFilterSealed, browseFilterMember, browseFilterTour, browseFilterCondition, browseFilterOfficialReplica, browseFilterCollectionEvent]);
 
   useEffect(() => {
     if (!user) return;
@@ -173,6 +211,10 @@ export default function MerchBoardView() {
       setError("Enter a valid price.");
       return;
     }
+    if (!postCollectionEvent || !postCollectionEvent.trim()) {
+      setError("Please select a Collection / Event.");
+      return;
+    }
     if (postIsFanmade && !postFanmadeDisclaimerAccepted) {
       setError("You must accept the fanmade disclaimer for fanmade items.");
       return;
@@ -186,6 +228,9 @@ export default function MerchBoardView() {
     if (postFilterCondition.trim()) filterOptions.condition = postFilterCondition.trim();
     if (postFilterOfficialReplica.trim()) filterOptions.official_replica = postFilterOfficialReplica.trim();
     if (postFilterVersion.trim()) filterOptions.version = postFilterVersion.trim();
+    if (postSize.trim()) filterOptions.size = postSize.trim();
+    if (postColor.trim()) filterOptions.color = postColor.trim();
+    filterOptions.collection_event = postCollectionEvent.trim();
 
     const images: string[] = [];
     if (user?.id) {
@@ -214,14 +259,13 @@ export default function MerchBoardView() {
       description: postDescription.trim() || undefined,
       quantity: postQuantity,
       price: priceNum,
-      currency: "USD",
+      currency: postCurrency,
       images: images.length ? images : undefined,
       categorySlug: postCategorySlug || "other",
       subcategorySlug: postSubcategorySlug || null,
       isFanmade: postIsFanmade,
       fanmadeDisclaimerAccepted: postIsFanmade ? postFanmadeDisclaimerAccepted : undefined,
       filterOptions: Object.keys(filterOptions).length ? filterOptions : undefined,
-      proofUrl: postProofUrl.trim() || null,
     });
     setPostSubmitting(false);
     if (e) {
@@ -233,13 +277,16 @@ export default function MerchBoardView() {
     setPostDescription("");
     setPostQuantity(1);
     setPostPrice("");
+    setPostCurrency("USD");
+    setPostSize("");
+    setPostColor("");
     setPostImage1(null);
     setPostImage2(null);
     setPostCategorySlug("other");
     setPostSubcategorySlug("");
+    setPostCollectionEvent("none_general");
     setPostIsFanmade(false);
     setPostFanmadeDisclaimerAccepted(false);
-    setPostProofUrl("");
     setPostFilterSealed("");
     setPostFilterMember("");
     setPostFilterTour("");
@@ -362,6 +409,13 @@ export default function MerchBoardView() {
                     </select>
                   </>
                 )}
+                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Collection / Event</label>
+                <select value={browseFilterCollectionEvent} onChange={(e) => setBrowseFilterCollectionEvent(e.target.value)} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800">
+                  <option value="">Any</option>
+                  {MERCH_COLLECTION_EVENT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
                 <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Sealed</label>
                 <select value={browseFilterSealed} onChange={(e) => setBrowseFilterSealed(e.target.value)} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800">
                   <option value="">Any</option>
@@ -382,13 +436,9 @@ export default function MerchBoardView() {
                 </select>
                 <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Tour</label>
                 <select value={browseFilterTour} onChange={(e) => setBrowseFilterTour(e.target.value)} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800">
-                  <option value="">Any</option>
-                  <option value="LY">LY</option>
-                  <option value="SY">SY</option>
-                  <option value="PTD">PTD</option>
-                  <option value="D-DAY">D-DAY</option>
-                  <option value="FACE">FACE</option>
-                  <option value="GOLDEN">GOLDEN</option>
+                  {MERCH_TOUR_OPTIONS.map((o) => (
+                    <option key={o.value || "any"} value={o.value}>{o.value ? o.label : "Any"}</option>
+                  ))}
                 </select>
                 <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Condition</label>
                 <select value={browseFilterCondition} onChange={(e) => setBrowseFilterCondition(e.target.value)} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800">
@@ -563,6 +613,12 @@ export default function MerchBoardView() {
                   </select>
                 </>
               )}
+              <label className="block text-sm font-medium">Collection / Event *</label>
+              <select value={postCollectionEvent} onChange={(e) => setPostCollectionEvent(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" required>
+                {MERCH_COLLECTION_EVENT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={postIsFanmade} onChange={(e) => { setPostIsFanmade(e.target.checked); if (!e.target.checked) setPostFanmadeDisclaimerAccepted(false); }} />
                 <span className="text-sm font-medium">This is fanmade merch (not official BTS)</span>
@@ -582,11 +638,31 @@ export default function MerchBoardView() {
               <textarea value={postDescription} onChange={(e) => setPostDescription(e.target.value)} rows={2} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="Condition, details..." />
               <label className="block text-sm font-medium">Quantity *</label>
               <input type="number" min={1} value={postQuantity} onChange={(e) => setPostQuantity(parseInt(e.target.value, 10) || 1)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" />
-              <label className="block text-sm font-medium">Price (USD) *</label>
-              <input type="text" inputMode="decimal" value={postPrice} onChange={(e) => setPostPrice(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="0.00" />
-              <label className="block text-sm font-medium">Proof URL (optional, for signed/broadcast/rare)</label>
-              <input type="url" value={postProofUrl} onChange={(e) => setPostProofUrl(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="https://..." />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium">Size (optional)</label>
+                  <input type="text" value={postSize} onChange={(e) => setPostSize(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="e.g. M, One size" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Color (optional)</label>
+                  <input type="text" value={postColor} onChange={(e) => setPostColor(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="e.g. Black, Navy" />
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <label className="block text-sm font-medium">Price *</label>
+                  <input type="text" inputMode="decimal" value={postPrice} onChange={(e) => setPostPrice(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800" placeholder="0.00" />
+                </div>
+                <div className="pt-7">
+                  <select value={postCurrency} onChange={(e) => setPostCurrency(e.target.value)} className="h-[42px] w-full min-w-[6rem] rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800 sm:w-auto">
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <p className="text-xs font-semibold uppercase tracking-wide text-army-purple/80">Optional filters</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">This will help users find your items quickly.</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400">Sealed / Opened</label>
@@ -613,15 +689,9 @@ export default function MerchBoardView() {
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400">Tour</label>
                   <select value={postFilterTour} onChange={(e) => setPostFilterTour(e.target.value)} className="mt-0.5 w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800">
-                    <option value="">—</option>
-                    <option value="LY">LY</option>
-                    <option value="SY">SY</option>
-                    <option value="PTD">PTD</option>
-                    <option value="D-DAY">D-DAY</option>
-                    <option value="FACE">FACE</option>
-                    <option value="GOLDEN">GOLDEN</option>
-                    <option value="Muster">Muster</option>
-                    <option value="Other">Other</option>
+                    {MERCH_TOUR_OPTIONS.map((o) => (
+                      <option key={o.value || "none"} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -648,6 +718,7 @@ export default function MerchBoardView() {
                 </div>
               </div>
               <p className="text-sm font-medium">Photos (optional, up to 2)</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">If you have a pic of your item add it here to build trust with the users.</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Photo 1</label>

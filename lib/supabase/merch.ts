@@ -112,6 +112,7 @@ export async function fetchBrowseMerchListings(filters?: {
   filterTour?: string | null;
   filterCondition?: string | null;
   filterOfficialReplica?: string | null;
+  filterCollectionEvent?: string | null;
 }): Promise<{
   data: MerchListingCard[];
   error: string | null;
@@ -124,6 +125,7 @@ export async function fetchBrowseMerchListings(filters?: {
     p_filter_tour: filters?.filterTour ?? null,
     p_filter_condition: filters?.filterCondition ?? null,
     p_filter_official_replica: filters?.filterOfficialReplica ?? null,
+    p_filter_collection_event: filters?.filterCollectionEvent ?? null,
   });
   if (error) return { data: [], error: error.message };
   const rows = (data ?? []) as any[];
