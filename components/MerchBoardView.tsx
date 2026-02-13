@@ -192,6 +192,16 @@ export default function MerchBoardView() {
     return map;
   }, [notifications]);
 
+  const myPendingMerchConnectionByListingId = useMemo(() => {
+    if (!user) return new Map<string, MerchConnectionRow>();
+    const map = new Map<string, MerchConnectionRow>();
+    for (const c of connections) {
+      if (c.buyerId !== user.id || c.stage !== "pending_seller") continue;
+      map.set(c.merchListingId, c);
+    }
+    return map;
+  }, [connections, user]);
+
   const load = async () => {
     if (!user) return;
     setLoading(true);
@@ -729,6 +739,7 @@ export default function MerchBoardView() {
                   const isLocked = m.status === "locked";
                   const isSold = m.status === "sold";
                   const canConnect = user && !isOwn && !isLocked && !isSold;
+                  const myPending = canConnect ? myPendingMerchConnectionByListingId.get(m.id) : null;
                   const canReport = user && !isOwn && m.status !== "sold";
                   const firstImage = m.images?.[0];
                   return (
@@ -777,13 +788,13 @@ export default function MerchBoardView() {
                           {canConnect && (
                             <button
                               type="button"
-                              className="rounded-lg bg-army-purple px-3 py-1.5 text-sm font-semibold text-white hover:bg-army-purple/90"
+                              className={myPending ? "rounded-lg border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20" : "rounded-lg bg-army-purple px-3 py-1.5 text-sm font-semibold text-white hover:bg-army-purple/90"}
                               onClick={() => {
                                 setConnectListingId(m.id);
                                 setConnectSummary(m.title);
                               }}
                             >
-                              Connect
+                              {myPending ? "Cancel request" : "Connect"}
                             </button>
                           )}
                         </div>
@@ -1216,10 +1227,10 @@ export default function MerchBoardView() {
                 {user && detailListing.sellerId !== user.id && detailListing.status !== "sold" && detailListing.status !== "locked" && (
                   <button
                     type="button"
-                    className="rounded-lg bg-army-purple px-4 py-2 text-sm font-semibold text-white hover:bg-army-purple/90"
+                    className={myPendingMerchConnectionByListingId.has(detailListing.id) ? "rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20" : "rounded-lg bg-army-purple px-4 py-2 text-sm font-semibold text-white hover:bg-army-purple/90"}
                     onClick={() => { setConnectListingId(detailListing.id); setConnectSummary(detailListing.title); setDetailListing(null); }}
                   >
-                    Connect
+                    {myPendingMerchConnectionByListingId.has(detailListing.id) ? "Cancel request" : "Connect"}
                   </button>
                 )}
                 {user && detailListing.sellerId !== user.id && detailListing.status !== "sold" && (
