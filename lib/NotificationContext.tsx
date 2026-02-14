@@ -22,7 +22,7 @@ export type NotificationType =
   | "connection_request_accepted"
   | "connection_request_declined"
   | "connection_on_waiting_list"
-  | "connection_bonding_submitted"
+  | "connection_bonding_submitted"  // legacy: no longer sent (steps merged)
   | "connection_preview_ready"
   | "connection_comfort_updated"
   | "connection_social_updated"

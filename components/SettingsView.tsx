@@ -21,14 +21,12 @@ import { validateAllSocials } from "@/lib/security/socialValidation";
 import { supabase } from "@/lib/supabaseClient";
 import { useTheme } from "@/lib/ThemeContext";
 
+// Bonding, preview, comfort are no longer sent (steps merged); kept in DB/context for old notifications.
 const PUSH_NOTIFICATION_TYPES = [
   "connection_request_received",
   "connection_request_accepted",
   "connection_request_declined",
   "connection_on_waiting_list",
-  "connection_bonding_submitted",
-  "connection_preview_ready",
-  "connection_comfort_updated",
   "connection_social_updated",
   "connection_agreement_updated",
   "connection_match_confirmed",
@@ -46,9 +44,6 @@ const PUSH_TYPE_LABELS: Record<string, string> = {
   connection_request_accepted: "Connection request accepted",
   connection_request_declined: "Connection request declined",
   connection_on_waiting_list: "On waiting list",
-  connection_bonding_submitted: "Bonding answers submitted",
-  connection_preview_ready: "Preview ready",
-  connection_comfort_updated: "Comfort updated",
   connection_social_updated: "Social share updated",
   connection_agreement_updated: "Agreement updated",
   connection_match_confirmed: "Match confirmed",
