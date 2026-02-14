@@ -11,6 +11,7 @@ import { useNotifications } from "@/lib/NotificationContext";
 import {
   fetchBrowseMerchListings,
   fetchMerchCategories,
+  fetchMerchListingById,
   fetchMyMerchListings,
   fetchMyMerchConnections,
   createMerchListing,
